@@ -16,10 +16,11 @@
 
 ### 1. 获取镜像加速器地址（重要）
 
-国内服务器直接拉取 Docker Hub 会超时，需要配置加速器：
+国内服务器直接拉取 Docker Hub 会超时，需要配置加速器。
 
-1. 登录[阿里云容器镜像服务控制台](https://cr.console.aliyun.com/cn-hangzhou/instances/mirrors)
-2. 复制你的专属加速器地址，形如 `https://xxxx.mirror.aliyuncs.com`
+你的阿里云专属加速器地址：**`https://kscq6k8w.mirror.aliyuncs.com`**
+
+> 地址若失效，可重新到[阿里云容器镜像服务控制台](https://cr.console.aliyun.com/cn-hangzhou/instances/mirrors)获取新的专属地址，形如 `https://xxxx.mirror.aliyuncs.com`。
 
 ### 2. 上传并运行安装脚本
 
@@ -27,7 +28,7 @@
 
 ```bash
 cd /home/admin/bookkeeping/deploy
-sudo bash install-docker.sh https://xxxx.mirror.aliyuncs.com
+sudo bash install-docker.sh https://kscq6k8w.mirror.aliyuncs.com
 ```
 
 > 不传加速器参数也可以安装，之后可手动编辑 `/etc/docker/daemon.json` 添加 `registry-mirrors`。
