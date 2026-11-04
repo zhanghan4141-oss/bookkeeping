@@ -144,47 +144,6 @@ vim .env
 
 ---
 
-## 二½、代码兼容性修复（首次部署必须执行）
-
-> ⚠️ 原始仓库代码存在两处与当前运行环境不兼容的问题，**必须在构建前修复**，否则启动会失败。
-> 如果你使用的是已修复的分支或 fork，可跳过本节。
-
-### 1. 移除 MySQL 8.4 废弃参数
-
-MySQL 8.4+ 已移除 `--default-authentication-plugin` 参数，保留会导致 db 容器启动即 Abort。
-
-```bash
-cd /home/admin/bookkeeping/deploy
-sed -i 's/--default-authentication-plugin=mysql_native_password //' docker-compose.yml
-```
-
-验证修复结果（command 行应只包含字符集参数）：
-
-```bash
-grep "command:" docker-compose.yml
-# 预期输出：command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-```
-
-### 2. 将 Dockerfile 中的 `npm ci` 改为 `npm install`
-
-项目 lock 文件与 Docker 构建环境中的 Node 小版本不完全匹配，`npm ci` 会因严格校验而失败。
-
-```bash
-# 修复 backend Dockerfile（两处 npm ci）
-cd /home/admin/bookkeeping/backend
-sed -i 's/RUN npm ci$/RUN npm install/' Dockerfile
-sed -i 's/RUN npm ci --omit=dev/RUN npm install --omit=dev/' Dockerfile
-
-# 修复 frontend Dockerfile（一处 npm ci）
-cd /home/admin/bookkeeping/frontend
-sed -i 's/RUN npm ci$/RUN npm install/' Dockerfile
-```
-
-> 💡 `npm install` 在缺少或多余的依赖时会自动修正，而 `npm ci` 要求 lock 文件与 package.json 完全一致。
-> 对于生产构建，建议在本地用相同 Node 版本执行 `npm install` 并提交更新后的 lock 文件，之后可改回 `npm ci`。
-
----
-
 ## 三、启动 Docker 服务
 
 ```bash
@@ -226,7 +185,6 @@ Server is running on port 3000
 ---
 
 ## 四、配置宿主机 nginx（关键：与现有服务共存）
-
 项目提供模板 `deploy/nginx-bookkeeping.conf`，把它合并进你现有的 nginx 配置。
 
 ### 1. 准备 SSL 证书
