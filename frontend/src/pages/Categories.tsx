@@ -16,11 +16,11 @@ export default function Categories() {
     queryFn: async () => (await categoryApi.list(id)).data as Category[],
   });
 
-  const handleAdd = async (values: { name: string; type: string; color?: string }) => {
+  const handleAdd = async (values: { name: string; type: string[]; color?: string }) => {
     try {
       await categoryApi.create(id, {
         name: values.name,
-        type: values.type,
+        type: values.type[0],
         color: values.color,
       });
       Toast.show({ content: '添加成功' });
@@ -105,7 +105,7 @@ export default function Categories() {
           <Form
             layout="vertical"
             onFinish={handleAdd}
-            initialValues={{ type: 'expense' }}
+            initialValues={{ type: ['expense'] }}
             footer={
               <Button block type="submit" color="primary">
                 添加

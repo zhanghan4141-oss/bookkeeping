@@ -10,7 +10,6 @@ export default function TransactionForm() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const [type, setType] = useState<'expense' | 'income' | 'transfer'>('expense');
-  const [categoryPicker, setCategoryPicker] = useState(false);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', id],
@@ -77,6 +76,7 @@ export default function TransactionForm() {
         <Form
           layout="vertical"
           onFinish={onFinish}
+          initialValues={{ category: [] }}
           footer={
             <Button block type="submit" color="primary" size="large">
               保存
@@ -88,10 +88,8 @@ export default function TransactionForm() {
           </Form.Item>
 
           {type !== 'transfer' && (
-            <Form.Item name="category" label="类别" trigger="onConfirm" onClick={() => setCategoryPicker(true)}>
+            <Form.Item name="category" label="类别" trigger="onConfirm">
               <Picker
-                visible={categoryPicker}
-                onClose={() => setCategoryPicker(false)}
                 columns={[typeCategories.map((c) => ({ label: c.name, value: c.id }))]}
               >
                 {(items) => <Input value={String(items[0]?.label ?? '请选择类别')} readOnly placeholder="请选择类别" />}

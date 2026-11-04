@@ -29,9 +29,9 @@ export default function Ledgers() {
     queryFn: async () => (await repaymentApi.upcoming(7)).data,
   });
 
-  const handleCreate = async (values: { name: string; type: string }) => {
+  const handleCreate = async (values: { name: string; type: string[] }) => {
     try {
-      await ledgerApi.create(values);
+      await ledgerApi.create({ name: values.name, type: values.type[0] });
       Toast.show({ content: '创建成功' });
       setShowCreate(false);
       refetch();
@@ -121,7 +121,7 @@ export default function Ledgers() {
           <Form
             layout="vertical"
             onFinish={handleCreate}
-            initialValues={{ type: 'daily' }}
+            initialValues={{ type: ['daily'] }}
             footer={
               <Button block type="submit" color="primary">
                 创建
