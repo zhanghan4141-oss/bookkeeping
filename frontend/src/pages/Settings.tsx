@@ -10,7 +10,7 @@ export default function Settings() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  const { data: setting } = useQuery({
+  const { data: setting, refetch } = useQuery({
     queryKey: ['settings', 'reminder'],
     queryFn: async () => (await settingsApi.getReminder()).data as ReminderSetting,
   });
@@ -23,6 +23,7 @@ export default function Settings() {
   const save = async (patch: Partial<ReminderSetting>) => {
     try {
       await settingsApi.updateReminder(patch);
+      refetch();
       Toast.show({ content: '已保存' });
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '保存失败' });

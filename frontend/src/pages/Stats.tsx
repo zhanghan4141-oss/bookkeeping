@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Checkbox, NavBar, Picker, Popup } from 'antd-mobile';
+import { Checkbox, NavBar, Picker } from 'antd-mobile';
 import { statApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
 import Chart from '../components/Chart';
@@ -127,33 +127,26 @@ export default function Stats() {
         </div>
       </div>
 
-      <Popup
+      <Picker
         visible={showPicker}
-        onMaskClick={() => setShowPicker(false)}
-        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
-      >
-        <div style={{ padding: 24 }}>
-          <h3 style={{ marginBottom: 16 }}>统计周期</h3>
-          <Picker
-            columns={[
-              [
-                { label: '公历', value: 'solar' },
-                { label: '农历', value: 'lunar' },
-              ],
-              [
-                { label: '按月', value: 'month' },
-                { label: '按年', value: 'year' },
-              ],
-            ]}
-            value={[calendar, period]}
-            onConfirm={(v) => {
-              setCalendar(v[0] as 'solar' | 'lunar');
-              setPeriod(v[1] as 'month' | 'year');
-              setShowPicker(false);
-            }}
-          />
-        </div>
-      </Popup>
+        onClose={() => setShowPicker(false)}
+        columns={[
+          [
+            { label: '公历', value: 'solar' },
+            { label: '农历', value: 'lunar' },
+          ],
+          [
+            { label: '按月', value: 'month' },
+            { label: '按年', value: 'year' },
+          ],
+        ]}
+        value={[calendar, period]}
+        onConfirm={(v) => {
+          setCalendar(v[0] as 'solar' | 'lunar');
+          setPeriod(v[1] as 'month' | 'year');
+          setShowPicker(false);
+        }}
+      />
     </div>
   );
 }

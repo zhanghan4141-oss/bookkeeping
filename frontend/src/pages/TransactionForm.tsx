@@ -107,7 +107,11 @@ export default function TransactionForm() {
 
           <Form.Item name="date" label="日期">
             <DatePicker>
-              {(value) => <Input value={value ? value.toISOString().slice(0, 10) : ''} readOnly placeholder="今天" />}
+              {(value, actions) => (
+                <div onClick={() => actions.open()}>
+                  <Input value={value ? value.toISOString().slice(0, 10) : ''} readOnly placeholder="今天" />
+                </div>
+              )}
             </DatePicker>
           </Form.Item>
         </Form>

@@ -151,7 +151,11 @@ export default function LoanForm() {
               value={new Date(form.startDate)}
               onConfirm={(v) => v && set('startDate', v.toISOString().slice(0, 10))}
             >
-              {(value) => <Input value={value ? value.toISOString().slice(0, 10) : ''} readOnly />}
+              {(value, actions) => (
+                <div onClick={() => actions.open()}>
+                  <Input value={value ? value.toISOString().slice(0, 10) : ''} readOnly />
+                </div>
+              )}
             </DatePicker>
           </Form.Item>
           <Form.Item name="method" label="还款方式" trigger="onConfirm">
