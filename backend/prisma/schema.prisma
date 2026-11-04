@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  passwordHash    String
+  nickname        String
+  avatarUrl       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ledgerMembers     LedgerMember[]
+  transactions      Transaction[]
+  notifications     Notification[]
+  reminderSetting   ReminderSetting?
+}
+
+// 账本
+model Ledger {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   @default("daily") // daily | loan | custom
+  icon      String?
+  color     String?
+  currency  String   @default("CNY")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members      LedgerMember[]
+  categories   Category[]
+  transactions Transaction[]
+  loans        Loan[]
+}
+
+// 账本成员（家人共享）
+model LedgerMember {
+  id        String   @id @default(cuid())
+  ledgerId  String
+  userId    String
+  role      String   @default("editor") // owner | editor | viewer
+  createdAt DateTime @default(now())
+
+  ledger Ledger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ledgerId, userId])
+  @@index([userId])
+}
+
+// 类别（挂在账本下）
+model Category {
+  id        String  @id @default(cuid())
+  ledgerId  String
+  name      String
+  type      String  @default("expense") // expense | income
+  icon      String?
+  color     String?
+  sortOrder Int     @default(0)
+  isBuiltin Boolean @default(false)
+
+  ledger       Ledger        @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([ledgerId])
+}
+
+// 流水
+model Transaction {
+  id         String   @id @default(cuid())
+  ledgerId   String
+  categoryId String?
+  userId     String
+  type       String   @default("expense") // expense | income | transfer
+  amount     Decimal  @db.Decimal(12, 2)
+  note       String?
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  ledger   Ledger    @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([ledgerId, occurredAt])
+  @@index([userId])
+}
+
+// 贷款
+model Loan {
+  id              String   @id @default(cuid())
+  ledgerId        String
+  name            String
+  direction       String   @default("borrow") // borrow 我借出(应收) | lend 我借入(应还)
+  principal       Decimal  @db.Decimal(14, 2)
+  annualRate      Decimal  @db.Decimal(6, 4) // 年利率%，如 4.9
+  startDate       DateTime @db.Date
+  termMonths      Int
+  repaymentDay    Int      @default(1) // 每月还款日 1-31
+  repaymentMethod String   @default("equal_installment") // equal_installment | equal_principal | interest_first | custom
+  status          String   @default("active") // active | paid_off | closed
+  note            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ledger      Ledger           @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  repayments  LoanRepayment[]
+
+  @@index([ledgerId])
+}
+
+// 还款计划（摊销表）
+model LoanRepayment {
+  id              String   @id @default(cuid())
+  loanId          String
+  periodNo        Int
+  dueDate         DateTime @db.Date
+  principalAmount Decimal  @db.Decimal(14, 2)
+  interestAmount  Decimal  @db.Decimal(14, 2)
+  totalAmount     Decimal  @db.Decimal(14, 2)
+  paidAmount      Decimal  @db.Decimal(14, 2) @default(0)
+  status          String   @default("pending") // pending | partial | paid | overdue
+  paidDate        DateTime? @db.Date
+  note            String?
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@unique([loanId, periodNo])
+  @@index([dueDate])
+}
+
+// 站内通知
+model Notification {
+  id            String   @id @default(cuid())
+  userId        String
+  type          String   @default("system") // loan_reminder | overdue | system
+  title         String
+  content       String
+  relatedLoanId String?
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+// 提醒设置（用户级）
+model ReminderSetting {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  leadDays     Int     @default(3)
+  emailEnabled Boolean @default(false)
+  email        String?
+  inappEnabled Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

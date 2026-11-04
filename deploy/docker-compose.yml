@@ -1,0 +1,87 @@
+services:
+  db:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: bookkeeping
+      MYSQL_USER: bookkeeping
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    networks:
+      - internal
+
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql://bookkeeping:${MYSQL_PASSWORD}@db:3306/bookkeeping
+      PORT: 3000
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      MAIL_FROM: ${MAIL_FROM}
+      FRONTEND_URL: https://${DOMAIN}
+    depends_on:
+      - db
+    networks:
+      - internal
+
+  frontend:
+    build: ../frontend
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${DOMAIN}
+      LETSENCRYPT_HOST: ${DOMAIN}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    networks:
+      - internal
+
+  proxy:
+    image: nginxproxy/nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - proxy_certs:/etc/nginx/certs
+      - proxy_vhost:/etc/nginx/vhost.d
+      - proxy_html:/usr/share/nginx/html
+    networks:
+      - internal
+
+  acme:
+    image: nginxproxy/acme-companion
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - proxy_certs:/etc/nginx/certs
+      - proxy_vhost:/etc/nginx/vhost.d
+      - proxy_html:/usr/share/nginx/html
+      - acme_data:/etc/acme.sh
+    environment:
+      DEFAULT_EMAIL: ${LETSENCRYPT_EMAIL}
+    depends_on:
+      - proxy
+    networks:
+      - internal
+
+volumes:
+  db_data:
+  proxy_certs:
+  proxy_vhost:
+  proxy_html:
+  acme_data:
+
+networks:
+  internal:
+    driver: bridge
