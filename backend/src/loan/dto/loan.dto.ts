@@ -13,18 +13,13 @@ import {
 } from 'class-validator';
 
 class CustomPeriodDto {
-  @IsNumber()
-  @Type(() => Number)
-  principalAmount!: number;
+  @IsDateString()
+  dueDate!: string;
 
   @IsNumber()
+  @Min(0)
   @Type(() => Number)
-  interestAmount!: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  totalAmount?: number;
+  totalAmount!: number;
 }
 
 export class CreateLoanDto {
@@ -146,4 +141,14 @@ export class PayRepaymentDto {
   @IsOptional()
   @IsDateString()
   paidDate?: string;
+}
+
+export class PrepayDto {
+  @IsNumber()
+  @Min(0.01)
+  @Type(() => Number)
+  amount!: number; // 提前还的本金金额
+
+  @IsDateString()
+  prepayDate!: string; // 提前还款日期
 }

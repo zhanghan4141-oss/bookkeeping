@@ -154,12 +154,14 @@ export class ImportExportService {
     const sheet = workbook.worksheets[0];
     if (!sheet) throw new BadRequestException('Excel 文件为空');
 
-    const customPeriods: { principalAmount: number; interestAmount: number }[] = [];
+    const customPeriods: { dueDate: Date; totalAmount: number }[] = [];
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
-      const principal = Number(row.getCell(3).value);
-      const interest = Number(row.getCell(4).value);
-      customPeriods.push({ principalAmount: principal, interestAmount: interest });
+      const dueDate = new Date(row.getCell(2).value as string | Date);
+      const total = Number(row.getCell(5).value);
+      if (!isNaN(dueDate.getTime()) && !isNaN(total)) {
+        customPeriods.push({ dueDate, totalAmount: total });
+      }
     });
 
     if (customPeriods.length !== loan.termMonths) {

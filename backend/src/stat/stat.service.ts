@@ -12,7 +12,9 @@ export class StatService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * 统计：收入、支出（含已还贷款利息）、盈余、类别分布、趋势。
+   * 统计：收入、支出、盈余、类别分布、趋势。
+   * 口径：现金流视角，只统计「已发生」的流水（occurredAt <= 当前时间）。
+   * 贷款相关流水（放款收入、还款本金、还款利息）已随贷款创建/还款写入流水，直接按流水统计。
    */
   async summary(userId: string, ledgerIds: string[], query: SummaryQueryDto) {
     const period: Period = query.period ?? 'month';
@@ -24,24 +26,18 @@ export class StatService {
       return this.emptyResult(period, calendar);
     }
 
-    // 流水
+    const now = new Date();
+
+    // 流水（只统计已发生的）
     const transactions = await this.prisma.transaction.findMany({
-      where: { ledgerId: { in: accessible } },
+      where: {
+        ledgerId: { in: accessible },
+        occurredAt: { lte: now },
+      },
       include: {
         category: { select: { id: true, name: true, type: true, color: true, icon: true } },
       },
       orderBy: { occurredAt: 'asc' },
-    });
-
-    // 已还贷款利息（计入支出）—— 只取有还款记录的
-    const paidRepayments = await this.prisma.loanRepayment.findMany({
-      where: {
-        paidAmount: { gt: 0 },
-        loan: { ledgerId: { in: accessible } },
-      },
-      include: {
-        loan: { select: { id: true, name: true, ledgerId: true, direction: true } },
-      },
     });
 
     // 收支累计
@@ -89,29 +85,6 @@ export class StatService {
         }
         byCategory.get(key)!.amount += tx.type === 'transfer' ? 0 : amount;
       }
-    }
-
-    // 利息支出（口径：已还利息计入支出，本金不计）
-    for (const r of paidRepayments) {
-      const paidRatio = Number(r.paidAmount) / Math.max(Number(r.totalAmount), 1);
-      const interestPaid = Number(r.interestAmount) * paidRatio;
-      if (interestPaid <= 0) continue;
-      totalExpense += interestPaid;
-      const paidDate = r.paidDate ?? r.dueDate;
-      addTrend(paidDate, 0, interestPaid);
-
-      const categoryKey = `loan-interest:${r.loan.id}`;
-      if (!byCategory.has(categoryKey)) {
-        byCategory.set(categoryKey, {
-          categoryId: categoryKey,
-          name: `${r.loan.name}利息`,
-          type: 'expense',
-          color: null,
-          icon: null,
-          amount: 0,
-        });
-      }
-      byCategory.get(categoryKey)!.amount += interestPaid;
     }
 
     const round = (n: number) => Math.round(n * 100) / 100;

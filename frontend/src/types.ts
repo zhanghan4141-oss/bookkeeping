@@ -30,6 +30,7 @@ export interface Transaction {
   amount: string;
   note: string | null;
   occurredAt: string;
+  loanId?: string | null;
   category?: { id: string; name: string; icon: string | null; color: string | null; type: string } | null;
   user?: { id: string; nickname: string; avatarUrl: string | null };
 }
@@ -60,6 +61,7 @@ export interface Loan {
   repaymentMethod: 'equal_installment' | 'equal_principal' | 'interest_first' | 'custom';
   status: 'active' | 'paid_off' | 'closed';
   note: string | null;
+  actualAnnualRate?: number | null;
   repayments: LoanRepayment[];
 }
 

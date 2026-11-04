@@ -55,6 +55,34 @@ function calcPlan(params: {
   return list;
 }
 
+/** 前端 XIRR 计算（自定义方式实时预览实际利率） */
+function calcXIRR(principal: number, startDate: string, periods: { dueDate: string; totalAmount: number }[]): number | null {
+  if (principal <= 0 || periods.length === 0) return null;
+  const t0 = new Date(startDate).getTime();
+  const flows = [
+    { t: 0, amount: -principal },
+    ...periods.map((p) => ({ t: (new Date(p.dueDate).getTime() - t0) / (365.25 * 24 * 3600 * 1000), amount: p.totalAmount })),
+  ].filter((f, i) => i === 0 || f.t > 0);
+  if (flows.length < 2) return null;
+
+  let rate = 0.1;
+  for (let iter = 0; iter < 100; iter++) {
+    let npv = 0;
+    let dnpv = 0;
+    for (const f of flows) {
+      const df = Math.pow(1 + rate, f.t);
+      npv += f.amount / df;
+      dnpv += (-f.t * f.amount) / (df * (1 + rate));
+    }
+    if (dnpv === 0) break;
+    const newRate = rate - npv / dnpv;
+    if (Math.abs(newRate - rate) < 1e-10) { rate = newRate; break; }
+    rate = newRate;
+  }
+  if (!isFinite(rate) || rate <= -0.99) return null;
+  return rate;
+}
+
 function fmt(n: number) {
   return Math.round(n * 100) / 100;
 }
@@ -73,6 +101,8 @@ export default function LoanForm() {
     startDate: new Date().toISOString().slice(0, 10),
     note: '',
   });
+  // 自定义方式的每期 {日期, 金额}
+  const [customPeriods, setCustomPeriods] = useState<{ dueDate: string; totalAmount: string }[]>([]);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -87,6 +117,29 @@ export default function LoanForm() {
   const totalRepay = plan?.reduce((s, p) => s + p.total, 0) ?? 0;
   const totalInterest = plan?.reduce((s, p) => s + p.interest, 0) ?? 0;
 
+  // 期数变化时，自动调整自定义期数数组
+  const onTermMonthsChange = (v: string) => {
+    set('termMonths', v);
+    const n = Math.max(0, parseInt(v, 10) || 0);
+    setCustomPeriods((prev) => {
+      const arr = [...prev];
+      while (arr.length < n) arr.push({ dueDate: '', totalAmount: '' });
+      while (arr.length > n) arr.pop();
+      return arr;
+    });
+  };
+
+  // 自定义方式实际利率预览
+  const customXirr = useMemo(() => {
+    if (form.method !== 'custom') return null;
+    const principal = Number(form.principal);
+    const valid = customPeriods
+      .filter((p) => p.dueDate && p.totalAmount)
+      .map((p) => ({ dueDate: p.dueDate, totalAmount: Number(p.totalAmount) }));
+    if (valid.length === 0) return null;
+    return calcXIRR(principal, form.startDate, valid);
+  }, [form.method, form.principal, form.startDate, customPeriods]);
+
   const onSubmit = async () => {
     try {
       const payload: Record<string, unknown> = {
@@ -99,6 +152,20 @@ export default function LoanForm() {
         repaymentMethod: form.method,
         note: form.note || undefined,
       };
+      if (form.method === 'custom') {
+        if (customPeriods.length !== Number(form.termMonths)) {
+          Toast.show({ content: `请填写 ${form.termMonths} 期的还款金额和日期` });
+          return;
+        }
+        if (customPeriods.some((p) => !p.dueDate || !p.totalAmount)) {
+          Toast.show({ content: '请完整填写每一期的日期和金额' });
+          return;
+        }
+        payload.customPeriods = customPeriods.map((p) => ({
+          dueDate: p.dueDate,
+          totalAmount: Number(p.totalAmount),
+        }));
+      }
       if (isEdit) {
         await loanApi.update(id!, payload);
       } else {
@@ -116,8 +183,8 @@ export default function LoanForm() {
       <NavBar onBack={() => navigate(-1)}>{isEdit ? '编辑贷款' : '添加贷款'}</NavBar>
 
       <div style={{ padding: 16 }}>
-        <Form layout="vertical" onFinish={onSubmit} footer={
-          <Button block type="submit" color="primary" size="large">
+        <Form layout="vertical" footer={
+          <Button block type="submit" color="primary" size="large" onClick={onSubmit}>
             {isEdit ? '保存' : '创建'}
           </Button>
         }>
@@ -127,25 +194,29 @@ export default function LoanForm() {
           <Form.Item name="principal" label="本金（元）" rules={[{ required: true, message: '请输入本金' }]}>
             <Input type="number" placeholder="100000" value={form.principal} onChange={(v) => set('principal', v)} />
           </Form.Item>
-          <Form.Item name="annualRate" label="年利率（%）" rules={[{ required: true, message: '请输入年利率' }]}>
-            <Input type="number" placeholder="4.9" value={form.annualRate} onChange={(v) => set('annualRate', v)} />
-          </Form.Item>
+          {form.method !== 'custom' && (
+            <Form.Item name="annualRate" label="年利率（%）" rules={[{ required: true, message: '请输入年利率' }]}>
+              <Input type="number" placeholder="4.9" value={form.annualRate} onChange={(v) => set('annualRate', v)} />
+            </Form.Item>
+          )}
           <Form.Item name="termMonths" label="期数（月）" rules={[{ required: true, message: '请输入期数' }]}>
-            <Input type="number" placeholder="360" value={form.termMonths} onChange={(v) => set('termMonths', v)} />
+            <Input type="number" placeholder="12" value={form.termMonths} onChange={onTermMonthsChange} />
           </Form.Item>
-          <Form.Item name="repaymentDay" label="每月还款日" trigger="onConfirm">
-            <Picker
-              columns={[Array.from({ length: 28 }, (_, i) => ({ label: `${i + 1} 号`, value: String(i + 1) }))]}
-              value={[form.repaymentDay]}
-              onConfirm={(v) => set('repaymentDay', String(v[0]))}
-            >
-              {(items, actions) => (
-                <div onClick={() => actions.open()}>
-                  <Input value={String(items[0]?.label ?? '1 号')} readOnly />
-                </div>
-              )}
-            </Picker>
-          </Form.Item>
+          {form.method !== 'custom' && (
+            <Form.Item name="repaymentDay" label="每月还款日" trigger="onConfirm">
+              <Picker
+                columns={[Array.from({ length: 28 }, (_, i) => ({ label: `${i + 1} 号`, value: String(i + 1) }))]}
+                value={[form.repaymentDay]}
+                onConfirm={(v) => set('repaymentDay', String(v[0]))}
+              >
+                {(items, actions) => (
+                  <div onClick={() => actions.open()}>
+                    <Input value={String(items[0]?.label ?? '1 号')} readOnly />
+                  </div>
+                )}
+              </Picker>
+            </Form.Item>
+          )}
           <Form.Item name="startDate" label="开始日期">
             <DatePicker
               value={new Date(form.startDate)}
@@ -175,6 +246,47 @@ export default function LoanForm() {
             <Input placeholder="可选" value={form.note} onChange={(v) => set('note', v)} />
           </Form.Item>
         </Form>
+
+        {/* 自定义还款方式：每期填写日期+金额 */}
+        {form.method === 'custom' && Number(form.termMonths) > 0 && (
+          <div style={{ background: '#f5f6f8', borderRadius: 12, padding: 16, marginTop: 8 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>每期还款（日期 + 金额）</div>
+            {customPeriods.map((p, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ width: 50, fontSize: 13, color: '#666' }}>第{i + 1}期</span>
+                <div style={{ flex: 1 }}>
+                  <DatePicker
+                    value={p.dueDate ? new Date(p.dueDate) : new Date()}
+                    onConfirm={(v) => {
+                      const date = v.toISOString().slice(0, 10);
+                      setCustomPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, dueDate: date } : x)));
+                    }}
+                  >
+                    {(_value, actions) => (
+                      <div onClick={() => actions.open()} style={{ background: '#fff', borderRadius: 6, padding: '6px 10px' }}>
+                        {p.dueDate || '选择日期'}
+                      </div>
+                    )}
+                  </DatePicker>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Input
+                    type="number"
+                    placeholder="金额"
+                    value={p.totalAmount}
+                    onChange={(v) => setCustomPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, totalAmount: v } : x)))}
+                    style={{ background: '#fff', borderRadius: 6, padding: '6px 10px' }}
+                  />
+                </div>
+              </div>
+            ))}
+            {customXirr !== null && (
+              <div style={{ marginTop: 12, padding: 10, background: '#fff', borderRadius: 8, fontSize: 13 }}>
+                实际年利率（XIRR）：<span style={{ fontWeight: 700, color: '#1677ff' }}>{(customXirr * 100).toFixed(2)}%</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {plan && (
           <div style={{ background: '#f5f6f8', borderRadius: 12, padding: 16, marginTop: 8 }}>

@@ -11,7 +11,12 @@ import {
 import { LedgerAccessService } from '../common/access/ledger-access.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/decorators/current-user.decorator.js';
-import { CreateLoanDto, PayRepaymentDto, UpdateLoanDto } from './dto/loan.dto.js';
+import {
+  CreateLoanDto,
+  PayRepaymentDto,
+  PrepayDto,
+  UpdateLoanDto,
+} from './dto/loan.dto.js';
 import { LoanService } from './loan.service.js';
 
 @Controller()
@@ -33,7 +38,18 @@ export class LoanController {
   @Post('loans')
   async create(@CurrentUser() user: AuthUser, @Body() dto: CreateLoanDto) {
     await this.access.assertWritable(dto.ledgerId, user.id);
-    return this.loanService.create(dto);
+    return this.loanService.create(user.id, dto);
+  }
+
+  @Post('loans/:id/prepay')
+  async prepay(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: PrepayDto,
+  ) {
+    const loan = await this.loanService.findLoanEntity(id);
+    await this.access.assertWritable(loan.ledgerId, user.id);
+    return this.loanService.prepay(user.id, id, dto);
   }
 
   @Get('loans/:id')
@@ -51,7 +67,7 @@ export class LoanController {
   ) {
     const loan = await this.loanService.findLoanEntity(id);
     await this.access.assertWritable(loan.ledgerId, user.id);
-    return this.loanService.update(id, dto);
+    return this.loanService.update(user.id, id, dto);
   }
 
   @Delete('loans/:id')
