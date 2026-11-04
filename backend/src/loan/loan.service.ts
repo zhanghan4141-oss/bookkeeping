@@ -24,7 +24,7 @@ export class LoanService {
       data: {
         ledgerId: dto.ledgerId,
         name: dto.name,
-        direction: dto.direction,
+        direction: dto.direction ?? 'borrow',
         principal: new Prisma.Decimal(dto.principal),
         annualRate: new Prisma.Decimal(dto.annualRate),
         startDate: new Date(dto.startDate),

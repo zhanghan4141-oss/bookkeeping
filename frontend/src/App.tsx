@@ -41,7 +41,7 @@ export default function App() {
         <Route path="ledgers/:id/record" element={<TransactionForm />} />
         <Route path="ledgers/:id/categories" element={<Categories />} />
         <Route path="ledgers/:id/loans" element={<Loans />} />
-        <Route path="ledgers/:id/loans/new" element={<LoanForm />} />
+        <Route path="ledgers/:ledgerId/loans/new" element={<LoanForm />} />
         <Route path="loans/:id" element={<LoanDetail />} />
         <Route path="loans/:id/edit" element={<LoanForm />} />
         <Route path="repayments" element={<Repayments />} />

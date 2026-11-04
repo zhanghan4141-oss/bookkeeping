@@ -34,8 +34,9 @@ export class CreateLoanDto {
   @IsString()
   name!: string;
 
+  @IsOptional()
   @IsIn(['borrow', 'lend'])
-  direction!: 'borrow' | 'lend';
+  direction?: 'borrow' | 'lend';
 
   @IsNumber()
   @Min(0.01)
