@@ -35,52 +35,20 @@ services:
     networks:
       - internal
 
+  # 前端：容器内 nginx 托管 dist + 反代 /api 到 backend。
+  # 只暴露 8081 给宿主机 nginx 反代，不占 80/443（已被现有服务占用）。
   frontend:
     build: ../frontend
     restart: unless-stopped
-    environment:
-      VIRTUAL_HOST: ${DOMAIN}
-      LETSENCRYPT_HOST: ${DOMAIN}
-      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
-    networks:
-      - internal
-
-  proxy:
-    image: nginxproxy/nginx-proxy
-    restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - proxy_certs:/etc/nginx/certs
-      - proxy_vhost:/etc/nginx/vhost.d
-      - proxy_html:/usr/share/nginx/html
-    networks:
-      - internal
-
-  acme:
-    image: nginxproxy/acme-companion
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - proxy_certs:/etc/nginx/certs
-      - proxy_vhost:/etc/nginx/vhost.d
-      - proxy_html:/usr/share/nginx/html
-      - acme_data:/etc/acme.sh
-    environment:
-      DEFAULT_EMAIL: ${LETSENCRYPT_EMAIL}
+      - "8081:80"
     depends_on:
-      - proxy
+      - backend
     networks:
       - internal
 
 volumes:
   db_data:
-  proxy_certs:
-  proxy_vhost:
-  proxy_html:
-  acme_data:
 
 networks:
   internal:
