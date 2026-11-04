@@ -2,9 +2,53 @@
 
 ## 前置条件
 
-- 阿里云 ECS（建议 2C4G 及以上），已安装 Docker + Docker Compose v2
+- 阿里云 ECS（建议 2C4G 及以上）
 - 一个已备案/可用的域名，A 记录指向服务器公网 IP
 - 服务器安全组放行 80、443 端口
+
+---
+
+## 〇、安装 Docker（新服务器必做）
+
+项目已提供一键安装脚本 `deploy/install-docker.sh`，自动识别系统、使用阿里云国内源、配置镜像加速器。
+
+### 1. 获取镜像加速器地址（重要）
+
+国内服务器直接拉取 Docker Hub 会超时，需要配置加速器：
+
+1. 登录[阿里云容器镜像服务控制台](https://cr.console.aliyun.com/cn-hangzhou/instances/mirrors)
+2. 复制你的专属加速器地址，形如 `https://xxxx.mirror.aliyuncs.com`
+
+### 2. 上传并运行安装脚本
+
+先获取代码（见下一步「上传代码」），然后：
+
+```bash
+cd bookkeeping/deploy
+sudo bash install-docker.sh https://xxxx.mirror.aliyuncs.com
+```
+
+> 不传加速器参数也可以安装，之后可手动编辑 `/etc/docker/daemon.json` 添加 `registry-mirrors`。
+
+脚本会自动：
+- 识别 Ubuntu/Debian 或 CentOS/RHEL/Alibaba Cloud Linux 等系统
+- 用阿里云 docker-ce 源安装 Docker + Docker Compose v2 插件
+- 写入镜像加速器配置
+- 启动 Docker 并设置开机自启
+
+### 3. 验证
+
+```bash
+docker --version
+docker compose version
+docker run --rm hello-world   # 能正常拉取镜像即表示加速器生效
+```
+
+> 若系统无法被脚本识别，把 `/etc/os-release` 的内容发给我调整脚本。也可以手动装：
+> - Ubuntu/Debian：https://mirrors.aliyun.com/docker-ce/linux/ubuntu
+> - CentOS 系：https://mirrors.aliyun.com/docker-ce/linux/centos
+
+---
 
 ## 一、上传代码
 
