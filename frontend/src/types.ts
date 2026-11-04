@@ -6,6 +6,8 @@ export interface Ledger {
   color?: string | null;
   currency: string;
   role?: 'owner' | 'editor' | 'viewer';
+  updatedAt?: string;
+  createdAt?: string;
 }
 
 export interface Category {

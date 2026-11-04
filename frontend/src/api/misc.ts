@@ -1,7 +1,10 @@
 import api from './client';
 
 export const repaymentApi = {
-  upcoming: (days: number) => api.get('/repayments/upcoming', { params: { days } }),
+  upcoming: (days: number, ledgerIds?: string[]) =>
+    api.get('/repayments/upcoming', {
+      params: { days, ledgerIds: ledgerIds?.join(',') },
+    }),
 };
 
 export const notificationApi = {

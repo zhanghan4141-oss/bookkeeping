@@ -1,12 +1,45 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { NavBar } from 'antd-mobile';
+import { Checkbox, NavBar } from 'antd-mobile';
 import { repaymentApi } from '../api/misc';
+import { ledgerApi } from '../api/ledger';
+import type { Ledger } from '../types';
 
 export default function Repayments() {
-  const { data } = useQuery({
-    queryKey: ['repayments', 'upcoming', 30],
-    queryFn: async () => (await repaymentApi.upcoming(30)).data,
+  const [selected, setSelected] = useState<string[]>([]);
+
+  const { data: ledgers = [] } = useQuery({
+    queryKey: ['ledgers'],
+    queryFn: async () => (await ledgerApi.list()).data as Ledger[],
   });
+
+  // 最近编辑过的账本（updatedAt 最新，兜底 createdAt 最新）
+  const latestLedger = useMemo(() => {
+    if (ledgers.length === 0) return null;
+    return [...ledgers].sort((a, b) => {
+      const ta = a.updatedAt ?? a.createdAt ?? '';
+      const tb = b.updatedAt ?? b.createdAt ?? '';
+      return tb.localeCompare(ta);
+    })[0];
+  }, [ledgers]);
+
+  // 初始默认选中最近编辑的账本
+  useEffect(() => {
+    if (selected.length === 0 && latestLedger) {
+      setSelected([latestLedger.id]);
+    }
+  }, [latestLedger, selected.length]);
+
+  const { data } = useQuery({
+    queryKey: ['repayments', 'upcoming', 30, selected],
+    queryFn: async () => (await repaymentApi.upcoming(30, selected)).data,
+  });
+
+  const toggle = (id: string, checked: boolean) => {
+    setSelected((prev) =>
+      checked ? [...prev, id] : prev.filter((x) => x !== id),
+    );
+  };
 
   return (
     <div className="page">
@@ -15,6 +48,34 @@ export default function Repayments() {
       </NavBar>
 
       <div style={{ padding: 16 }}>
+        {/* 账本筛选 */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 12,
+          }}
+        >
+          <div className="text-secondary" style={{ fontSize: 13, marginBottom: 8 }}>
+            统计账本（可多选）
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {ledgers.map((l) => (
+              <Checkbox
+                key={l.id}
+                checked={selected.includes(l.id)}
+                onChange={(checked) => toggle(l.id, checked)}
+              >
+                {l.name}
+              </Checkbox>
+            ))}
+          </div>
+          {ledgers.length === 0 && (
+            <div className="text-secondary" style={{ fontSize: 13 }}>暂无账本</div>
+          )}
+        </div>
+
         <div
           style={{
             background: 'linear-gradient(135deg, #722ed1, #b37feb)',

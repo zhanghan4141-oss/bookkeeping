@@ -11,8 +11,12 @@ export class RepaymentController {
   upcoming(
     @CurrentUser() user: AuthUser,
     @Query('days') days?: string,
+    @Query('ledgerIds') ledgerIds?: string,
   ) {
     const d = Math.min(Math.max(parseInt(days ?? '30', 10) || 30, 1), 365);
-    return this.repaymentService.upcoming(user.id, d);
+    const ids = ledgerIds
+      ? ledgerIds.split(',').map((s) => s.trim()).filter(Boolean)
+      : undefined;
+    return this.repaymentService.upcoming(user.id, d, ids);
   }
 }

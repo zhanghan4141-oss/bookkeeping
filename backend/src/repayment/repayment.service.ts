@@ -8,8 +8,9 @@ export class RepaymentService {
   /**
    * 未来 N 天每日需还金额汇总。
    * 只统计用户有权访问的账本中的贷款，且还款状态为 pending/partial。
+   * @param ledgerIds 可选，指定要统计的账本 id；缺省统计用户所有账本
    */
-  async upcoming(userId: string, days: number) {
+  async upcoming(userId: string, days: number, ledgerIds?: string[]) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const end = new Date(today);
@@ -20,13 +21,18 @@ export class RepaymentService {
       where: { userId },
       select: { ledgerId: true },
     });
-    const ledgerIds = members.map((m) => m.ledgerId);
+    const accessible = members.map((m) => m.ledgerId);
+
+    // 交集：指定账本 ∩ 可访问账本；未指定则用全部可访问
+    const targetLedgerIds = ledgerIds?.length
+      ? ledgerIds.filter((id) => accessible.includes(id))
+      : accessible;
 
     const repayments = await this.prisma.loanRepayment.findMany({
       where: {
         dueDate: { gte: today, lte: end },
         status: { in: ['pending', 'partial'] },
-        loan: { ledgerId: { in: ledgerIds } },
+        loan: { ledgerId: { in: targetLedgerIds } },
       },
       include: {
         loan: {
