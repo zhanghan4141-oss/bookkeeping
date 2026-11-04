@@ -341,6 +341,15 @@ export class LoanService {
       dto.repaymentMethod !== undefined ||
       dto.customPeriods !== undefined;
 
+    // 自定义贷款不能改为其他类型
+    if (
+      existing.repaymentMethod === 'custom' &&
+      dto.repaymentMethod !== undefined &&
+      dto.repaymentMethod !== 'custom'
+    ) {
+      throw new BadRequestException('自定义贷款不能改为其他还款方式');
+    }
+
     if (hasPaid && paramsChanged) {
       throw new BadRequestException('已有还款记录，不能重新计算还款计划');
     }

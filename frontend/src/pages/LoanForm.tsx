@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Button, DatePicker, Form, Input, NavBar, Picker, Toast } from 'antd-mobile';
 import { loanApi } from '../api/loan';
+import type { Loan } from '../types';
 
 const METHODS = [
   { label: '等额本息', value: 'equal_installment' },
@@ -35,7 +37,6 @@ function calcPlan(params: {
       list.push({ principal: principalPart, interest: mi, total: mi + principalPart });
     }
   } else {
-    // equal_installment
     if (r === 0) {
       const mp = principal / termMonths;
       for (let i = 0; i < termMonths; i++) list.push({ principal: mp, interest: 0, total: mp });
@@ -55,7 +56,7 @@ function calcPlan(params: {
   return list;
 }
 
-/** 前端 XIRR 计算（自定义方式实时预览实际利率） */
+/** 前端 XIRR 计算 */
 function calcXIRR(principal: number, startDate: string, periods: { dueDate: string; totalAmount: number }[]): number | null {
   if (principal <= 0 || periods.length === 0) return null;
   const t0 = new Date(startDate).getTime();
@@ -101,10 +102,51 @@ export default function LoanForm() {
     startDate: new Date().toISOString().slice(0, 10),
     note: '',
   });
-  // 自定义方式的每期 {日期, 金额}
   const [customPeriods, setCustomPeriods] = useState<{ dueDate: string; totalAmount: string }[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // 编辑模式：加载贷款数据回填
+  const { data: existingLoan } = useQuery({
+    queryKey: ['loan', id],
+    queryFn: async () => (await loanApi.get(id!)).data as Loan,
+    enabled: isEdit,
+  });
+
+  useEffect(() => {
+    if (existingLoan && !loaded) {
+      setForm({
+        name: existingLoan.name,
+        principal: existingLoan.principal,
+        annualRate: existingLoan.annualRate,
+        termMonths: String(existingLoan.termMonths),
+        repaymentDay: String(existingLoan.repaymentDay),
+        method: existingLoan.repaymentMethod,
+        startDate: existingLoan.startDate.slice(0, 10),
+        note: existingLoan.note ?? '',
+      });
+      if (existingLoan.repaymentMethod === 'custom') {
+        setCustomPeriods(
+          existingLoan.repayments.map((r) => ({
+            dueDate: r.dueDate.slice(0, 10),
+            totalAmount: r.totalAmount,
+          })),
+        );
+      }
+      setLoaded(true);
+    }
+  }, [existingLoan, loaded]);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // 编辑模式下，自定义贷款不能改成其他类型
+  const isCustomLocked = isEdit && form.method === 'custom';
+  const methodOptions = useMemo(
+    () =>
+      isCustomLocked
+        ? METHODS.filter((m) => m.value === 'custom')
+        : METHODS,
+    [isCustomLocked],
+  );
 
   const plan = useMemo(() => {
     const principal = Number(form.principal);
@@ -117,7 +159,6 @@ export default function LoanForm() {
   const totalRepay = plan?.reduce((s, p) => s + p.total, 0) ?? 0;
   const totalInterest = plan?.reduce((s, p) => s + p.interest, 0) ?? 0;
 
-  // 期数变化时，自动调整自定义期数数组
   const onTermMonthsChange = (v: string) => {
     set('termMonths', v);
     const n = Math.max(0, parseInt(v, 10) || 0);
@@ -129,7 +170,6 @@ export default function LoanForm() {
     });
   };
 
-  // 自定义方式实际利率预览
   const customXirr = useMemo(() => {
     if (form.method !== 'custom') return null;
     const principal = Number(form.principal);
@@ -231,9 +271,17 @@ export default function LoanForm() {
           </Form.Item>
           <Form.Item name="method" label="还款方式" trigger="onConfirm">
             <Picker
-              columns={[METHODS]}
+              columns={[methodOptions]}
               value={[form.method]}
-              onConfirm={(v) => set('method', String(v[0]))}
+              onConfirm={(v) => {
+                const newMethod = String(v[0]);
+                set('method', newMethod);
+                // 切换到自定义时，若还没期数则初始化
+                if (newMethod === 'custom' && customPeriods.length === 0) {
+                  const n = Number(form.termMonths) || 0;
+                  setCustomPeriods(Array.from({ length: n }, () => ({ dueDate: '', totalAmount: '' })));
+                }
+              }}
             >
               {(items, actions) => (
                 <div onClick={() => actions.open()}>
@@ -242,6 +290,11 @@ export default function LoanForm() {
               )}
             </Picker>
           </Form.Item>
+          {isCustomLocked && (
+            <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+              自定义贷款不支持改为其他还款方式
+            </div>
+          )}
           <Form.Item name="note" label="备注">
             <Input placeholder="可选" value={form.note} onChange={(v) => set('note', v)} />
           </Form.Item>

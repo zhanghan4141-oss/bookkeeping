@@ -82,6 +82,11 @@ export default function LoanDetail() {
           <div className="text-secondary" style={{ fontSize: 13 }}>
             {loan.direction === 'lend' ? '我借入（应还）' : '我借出（应收）'} · 每月 {loan.repaymentDay} 号还款 ·{' '}
             {loan.repaymentMethod === 'equal_installment' ? '等额本息' : loan.repaymentMethod === 'equal_principal' ? '等额本金' : loan.repaymentMethod === 'interest_first' ? '先息后本' : '自定义'}
+            {loan.actualAnnualRate !== null && loan.actualAnnualRate !== undefined && (
+              <span style={{ marginLeft: 8, color: '#1677ff', fontWeight: 600 }}>
+                实际年利率 {loan.actualAnnualRate}%
+              </span>
+            )}
           </div>
           <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
             <Button size="mini" fill="outline" onClick={() => navigate(`/loans/${id}/edit`)}>编辑</Button>

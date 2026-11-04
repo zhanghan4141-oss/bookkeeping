@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Checkbox, NavBar, Picker } from 'antd-mobile';
+import { LeftOutline, RightOutline } from 'antd-mobile-icons';
 import { statApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
 import Chart from '../components/Chart';
@@ -11,6 +12,11 @@ export default function Stats() {
   const [period, setPeriod] = useState<'month' | 'year'>('month');
   const [selected, setSelected] = useState<string[]>([]);
   const [showPicker, setShowPicker] = useState(false);
+  // 当前查看的月份（YYYY-MM）或年份（YYYY）
+  const [currentDate, setCurrentDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],
@@ -18,13 +24,33 @@ export default function Stats() {
   });
 
   const { data: summary } = useQuery({
-    queryKey: ['stats', 'summary', selected, calendar, period],
+    queryKey: ['stats', 'summary', selected, calendar, period, currentDate],
     queryFn: async () => {
       const params: Record<string, string> = { calendar, period };
       if (selected.length) params.ledgerIds = selected.join(',');
+      if (calendar === 'solar') params.date = currentDate;
       return (await statApi.summary(params)).data as StatSummary;
     },
   });
+
+  // 切换月份/年份
+  const shift = (delta: number) => {
+    setCurrentDate((prev) => {
+      if (period === 'month') {
+        const [y, m] = prev.split('-').map(Number);
+        const d = new Date(y, m - 1 + delta, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+      const y = Number(prev) + delta;
+      return String(y);
+    });
+  };
+
+  // 显示当前周期标签
+  const periodLabel = useMemo(() => {
+    if (period === 'month') return currentDate;
+    return `${currentDate} 年`;
+  }, [period, currentDate]);
 
   const pieOption = useMemo(() => {
     const expenseCats = (summary?.byCategory ?? []).filter((c) => c.type === 'expense');
@@ -75,6 +101,29 @@ export default function Stats() {
       </NavBar>
 
       <div style={{ padding: 16 }}>
+        {/* 周期切换（左右滑动） */}
+        {calendar === 'solar' && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#fff',
+              borderRadius: 12,
+              padding: '10px 16px',
+              marginBottom: 12,
+            }}
+          >
+            <div onClick={() => shift(-1)} style={{ padding: '4px 8px', cursor: 'pointer' }}>
+              <LeftOutline />
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{periodLabel}</div>
+            <div onClick={() => shift(1)} style={{ padding: '4px 8px', cursor: 'pointer' }}>
+              <RightOutline />
+            </div>
+          </div>
+        )}
+
         {/* 账本选择 */}
         <div
           style={{

@@ -15,6 +15,7 @@ export class StatService {
    * 统计：收入、支出、盈余、类别分布、趋势。
    * 口径：现金流视角，只统计「已发生」的流水（occurredAt <= 当前时间）。
    * 贷款相关流水（放款收入、还款本金、还款利息）已随贷款创建/还款写入流水，直接按流水统计。
+   * @param date 可选，指定统计周期：period=month 时为 YYYY-MM，period=year 时为 YYYY；缺省统计全部
    */
   async summary(userId: string, ledgerIds: string[], query: SummaryQueryDto) {
     const period: Period = query.period ?? 'month';
@@ -28,12 +29,27 @@ export class StatService {
 
     const now = new Date();
 
+    // 日期范围过滤（按月/按年）
+    const where: Prisma.TransactionWhereInput = {
+      ledgerId: { in: accessible },
+      occurredAt: { lte: now },
+    };
+    if (query.date && calendar === 'solar') {
+      if (period === 'month' && /^\d{4}-\d{2}$/.test(query.date)) {
+        const start = new Date(`${query.date}-01T00:00:00`);
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + 1);
+        where.occurredAt = { gte: start, lt: end };
+      } else if (period === 'year' && /^\d{4}$/.test(query.date)) {
+        const start = new Date(`${query.date}-01-01T00:00:00`);
+        const end = new Date(`${Number(query.date) + 1}-01-01T00:00:00`);
+        where.occurredAt = { gte: start, lt: end };
+      }
+    }
+
     // 流水（只统计已发生的）
     const transactions = await this.prisma.transaction.findMany({
-      where: {
-        ledgerId: { in: accessible },
-        occurredAt: { lte: now },
-      },
+      where,
       include: {
         category: { select: { id: true, name: true, type: true, color: true, icon: true } },
       },
