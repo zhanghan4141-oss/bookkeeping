@@ -9,7 +9,7 @@ export class CategoryService {
   findAll(ledgerId: string) {
     return this.prisma.category.findMany({
       where: { ledgerId },
-      orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
     });
   }
 
