@@ -24,6 +24,8 @@
 
 ## 〇、安装 Docker（如已装可跳过）
 
+### 方式一：使用项目脚本（推荐）
+
 ```bash
 cd /home/admin/bookkeeping/deploy
 sudo bash install-docker.sh https://kscq6k8w.mirror.aliyuncs.com
@@ -31,6 +33,56 @@ sudo bash install-docker.sh https://kscq6k8w.mirror.aliyuncs.com
 
 > 脚本用阿里云国内源装 Docker + Compose v2，配镜像加速器，并把 admin 加入 docker 组。
 > 装完后**退出 SSH 重新登录**，docker 免 sudo 生效。
+
+### 方式二：手动安装（脚本不可用时）
+
+```bash
+sudo apt update && sudo apt install -y docker.io docker-compose-v2
+sudo usermod -aG docker admin
+# 退出 SSH 重新登录使 docker 组生效
+```
+
+### 配置国内镜像加速（必须）
+
+> ⚠️ **国内服务器直接拉取 Docker Hub 会超时**，必须配置镜像加速器或手动拉取替代镜像。
+
+```bash
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json << 'EOF'
+{
+  "registry-mirrors": [
+    "https://kscq6k8w.mirror.aliyuncs.com",
+    "https://mirror.ccs.tencentyun.com",
+    "https://docker.m.daocloud.io"
+  ]
+}
+EOF
+sudo systemctl restart docker
+```
+
+验证加速器是否生效：
+
+```bash
+docker info | grep -A5 "Registry Mirrors"
+```
+
+### 镜像加速器失效时的备选方案
+
+如果配置加速器后仍然超时（国内网络环境多变），可手动从华为云 SWR 拉取并打本地标签：
+
+```bash
+# 拉取所需基础镜像（华为云 SWR 国内可达）
+sudo docker pull swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/mysql:8
+sudo docker pull swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:22-alpine
+sudo docker pull swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/nginx:alpine
+
+# 打上 docker-compose.yml 中引用的本地标签
+sudo docker tag swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/mysql:8 mysql:8
+sudo docker tag swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:22-alpine node:22-alpine
+sudo docker tag swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/nginx:alpine nginx:alpine
+```
+
+> 💡 打完标签后 `docker compose up --build` 会直接使用本地镜像，不再访问 Docker Hub。
 
 ---
 
@@ -42,19 +94,96 @@ git clone https://github.com/zhanghan4141-oss/bookkeeping.git
 cd /home/admin/bookkeeping
 ```
 
+---
+
 ## 二、配置环境变量
+
+### 自动生成安全密钥（推荐）
+
+> ⚠️ **不要手动填写弱密码或使用示例值**。以下命令自动生成高强度随机密钥：
 
 ```bash
 cd /home/admin/bookkeeping/deploy
-cp .env.example .env
-vim .env   # 填数据库密码、JWT secret、SMTP
+cat > .env << EOF
+DOMAIN=bookkeeping.zhangyuning.xyz
+MYSQL_ROOT_PASSWORD=$(openssl rand -base64 24)
+MYSQL_PASSWORD=$(openssl rand -base64 24)
+JWT_ACCESS_SECRET=$(openssl rand -hex 32)
+JWT_REFRESH_SECRET=$(openssl rand -hex 32)
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=30d
+SMTP_HOST=smtp.qq.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=your-email@qq.com
+SMTP_PASS=your-smtp-auth-code
+MAIL_FROM=your-email@qq.com
+EOF
+chmod 600 .env   # 限制权限，仅所有者可读
 ```
 
-关键项：
-- `DOMAIN`：已填好 `bookkeeping.zhangyuning.xyz`
-- `MYSQL_ROOT_PASSWORD` / `MYSQL_PASSWORD`：自定义强密码
-- `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`：随机长字符串
-- `SMTP_*`：发还款提醒邮件用（QQ 邮箱用「授权码」非登录密码）
+> ⚠️ **注意**：heredoc 分隔符 `EOF` **不能加单引号**（即不能用 `'EOF'`），否则 `$(...)` 不会被展开，密钥会变成字面字符串。
+
+### 手动编辑（可选）
+
+如需自定义某些值：
+
+```bash
+vim .env
+```
+
+关键项说明：
+
+| 变量 | 用途 | 注意事项 |
+|------|------|----------|
+| `MYSQL_ROOT_PASSWORD` | MySQL root 密码 | 泄露则数据库完全暴露 |
+| `MYSQL_PASSWORD` | 应用数据库用户密码 | 泄露则业务数据可被读写 |
+| `JWT_ACCESS_SECRET` | 短期访问令牌签名密钥（256-bit） | 泄露则可伪造任意用户登录态 |
+| `JWT_REFRESH_SECRET` | 长期刷新令牌签名密钥（256-bit） | 泄露则可长期维持伪造会话 |
+| `SMTP_*` | 还款提醒邮件 | QQ 邮箱用「授权码」非登录密码；暂不需要可保留占位值 |
+
+---
+
+## 二½、代码兼容性修复（首次部署必须执行）
+
+> ⚠️ 原始仓库代码存在两处与当前运行环境不兼容的问题，**必须在构建前修复**，否则启动会失败。
+> 如果你使用的是已修复的分支或 fork，可跳过本节。
+
+### 1. 移除 MySQL 8.4 废弃参数
+
+MySQL 8.4+ 已移除 `--default-authentication-plugin` 参数，保留会导致 db 容器启动即 Abort。
+
+```bash
+cd /home/admin/bookkeeping/deploy
+sed -i 's/--default-authentication-plugin=mysql_native_password //' docker-compose.yml
+```
+
+验证修复结果（command 行应只包含字符集参数）：
+
+```bash
+grep "command:" docker-compose.yml
+# 预期输出：command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+```
+
+### 2. 将 Dockerfile 中的 `npm ci` 改为 `npm install`
+
+项目 lock 文件与 Docker 构建环境中的 Node 小版本不完全匹配，`npm ci` 会因严格校验而失败。
+
+```bash
+# 修复 backend Dockerfile（两处 npm ci）
+cd /home/admin/bookkeeping/backend
+sed -i 's/RUN npm ci$/RUN npm install/' Dockerfile
+sed -i 's/RUN npm ci --omit=dev/RUN npm install --omit=dev/' Dockerfile
+
+# 修复 frontend Dockerfile（一处 npm ci）
+cd /home/admin/bookkeeping/frontend
+sed -i 's/RUN npm ci$/RUN npm install/' Dockerfile
+```
+
+> 💡 `npm install` 在缺少或多余的依赖时会自动修正，而 `npm ci` 要求 lock 文件与 package.json 完全一致。
+> 对于生产构建，建议在本地用相同 Node 版本执行 `npm install` 并提交更新后的 lock 文件，之后可改回 `npm ci`。
+
+---
 
 ## 三、启动 Docker 服务
 
@@ -63,33 +192,79 @@ cd /home/admin/bookkeeping/deploy
 docker compose up -d --build
 ```
 
-首次启动会构建镜像、启动 MySQL、自动建表。此时服务已跑在 `127.0.0.1:8081`，但外网还访问不到，需要下一步配宿主机 nginx。
+> 首次构建约需 3-5 分钟（取决于网络）。MySQL 初始化约需 10-20 秒，backend 在此期间可能短暂 Restarting，属正常现象。
+
+### 验证启动状态
 
 ```bash
 docker compose ps
-docker compose logs -f backend
 ```
+
+预期输出（三个容器均为 `Up`）：
+
+| 容器 | 状态 | 说明 |
+|------|------|------|
+| deploy-db-1 | Up | MySQL 正常运行 |
+| deploy-backend-1 | Up | NestJS 后端 + Prisma 迁移完成 |
+| deploy-frontend-1 | Up (0.0.0.0:8081->80) | Nginx 托管前端静态文件 |
+
+### 检查 backend 日志确认迁移成功
+
+```bash
+docker compose logs backend --tail=20
+```
+
+看到类似以下输出表示数据库迁移和应用启动成功：
+
+```
+Nest application successfully started
+Server is running on port 3000
+```
+
+> ⚠️ 如果 backend 持续 Restarting 且日志显示 `P1001: Can't reach database server`，等待 15 秒后重试；若仍失败，检查 db 容器日志：`docker compose logs db`。
+
+---
 
 ## 四、配置宿主机 nginx（关键：与现有服务共存）
 
 项目提供模板 `deploy/nginx-bookkeeping.conf`，把它合并进你现有的 nginx 配置。
 
-### 1. 准备证书
+### 1. 准备 SSL 证书
 
-你的现有服务用「手动证书」。给 `bookkeeping.zhangyuning.xyz` 也准备一张证书（阿里云/腾讯云均可），
-把 `.pem` 和 `.key` 放到服务器上，例如 `/etc/nginx/certs/`。
+为 `bookkeeping.zhangyuning.xyz` 申请一张独立的 SSL 证书（阿里云/腾讯云免费证书或 Let's Encrypt 均可）。
 
-> 如果你的证书是「通配符证书 `*.zhangyuning.xyz`」，可直接复用，无需再买。
+> ⚠️ 现有证书 `www.zhangyuning.xyz.pem` **不是通配符证书**，不覆盖 bookkeeping 子域名，必须单独申请。
 
-### 2. 合并 nginx 配置
+将证书文件放到 `/etc/nginx/ssl/` 目录（与现有证书统一管理）：
 
 ```bash
-# 把模板拷到 nginx 配置目录（你的 nginx 可能是 conf.d 或 sites-available，二选一）
+# 确保 admin 用户对该目录有读写权限（首次部署需执行）
+sudo chown -R admin:admin /etc/nginx/ssl/
+sudo chmod 755 /etc/nginx/ssl/
+
+# 将证书文件放到该目录，文件名建议与域名一致
+# 例如：www.bookkeeping.zhangyuning.xyz.pem + www.bookkeeping.zhangyuning.xyz.key
+```
+
+验证证书是否覆盖目标域名：
+
+```bash
+openssl x509 -in /etc/nginx/ssl/www.bookkeeping.zhangyuning.xyz.pem -noout -text | grep DNS:
+# 预期输出包含：DNS:bookkeeping.zhangyuning.xyz
+```
+
+### 2. 部署 nginx 反代配置
+
+```bash
+# 复制模板到 nginx 配置目录
 sudo cp /home/admin/bookkeeping/deploy/nginx-bookkeeping.conf /etc/nginx/conf.d/bookkeeping.conf
 
-# 编辑证书路径，改成你实际存放的 pem/key 路径
-sudo vim /etc/nginx/conf.d/bookkeeping.conf
+# 自动替换证书路径（无需手动 vim 编辑）
+sudo sed -i 's|/etc/nginx/certs/bookkeeping.zhangyuning.xyz.pem|/etc/nginx/ssl/www.bookkeeping.zhangyuning.xyz.pem|' /etc/nginx/conf.d/bookkeeping.conf
+sudo sed -i 's|/etc/nginx/certs/bookkeeping.zhangyuning.xyz.key|/etc/nginx/ssl/www.bookkeeping.zhangyuning.xyz.key|' /etc/nginx/conf.d/bookkeeping.conf
 ```
+
+> 💡 如果你的证书文件名不同，请相应调整 `sed` 命令中的替换目标路径。
 
 ### 3. 测试并重载
 
@@ -98,13 +273,38 @@ sudo nginx -t                # 确认语法正确
 sudo systemctl reload nginx  # 平滑重载，不影响 tongshandagong
 ```
 
+### 4. 验证反代生效
+
+```bash
+# 验证 bookkeeping 子域名 HTTPS 访问
+curl -sI --resolve bookkeeping.zhangyuning.xyz:443:127.0.0.1 https://bookkeeping.zhangyuning.xyz | head -5
+# 预期返回：HTTP/2 200
+
+# 确认现有服务未受影响
+curl -sI --resolve www.zhangyuning.xyz:443:127.0.0.1 https://www.zhangyuning.xyz | head -5
+# 预期返回：HTTP/2 200
+```
+
+---
+
 ## 五、验证
 
 浏览器/手机访问 `https://bookkeeping.zhangyuning.xyz`：
+
 - 首次进入应看到登录页
 - 注册账号 → 建账本 → 记账 → 建贷款账本 → 录贷款 → 看还款计划
 - 手机浏览器「添加到主屏幕」可安装为 PWA
 - 同时确认 `www.zhangyuning.xyz` 的 tongshandagong 不受影响
+
+快速验证端口响应（无需浏览器）：
+
+```bash
+curl -sI http://127.0.0.1:8081 | head -5
+```
+
+预期返回 `HTTP/1.1 200 OK`。
+
+---
 
 ## 六、更新
 
@@ -117,6 +317,8 @@ docker compose up -d --build
 
 数据库迁移自动执行。nginx 配置若无变化无需重载。
 
+---
+
 ## 七、数据备份
 
 ```bash
@@ -124,9 +326,71 @@ cd /home/admin/bookkeeping/deploy
 docker compose exec db mysqldump -u bookkeeping -p bookkeeping > backup.sql
 ```
 
-## 常见问题
+---
 
-- **访问不了 bookkeeping 子域名**：确认 DNS 已加 A 记录指向服务器 IP；`nginx -t` 通过；`docker compose ps` 里 frontend 是 Up。
-- **8081 端口冲突**：`docker-compose.yml` 里 frontend 的 `8081:80` 改成其他端口，同时 nginx 模板里的 `proxy_pass` 同步改。
-- **收不到还款邮件**：确认 SMTP 用授权码、端口与 `SMTP_SECURE` 匹配（QQ 邮箱 465+true）。
-- **前端更新没生效**：浏览器 Ctrl+Shift+R 强刷。
+## 八、故障排查与重建
+
+### 完全重建（数据会丢失！）
+当遇到无法修复的容器异常时（如 MySQL 初始化失败、backend 持续 Restarting），可清除所有数据和容器重新开始：
+
+```bash
+cd /home/admin/bookkeeping/deploy
+sudo docker compose down -v     # 停止容器并删除数据卷
+sudo docker compose up -d       # 重新启动（镜像已构建过，无需 --build）
+```
+
+> ⚠️ `-v` 会删除 `db_data` 数据卷，**所有数据库数据将丢失**。生产环境请先执行第七节备份。
+
+#### `docker compose down -v` 卡住或无响应怎么办？
+
+该命令在清理容器和数据卷时可能因 Docker daemon 繁忙而长时间无输出（并非死机）。处理方式：
+
+1. **耐心等待**：首次清理可能需要 30-60 秒，不要反复 Ctrl+C 中断
+2. **如果超过 2 分钟仍无响应**：按 Ctrl+C 中断后，手动分步清理：
+   ```bash
+   sudo docker compose stop                    # 先停止容器
+   sudo docker compose rm -f                   # 删除容器定义
+   sudo docker volume rm deploy_db_data        # 单独删除数据卷
+   sudo docker compose up -d                   # 重新启动
+   ```
+3. **极端情况**（Docker daemon 无响应）：重启 Docker 服务后再清理：
+   ```bash
+   sudo systemctl restart docker
+   cd /home/admin/bookkeeping/deploy
+   sudo docker compose down -v && sudo docker compose up -d
+   ```
+
+#### 什么时候需要完全重建？
+
+| 场景 | 是否需要 `down -v` | 说明 |
+|------|-------------------|------|
+| 修改了 `.env` 中的数据库密码 | ✅ 是 | 旧数据卷中的 MySQL 用户密码不会自动更新 |
+| MySQL 日志报 `unknown variable` 或表缺失 | ✅ 是 | 旧数据卷由不兼容版本创建，需清除后让新版本重新初始化 |
+| 仅修改了代码或 Dockerfile | ❌ 否 | `docker compose up -d --build` 即可，数据保留 |
+| backend 短暂 Restarting 后恢复 Up | ❌ 否 | MySQL 初始化期间的正常现象，无需干预 |
+
+### 常见问题速查
+
+| 症状 | 原因 | 解决方案 |
+|------|------|----------|
+| `docker: permission denied` | 当前用户不在 docker 组 | `sudo usermod -aG docker admin` 后重新登录 |
+| `dial tcp ... i/o timeout` | Docker Hub 不可达 | 配置镜像加速器或使用华为云 SWR 手动拉取（见第〇节） |
+| `npm ci ... not in sync` | package-lock.json 与 Node 版本不匹配 | Dockerfile 中已将 `npm ci` 改为 `npm install`，重新 build 即可 |
+| `unknown variable 'default-authentication-plugin'` | MySQL 8.4+ 移除了该参数 | docker-compose.yml 已移除该参数；若旧数据卷残留，执行 `docker compose down -v` 后重启 |
+| backend 持续 Restarting (`P1001`) | MySQL 尚未初始化完成 | 等待 15-30 秒；若 db 日志有错误，检查 `docker compose logs db` |
+| 访问不了 bookkeeping 子域名 | DNS/证书/nginx 配置问题 | 确认 DNS A 记录；`nginx -t` 通过；`docker compose ps` 中 frontend 为 Up |
+| 8081 端口冲突 | 其他服务占用 | 修改 `docker-compose.yml` 中 `8081:80` 为其他端口，同步修改 nginx `proxy_pass` |
+| 收不到还款邮件 | SMTP 配置错误 | 确认用授权码、端口与 `SMTP_SECURE` 匹配（QQ 邮箱 465+true） |
+| 前端更新没生效 | 浏览器缓存 | Ctrl+Shift+R 强刷 |
+
+---
+
+## 附录：安全加固建议（生产环境推荐）
+
+以下为可选的生产级增强配置，非部署必需，但建议在生产环境中逐步实施：
+
+1. **容器资源限制**：在 `docker-compose.yml` 中为每个服务添加 `deploy.resources.limits`，防止单容器耗尽宿主机资源
+2. **日志轮转**：配置 Docker 日志驱动（如 `json-file` + `max-size/max-file`），避免日志撑满磁盘
+3. **SSL 自动续期**：考虑使用 certbot + cron 或 acme.sh 替代手动证书，避免证书过期导致服务中断
+4. **容器健康检查**：在 `docker-compose.yml` 中添加 `healthcheck`，配合 `depends_on.condition: service_healthy` 确保 backend 在 MySQL 就绪后才启动
+5. **定期备份自动化**：将第七节的 mysqldump 命令加入 crontab，每日自动备份并保留最近 7 天
