@@ -1,8 +1,10 @@
 # 部署指南（阿里云 + Docker Compose + HTTPS）
 
+> 本文假设：系统 **Ubuntu 22.04**，登录用户 **admin**，项目放在 **`/home/admin/bookkeeping`**。
+
 ## 前置条件
 
-- 阿里云 ECS（建议 2C4G 及以上）
+- 阿里云 ECS（建议 2C4G 及以上），Ubuntu 22.04
 - 一个已备案/可用的域名，A 记录指向服务器公网 IP
 - 服务器安全组放行 80、443 端口
 
@@ -24,11 +26,12 @@
 先获取代码（见下一步「上传代码」），然后：
 
 ```bash
-cd bookkeeping/deploy
+cd /home/admin/bookkeeping/deploy
 sudo bash install-docker.sh https://xxxx.mirror.aliyuncs.com
 ```
 
 > 不传加速器参数也可以安装，之后可手动编辑 `/etc/docker/daemon.json` 添加 `registry-mirrors`。
+> 脚本会自动把 admin 加入 docker 组，安装后**退出 SSH 重新登录**，即可免 sudo 使用 docker。
 
 脚本会自动：
 - 识别 Ubuntu/Debian 或 CentOS/RHEL/Alibaba Cloud Linux 等系统
@@ -53,14 +56,15 @@ docker run --rm hello-world   # 能正常拉取镜像即表示加速器生效
 ## 一、上传代码
 
 ```bash
+cd /home/admin
 git clone https://github.com/zhanghan4141-oss/bookkeeping.git
-cd bookkeeping
+cd /home/admin/bookkeeping
 ```
 
 ## 二、配置环境变量
 
 ```bash
-cd deploy
+cd /home/admin/bookkeeping/deploy
 cp .env.example .env
 vim .env   # 填写域名、邮箱、数据库密码、JWT secret、SMTP
 ```
@@ -73,7 +77,7 @@ vim .env   # 填写域名、邮箱、数据库密码、JWT secret、SMTP
 ## 三、启动
 
 ```bash
-cd deploy
+cd /home/admin/bookkeeping/deploy
 docker compose up -d --build
 ```
 
@@ -99,6 +103,7 @@ docker compose logs -f backend
 ## 五、更新
 
 ```bash
+cd /home/admin/bookkeeping
 git pull
 cd deploy
 docker compose up -d --build

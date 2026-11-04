@@ -88,6 +88,13 @@ echo "==> 启动 Docker 并设置开机自启"
 systemctl enable docker
 systemctl start docker
 
+# 把通过 sudo 运行本脚本的用户加入 docker 组，之后免 sudo 使用 docker
+if [ -n "${SUDO_USER:-}" ]; then
+  echo "==> 将用户 ${SUDO_USER} 加入 docker 组"
+  usermod -aG docker "${SUDO_USER}"
+  echo "    （需退出重新登录 SSH 后生效）"
+fi
+
 # 验证
 echo ""
 echo "================ 安装完成 ================"
