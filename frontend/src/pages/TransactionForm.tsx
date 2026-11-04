@@ -92,7 +92,11 @@ export default function TransactionForm() {
               <Picker
                 columns={[typeCategories.map((c) => ({ label: c.name, value: c.id }))]}
               >
-                {(items) => <Input value={String(items[0]?.label ?? '请选择类别')} readOnly placeholder="请选择类别" />}
+                {(items, actions) => (
+                  <div onClick={() => actions.open()}>
+                    <Input value={String(items[0]?.label ?? '请选择类别')} readOnly placeholder="请选择类别" />
+                  </div>
+                )}
               </Picker>
             </Form.Item>
           )}

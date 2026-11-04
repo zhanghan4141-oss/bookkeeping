@@ -139,7 +139,11 @@ export default function LoanForm() {
               value={[form.repaymentDay]}
               onConfirm={(v) => set('repaymentDay', String(v[0]))}
             >
-              {(items) => <Input value={String(items[0]?.label ?? '1 号')} readOnly />}
+              {(items, actions) => (
+                <div onClick={() => actions.open()}>
+                  <Input value={String(items[0]?.label ?? '1 号')} readOnly />
+                </div>
+              )}
             </Picker>
           </Form.Item>
           <Form.Item name="startDate" label="开始日期">
@@ -156,7 +160,11 @@ export default function LoanForm() {
               value={[form.method]}
               onConfirm={(v) => set('method', String(v[0]))}
             >
-              {(items) => <Input value={String(items[0]?.label ?? '等额本息')} readOnly />}
+              {(items, actions) => (
+                <div onClick={() => actions.open()}>
+                  <Input value={String(items[0]?.label ?? '等额本息')} readOnly />
+                </div>
+              )}
             </Picker>
           </Form.Item>
           <Form.Item name="note" label="备注">

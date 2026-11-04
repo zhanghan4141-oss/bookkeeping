@@ -141,7 +141,11 @@ export default function Ledgers() {
                   ],
                 ]}
               >
-                {(items) => <Input value={String(items[0]?.label ?? '日常账本')} readOnly />}
+                {(items, actions) => (
+                  <div onClick={() => actions.open()}>
+                    <Input value={String(items[0]?.label ?? '日常账本')} readOnly />
+                  </div>
+                )}
               </Picker>
             </Form.Item>
           </Form>

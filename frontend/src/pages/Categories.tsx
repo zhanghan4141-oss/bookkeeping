@@ -124,7 +124,11 @@ export default function Categories() {
                   ],
                 ]}
               >
-                {(items) => <Input value={String(items[0]?.label ?? '支出')} readOnly />}
+                {(items, actions) => (
+                  <div onClick={() => actions.open()}>
+                    <Input value={String(items[0]?.label ?? '支出')} readOnly />
+                  </div>
+                )}
               </Picker>
             </Form.Item>
           </Form>
