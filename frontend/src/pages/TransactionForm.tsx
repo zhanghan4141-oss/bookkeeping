@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, DatePicker, Form, Input, NavBar, Picker, TextArea, Toast } from 'antd-mobile';
@@ -21,6 +21,8 @@ export default function TransactionForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [type, setType] = useState<'expense' | 'income' | 'transfer'>('expense');
+  const [categoryId, setCategoryId] = useState<string>('');
+  const [occurredAt, setOccurredAt] = useState<Date>(() => new Date());
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', id],
@@ -32,21 +34,36 @@ export default function TransactionForm() {
     [categories, type],
   );
 
+  // 类别加载或类型切换时，默认选中第一个类别
+  useEffect(() => {
+    if (type === 'transfer') return;
+    if (typeCategories.length === 0) {
+      setCategoryId('');
+      return;
+    }
+    // 若当前选中类别不在新类型列表中，则重置为第一个
+    const exists = typeCategories.some((c) => c.id === categoryId);
+    if (!exists) {
+      setCategoryId(typeCategories[0].id);
+    }
+  }, [typeCategories, type, categoryId]);
+
   const onFinish = async (values: {
     amount: number;
-    category?: string[];
     note?: string;
-    date?: Date;
   }) => {
     try {
-      const categoryId = values.category?.[0];
+      if (type !== 'transfer' && !categoryId) {
+        Toast.show({ content: '请选择类别' });
+        return;
+      }
       await transactionApi.create({
         ledgerId: id,
         type,
         amount: Number(values.amount),
-        categoryId: categoryId || undefined,
+        categoryId: type === 'transfer' ? undefined : categoryId,
         note: values.note,
-        occurredAt: values.date ? new Date(values.date).toISOString() : new Date().toISOString(),
+        occurredAt: occurredAt.toISOString(),
       });
       // 失效流水查询 + 统计，让账本详情页立即刷新
       queryClient.invalidateQueries({ queryKey: ['transactions', id] });
@@ -91,7 +108,6 @@ export default function TransactionForm() {
         <Form
           layout="vertical"
           onFinish={onFinish}
-          initialValues={{ category: [], date: new Date() }}
           footer={
             <Button block type="submit" color="primary" size="large">
               保存
@@ -103,32 +119,46 @@ export default function TransactionForm() {
           </Form.Item>
 
           {type !== 'transfer' && (
-            <Form.Item name="category" label="类别" trigger="onConfirm">
+            <div style={{ marginBottom: 24 }}>
+              <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>
+                类别 <span style={{ color: '#ff4d4f' }}>*</span>
+              </div>
               <Picker
                 columns={[typeCategories.map((c) => ({ label: c.name, value: c.id }))]}
+                value={categoryId ? [categoryId] : []}
+                onConfirm={(v) => setCategoryId(String(v[0] ?? ''))}
               >
                 {(items, actions) => (
                   <div onClick={() => actions.open()}>
-                    <Input value={String(items[0]?.label ?? '请选择类别')} readOnly placeholder="请选择类别" />
+                    <Input
+                      value={String(items[0]?.label ?? '请选择类别')}
+                      readOnly
+                      placeholder="请选择类别"
+                    />
                   </div>
                 )}
               </Picker>
-            </Form.Item>
+            </div>
           )}
 
           <Form.Item name="note" label="备注">
             <TextArea placeholder="备注（可选）" rows={2} />
           </Form.Item>
 
-          <Form.Item name="date" label="日期时间">
-            <DatePicker precision="minute">
+          <div style={{ marginBottom: 24 }}>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>日期时间</div>
+            <DatePicker
+              precision="minute"
+              value={occurredAt}
+              onConfirm={(v) => v && setOccurredAt(v)}
+            >
               {(value, actions) => (
                 <div onClick={() => actions.open()}>
                   <Input value={value ? formatDateTime(value) : ''} readOnly placeholder="现在" />
                 </div>
               )}
             </DatePicker>
-          </Form.Item>
+          </div>
         </Form>
       </div>
     </div>
