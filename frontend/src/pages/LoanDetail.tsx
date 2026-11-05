@@ -58,6 +58,25 @@ export default function LoanDetail() {
     }
   };
 
+  // 删除贷款（二次确认）
+  const handleDeleteLoan = async () => {
+    const ok = await new Promise((resolve) => {
+      Dialog.confirm({
+        content: '确定删除该贷款？删除后贷款及其还款计划、相关流水将全部删除，不可恢复。',
+        onConfirm: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+    if (!ok) return;
+    try {
+      await loanApi.remove(id);
+      Toast.show({ content: '已删除' });
+      navigate(-1);
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '删除失败' });
+    }
+  };
+
   // 进入编辑还款计划模式
   const startEditPlan = () => {
     if (!loan) return;
@@ -143,6 +162,7 @@ export default function LoanDetail() {
           <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
             <Button size="mini" fill="outline" onClick={() => navigate(`/loans/${id}/edit`)}>编辑贷款信息</Button>
             <Button size="mini" fill="outline" onClick={() => { window.open(`/api/loans/${id}/export`, '_blank'); }}>导出计划</Button>
+            <Button size="mini" fill="outline" color="danger" onClick={handleDeleteLoan}>删除</Button>
           </div>
         </div>
 

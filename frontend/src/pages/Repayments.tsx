@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { NavBar } from 'antd-mobile';
+import { DatePicker, NavBar } from 'antd-mobile';
 import { repaymentApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
@@ -10,6 +10,12 @@ import type { Ledger } from '../types';
 export default function Repayments() {
   const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
   const [showPicker, setShowPicker] = useState(false);
+  // 截止日期（默认未来 30 天）
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  });
 
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],
@@ -34,9 +40,19 @@ export default function Repayments() {
     }
   }, [latestLedger, selectedIds.length, selectOne]);
 
+  // 截止日期 → 天数
+  const days = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((end.getTime() - today.getTime()) / (24 * 3600 * 1000));
+    return Math.min(Math.max(diff, 1), 365);
+  }, [endDate]);
+
   const { data } = useQuery({
-    queryKey: ['repayments', 'upcoming', 30, selectedIds],
-    queryFn: async () => (await repaymentApi.upcoming(30, selectedIds)).data,
+    queryKey: ['repayments', 'upcoming', days, selectedIds],
+    queryFn: async () => (await repaymentApi.upcoming(days, selectedIds)).data,
   });
 
   // 选中的账本对象（按原顺序）
@@ -91,6 +107,41 @@ export default function Repayments() {
             )}
           </div>
           <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
+        </div>
+
+        {/* 截止时间 */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span className="text-secondary" style={{ fontSize: 13 }}>统计截止时间</span>
+          <DatePicker
+            value={new Date(endDate)}
+            min={new Date()}
+            onConfirm={(v) => setEndDate(v.toISOString().slice(0, 10))}
+          >
+            {(value, actions) => (
+              <div
+                onClick={() => actions.open()}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  color: '#1677ff',
+                  fontSize: 13,
+                }}
+              >
+                {value ? value.toISOString().slice(0, 10) : '选择日期'}（约 {days} 天）
+              </div>
+            )}
+          </DatePicker>
         </div>
 
         {/* 汇总卡片 */}

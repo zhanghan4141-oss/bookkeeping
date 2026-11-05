@@ -61,15 +61,33 @@ export default function Stats() {
         const d = new Date(y, m - 1 + delta, 1);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       }
-      const y = Number(prev) + delta;
+      // 年份：prev 可能是 'YYYY' 或 'YYYY-MM'，取年份部分
+      const y = Number(prev.slice(0, 4)) + delta;
       return String(y);
     });
+  };
+
+  // 切换周期时，同步调整 currentDate 格式
+  const handlePeriodChange = (newPeriod: 'month' | 'year') => {
+    setCurrentDate((prev) => {
+      if (newPeriod === 'year') {
+        // 切到年：取年份部分
+        return prev.slice(0, 4);
+      }
+      // 切到月：如果当前是年份（YYYY），补上当前月份
+      if (/^\d{4}$/.test(prev)) {
+        const now = new Date();
+        return `${prev}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      }
+      return prev;
+    });
+    setPeriod(newPeriod);
   };
 
   // 显示当前周期标签
   const periodLabel = useMemo(() => {
     if (period === 'month') return currentDate;
-    return `${currentDate} 年`;
+    return `${currentDate}`;
   }, [period, currentDate]);
 
   // 选中的账本对象
@@ -84,16 +102,21 @@ export default function Stats() {
     return {
       tooltip: { trigger: 'item' as const },
       legend: { bottom: 0, type: 'scroll' as const },
+      title: {
+        text: `支出构成 ¥${total.toFixed(2)}`,
+        left: 'center',
+        top: 0,
+        textStyle: { fontSize: 13, color: '#333' },
+      },
       series: [
         {
           type: 'pie' as const,
-          radius: ['35%', '65%'],
-          center: ['50%', '45%'],
+          radius: ['38%', '62%'],
+          center: ['50%', '55%'],
           data: expenseCats.map((c) => ({ name: c.name, value: c.amount })),
           label: { formatter: '{b}: {d}%' },
         },
       ],
-      title: { text: `支出构成 ¥${total.toFixed(2)}`, left: 'center', top: 5, textStyle: { fontSize: 14 } },
     };
   }, [summary]);
 
@@ -228,7 +251,7 @@ export default function Stats() {
         value={[calendar, period]}
         onConfirm={(v) => {
           setCalendar(v[0] as 'solar' | 'lunar');
-          setPeriod(v[1] as 'month' | 'year');
+          handlePeriodChange(v[1] as 'month' | 'year');
           setShowPeriodPicker(false);
         }}
       />

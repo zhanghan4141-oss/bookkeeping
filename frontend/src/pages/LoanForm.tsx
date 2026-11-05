@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Button, DatePicker, Form, Input, NavBar, Picker, Toast } from 'antd-mobile';
+import { Button, DatePicker, Input, NavBar, Picker, Toast } from 'antd-mobile';
 import { loanApi } from '../api/loan';
 import type { Loan } from '../types';
 
@@ -74,17 +74,17 @@ export default function LoanForm() {
     startDate: new Date().toISOString().slice(0, 10),
     note: '',
   });
-  const [loaded, setLoaded] = useState(false);
 
   // 编辑模式：加载贷款数据回填
   const { data: existingLoan } = useQuery({
-    queryKey: ['loan', id],
+    queryKey: ['loan', 'edit', id],
     queryFn: async () => (await loanApi.get(id!)).data as Loan,
     enabled: isEdit,
   });
 
+  const [initializedId, setInitializedId] = useState<string | null>(null);
   useEffect(() => {
-    if (existingLoan && !loaded) {
+    if (existingLoan && initializedId !== existingLoan.id) {
       setForm({
         name: existingLoan.name,
         principal: existingLoan.principal,
@@ -95,9 +95,9 @@ export default function LoanForm() {
         startDate: existingLoan.startDate.slice(0, 10),
         note: existingLoan.note ?? '',
       });
-      setLoaded(true);
+      setInitializedId(existingLoan.id);
     }
-  }, [existingLoan, loaded]);
+  }, [existingLoan, initializedId]);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -122,11 +122,32 @@ export default function LoanForm() {
   }, [form.principal, form.annualRate, form.termMonths, form.method]);
 
   const isCustom = form.method === 'custom';
-
   const totalRepay = plan?.reduce((s, p) => s + p.total, 0) ?? 0;
   const totalInterest = plan?.reduce((s, p) => s + p.interest, 0) ?? 0;
 
   const onSubmit = async () => {
+    // 手动必填校验
+    if (!form.name.trim()) {
+      Toast.show({ content: '请输入贷款名称' });
+      return;
+    }
+    if (!form.principal || Number(form.principal) <= 0) {
+      Toast.show({ content: '请输入本金' });
+      return;
+    }
+    if (!form.annualRate || Number(form.annualRate) < 0) {
+      Toast.show({ content: '请输入年利率' });
+      return;
+    }
+    if (!form.termMonths || Number(form.termMonths) <= 0) {
+      Toast.show({ content: '请输入期数' });
+      return;
+    }
+    if (!form.startDate) {
+      Toast.show({ content: '请选择开始日期' });
+      return;
+    }
+
     try {
       const payload: Record<string, unknown> = {
         name: form.name,
@@ -151,87 +172,104 @@ export default function LoanForm() {
     }
   };
 
+  const labelStyle = { fontSize: 13, color: '#666', marginBottom: 4 } as const;
+  const fieldWrap = { marginBottom: 14 } as const;
+
   return (
     <div className="page" style={{ background: '#fff' }}>
       <NavBar onBack={() => navigate(-1)}>{isEdit ? '编辑贷款' : '添加贷款'}</NavBar>
 
       <div style={{ padding: 16 }}>
-        <Form layout="vertical" footer={
-          <Button block type="submit" color="primary" size="large" onClick={onSubmit}>
-            {isEdit ? '保存' : '创建'}
-          </Button>
-        }>
-          <Form.Item name="name" label="贷款名称" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="如：房贷" value={form.name} onChange={(v) => set('name', v)} />
-          </Form.Item>
-          <Form.Item name="principal" label="本金（元）" rules={[{ required: true, message: '请输入本金' }]}>
-            <Input type="number" placeholder="100000" value={form.principal} onChange={(v) => set('principal', v)} />
-          </Form.Item>
-          <Form.Item name="annualRate" label="年利率（%）" rules={[{ required: true, message: '请输入年利率' }]}>
-            <Input type="number" placeholder="4.9" value={form.annualRate} onChange={(v) => set('annualRate', v)} />
-          </Form.Item>
-          <Form.Item name="termMonths" label="期数（月）" rules={[{ required: true, message: '请输入期数' }]}>
-            <Input type="number" placeholder="12" value={form.termMonths} onChange={(v) => set('termMonths', v)} />
-          </Form.Item>
-          <Form.Item name="repaymentDay" label="每月还款日" trigger="onConfirm" rules={[{ required: true, message: '请选择还款日' }]}>
-            <Picker
-              columns={[Array.from({ length: 28 }, (_, i) => ({ label: `${i + 1} 号`, value: String(i + 1) }))]}
-              value={[form.repaymentDay]}
-              onConfirm={(v) => set('repaymentDay', String(v[0]))}
-            >
-              {(items, actions) => (
-                <div onClick={() => actions.open()}>
-                  <Input value={String(items[0]?.label ?? '1 号')} readOnly />
+        <div style={fieldWrap}>
+          <div style={labelStyle}>贷款名称 <span style={{ color: '#ff4d4f' }}>*</span></div>
+          <Input placeholder="如：房贷" value={form.name} onChange={(v) => set('name', v)} />
+        </div>
+
+        <div style={fieldWrap}>
+          <div style={labelStyle}>本金（元）<span style={{ color: '#ff4d4f' }}>*</span></div>
+          <Input type="number" placeholder="100000" value={form.principal} onChange={(v) => set('principal', v)} />
+        </div>
+
+        <div style={fieldWrap}>
+          <div style={labelStyle}>年利率（%）<span style={{ color: '#ff4d4f' }}>*</span></div>
+          <Input type="number" placeholder="4.9" value={form.annualRate} onChange={(v) => set('annualRate', v)} />
+        </div>
+
+        <div style={fieldWrap}>
+          <div style={labelStyle}>期数（月）<span style={{ color: '#ff4d4f' }}>*</span></div>
+          <Input type="number" placeholder="12" value={form.termMonths} onChange={(v) => set('termMonths', v)} />
+        </div>
+
+        <div style={fieldWrap}>
+          <div style={labelStyle}>每月还款日</div>
+          <Picker
+            columns={[Array.from({ length: 28 }, (_, i) => ({ label: `${i + 1} 号`, value: String(i + 1) }))]}
+            value={[form.repaymentDay]}
+            onConfirm={(v) => set('repaymentDay', String(v[0]))}
+          >
+            {(items, actions) => (
+              <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                {items[0]?.label ?? `${form.repaymentDay} 号`}
+              </div>
+            )}
+          </Picker>
+        </div>
+
+        <div style={fieldWrap}>
+          <div style={labelStyle}>开始日期<span style={{ color: '#ff4d4f' }}>*</span></div>
+          <DatePicker
+            value={new Date(form.startDate)}
+            onConfirm={(v) => v && set('startDate', v.toISOString().slice(0, 10))}
+          >
+            {(value, actions) => (
+              <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                {value ? value.toISOString().slice(0, 10) : '选择日期'}
+              </div>
+            )}
+          </DatePicker>
+        </div>
+
+        <div style={fieldWrap}>
+          <div style={labelStyle}>还款方式</div>
+          <Picker
+            columns={[methodOptions]}
+            value={[form.method]}
+            onConfirm={(v) => set('method', String(v[0]))}
+          >
+            {(_items, actions) => {
+              const currentLabel =
+                METHODS.find((m) => m.value === form.method)?.label ?? '等额本息';
+              return (
+                <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                  {currentLabel}
                 </div>
-              )}
-            </Picker>
-          </Form.Item>
-          <Form.Item name="startDate" label="开始日期" rules={[{ required: true, message: '请选择开始日期' }]}>
-            <DatePicker
-              value={new Date(form.startDate)}
-              onConfirm={(v) => v && set('startDate', v.toISOString().slice(0, 10))}
-            >
-              {(value, actions) => (
-                <div onClick={() => actions.open()}>
-                  <Input value={value ? value.toISOString().slice(0, 10) : ''} readOnly />
-                </div>
-              )}
-            </DatePicker>
-          </Form.Item>
-          <Form.Item name="method" label="还款方式" trigger="onConfirm">
-            <Picker
-              columns={[methodOptions]}
-              value={[form.method]}
-              onConfirm={(v) => set('method', String(v[0]))}
-            >
-              {(_items, actions) => {
-                const currentLabel =
-                  METHODS.find((m) => m.value === form.method)?.label ?? '等额本息';
-                return (
-                  <div onClick={() => actions.open()}>
-                    <Input value={currentLabel} readOnly />
-                  </div>
-                );
-              }}
-            </Picker>
-          </Form.Item>
-          {isCustomLocked && (
-            <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
-              自定义贷款不支持改为其他还款方式
-            </div>
-          )}
-          {form.method === 'custom' && (
-            <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
-              将按等额本息自动生成默认还款计划，创建后可在贷款详情中编辑每期金额和日期
-            </div>
-          )}
-          <Form.Item name="note" label="备注">
-            <Input placeholder="可选" value={form.note} onChange={(v) => set('note', v)} />
-          </Form.Item>
-        </Form>
+              );
+            }}
+          </Picker>
+        </div>
+
+        {isCustomLocked && (
+          <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+            自定义贷款不支持改为其他还款方式
+          </div>
+        )}
+        {isCustom && !isEdit && (
+          <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+            将按等额本息自动生成默认还款计划，创建后可在贷款详情中编辑每期金额和日期
+          </div>
+        )}
+
+        <div style={fieldWrap}>
+          <div style={labelStyle}>备注</div>
+          <Input placeholder="可选" value={form.note} onChange={(v) => set('note', v)} />
+        </div>
+
+        <Button block type="submit" color="primary" size="large" onClick={onSubmit} style={{ marginTop: 8 }}>
+          {isEdit ? '保存' : '创建'}
+        </Button>
 
         {plan && (
-          <div style={{ background: '#f5f6f8', borderRadius: 12, padding: 16, marginTop: 8 }}>
+          <div style={{ background: '#f5f6f8', borderRadius: 12, padding: 16, marginTop: 16 }}>
             <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
               {isCustom ? '默认还款计划预览（按等额本息生成，创建后可编辑）' : '还款计划预览'}
             </div>
