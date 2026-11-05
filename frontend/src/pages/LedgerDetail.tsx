@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   DatePicker,
@@ -37,6 +37,7 @@ function fmt(n: string | number) {
 export default function LedgerDetail() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [editing, setEditing] = useState<Transaction | null>(null);
@@ -58,7 +59,7 @@ export default function LedgerDetail() {
     queryFn: async () => (await categoryApi.list(id)).data as Category[],
   });
 
-  const { data: transactions = [], refetch } = useQuery({
+  const { data: transactions = [] } = useQuery({
     queryKey: ['transactions', id, month],
     queryFn: async () => (await transactionApi.list(id, { month })).data as Transaction[],
   });
@@ -88,6 +89,13 @@ export default function LedgerDetail() {
     window.open(`/api/ledgers/${id}/transactions/export?month=${month}`, '_blank');
   };
 
+  // 刷新流水 + 相关统计
+  const refreshAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['transactions', id] });
+    queryClient.invalidateQueries({ queryKey: ['stats', 'summary'] });
+    queryClient.invalidateQueries({ queryKey: ['repayments', 'upcoming'] });
+  };
+
   const handleImport = async (file: File) => {
     const form = new FormData();
     form.append('file', file);
@@ -103,7 +111,7 @@ export default function LedgerDetail() {
       } else {
         Toast.show({ content: `成功导入 ${data.successCount} 条` });
       }
-      refetch();
+      refreshAll();
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '导入失败' });
     }
@@ -121,7 +129,7 @@ export default function LedgerDetail() {
         occurredAt: t.occurredAt,
       });
       Toast.show({ content: '已复制' });
-      refetch();
+      refreshAll();
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '复制失败' });
     }
@@ -140,7 +148,7 @@ export default function LedgerDetail() {
     try {
       await transactionApi.remove(t.id);
       Toast.show({ content: '已删除' });
-      refetch();
+      refreshAll();
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '删除失败' });
     }
@@ -175,7 +183,7 @@ export default function LedgerDetail() {
       await transactionApi.update(editing.id, data);
       Toast.show({ content: '已保存' });
       setEditing(null);
-      refetch();
+      refreshAll();
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '保存失败' });
     }

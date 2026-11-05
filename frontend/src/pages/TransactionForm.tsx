@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, DatePicker, Form, Input, NavBar, Picker, TextArea, Toast } from 'antd-mobile';
 import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
@@ -9,6 +9,7 @@ import type { Category } from '../types';
 export default function TransactionForm() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [type, setType] = useState<'expense' | 'income' | 'transfer'>('expense');
 
   const { data: categories = [] } = useQuery({
@@ -37,6 +38,10 @@ export default function TransactionForm() {
         note: values.note,
         occurredAt: values.date ? new Date(values.date).toISOString() : new Date().toISOString(),
       });
+      // 失效流水查询 + 统计，让账本详情页立即刷新
+      queryClient.invalidateQueries({ queryKey: ['transactions', id] });
+      queryClient.invalidateQueries({ queryKey: ['stats', 'summary'] });
+      queryClient.invalidateQueries({ queryKey: ['repayments', 'upcoming'] });
       Toast.show({ content: '已记账' });
       navigate(-1);
     } catch (e: any) {
