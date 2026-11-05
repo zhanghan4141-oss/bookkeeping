@@ -1,5 +1,5 @@
 # 构建阶段：编译前端，产出 dist/
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
