@@ -1,14 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { periodKey } from './lunar.util.js';
+import { lunarYearMonthOf, periodKey } from './lunar.util.js';
 import type { SummaryQueryDto } from './dto/stat.dto.js';
 
 type Calendar = 'solar' | 'lunar';
 type Period = 'day' | 'month' | 'year';
 
-/** 根据日期范围跨度确定趋势粒度：跨年→年，跨月→月，否则→日 */
-function determineGranularity(startStr: string, endStr: string): Period {
+/** 根据日期范围跨度确定趋势粒度：跨年→年，跨月→月，否则→日（按所选历法判断） */
+function determineGranularity(
+  startStr: string,
+  endStr: string,
+  calendar: Calendar,
+): Period {
+  if (calendar === 'lunar') {
+    const s = lunarYearMonthOf(new Date(`${startStr}T00:00:00`));
+    const e = lunarYearMonthOf(new Date(`${endStr}T00:00:00`));
+    if (s.year !== e.year) return 'year';
+    if (s.month !== e.month) return 'month';
+    return 'day';
+  }
   const start = new Date(`${startStr}T00:00:00`);
   const end = new Date(`${endStr}T00:00:00`);
   if (start.getFullYear() !== end.getFullYear()) return 'year';
@@ -51,7 +62,7 @@ export class StatService {
       const end = new Date(`${query.endDate}T00:00:00`);
       end.setDate(end.getDate() + 1);
       where.occurredAt = { gte: start, lt: end, lte: now };
-      period = determineGranularity(query.startDate, query.endDate);
+      period = determineGranularity(query.startDate, query.endDate, calendar);
     } else if (query.date && calendar === 'solar') {
       // 旧逻辑：按月/按年 + 参考日期
       if (period === 'month' && /^\d{4}-\d{2}$/.test(query.date)) {

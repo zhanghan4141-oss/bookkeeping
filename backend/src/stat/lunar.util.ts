@@ -31,6 +31,12 @@ export function solarDayKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/** 返回某个公历日期对应的农历年/月（月为负数表示闰月） */
+export function lunarYearMonthOf(date: Date): { year: number; month: number } {
+  const lunar = Solar.fromDate(date).getLunar();
+  return { year: lunar.getYear(), month: lunar.getMonth() };
+}
+
 /** 根据统计粒度（day/month/year）和历法（solar/lunar）生成键 */
 export function periodKey(
   date: Date,

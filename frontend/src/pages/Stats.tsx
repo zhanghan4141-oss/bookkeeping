@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, DatePicker, NavBar, Popup } from 'antd-mobile';
 import { LeftOutline, RightOutline } from 'antd-mobile-icons';
+import { Lunar, LunarMonth, Solar } from 'lunar-javascript';
 import { statApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
 import Chart from '../components/Chart';
@@ -21,22 +22,37 @@ function parseDate(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/** 当前历法下，某日期所在「月」的公历区间；offset 用于平移（-1 上一个月，+1 下一个月） */
+function monthRangeOf(
+  date: Date,
+  calendar: 'solar' | 'lunar',
+  offset = 0,
+): { start: string; end: string } {
+  if (calendar === 'solar') {
+    const first = new Date(date.getFullYear(), date.getMonth() + offset, 1);
+    const last = new Date(date.getFullYear(), date.getMonth() + offset + 1, 0);
+    return { start: fmtDate(first), end: fmtDate(last) };
+  }
+  const lunar = Solar.fromDate(date).getLunar();
+  const ym = LunarMonth.fromYm(lunar.getYear(), lunar.getMonth()).next(offset);
+  const first = Lunar.fromYmd(ym.getYear(), ym.getMonth(), 1).getSolar();
+  const last = Lunar.fromYmd(ym.getYear(), ym.getMonth(), ym.getDayCount()).getSolar();
+  return { start: first.toYmd(), end: last.toYmd() };
+}
+
 export default function Stats() {
   const [calendar, setCalendar] = useState<'solar' | 'lunar'>('solar');
   const [showRangePicker, setShowRangePicker] = useState(false);
   const [showLedgerPicker, setShowLedgerPicker] = useState(false);
   const [tempStart, setTempStart] = useState('');
   const [tempEnd, setTempEnd] = useState('');
+  // 是否为自定义区间（false = 按当前历法的「月」导航）
+  const [isCustom, setIsCustom] = useState(false);
   const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
   const selectOne = useLedgerSelectionStore((s) => s.selectOne);
 
-  // 统计日期范围（默认当月）
-  const [range, setRange] = useState(() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { start: fmtDate(start), end: fmtDate(end) };
-  });
+  // 统计日期范围（默认当前公历月）
+  const [range, setRange] = useState(() => monthRangeOf(new Date(), 'solar'));
 
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],
@@ -72,9 +88,12 @@ export default function Stats() {
     },
   });
 
-  // 左右箭头：整体平移整个区间
+  // 左右箭头：按月导航（自定义区间则整体平移）
   const shift = (delta: number) => {
     setRange((prev) => {
+      if (!isCustom) {
+        return monthRangeOf(parseDate(prev.start), calendar, delta);
+      }
       const start = parseDate(prev.start);
       const end = parseDate(prev.end);
       const duration = end.getTime() - start.getTime() + 86400000;
@@ -83,6 +102,18 @@ export default function Stats() {
         end: fmtDate(new Date(end.getTime() + delta * duration)),
       };
     });
+  };
+
+  // 切换公历/农历：把当前「月」换算到新历法；自定义区间则重置为当前月
+  const toggleCalendar = () => {
+    const next = calendar === 'solar' ? 'lunar' : 'solar';
+    setCalendar(next);
+    if (isCustom) {
+      setRange(monthRangeOf(new Date(), next));
+      setIsCustom(false);
+    } else {
+      setRange(monthRangeOf(parseDate(range.start), next));
+    }
   };
 
   const openRangePicker = () => {
@@ -97,6 +128,7 @@ export default function Stats() {
       const a = parseDate(tempStart);
       const b = parseDate(tempEnd);
       setRange(a <= b ? { start: tempStart, end: tempEnd } : { start: tempEnd, end: tempStart });
+      setIsCustom(true);
     }
     setShowRangePicker(false);
   };
@@ -154,7 +186,7 @@ export default function Stats() {
         right={
           <span
             style={{ fontSize: 14, color: '#1677ff' }}
-            onClick={() => setCalendar((c) => (c === 'solar' ? 'lunar' : 'solar'))}
+            onClick={toggleCalendar}
           >
             {calendar === 'lunar' ? '农历' : '公历'}
           </span>
