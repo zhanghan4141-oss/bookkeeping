@@ -4,10 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Form, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
 import { AddCircleOutline } from 'antd-mobile-icons';
 import { ledgerApi } from '../api/ledger';
-import { repaymentApi } from '../api/misc';
+import { repaymentApi, statApi } from '../api/misc';
 import { useAuthStore } from '../stores/auth';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
-import type { Ledger } from '../types';
+import type { Ledger, LedgerSummary } from '../types';
 
 const LEDGER_TYPE_ICON: Record<string, string> = {
   daily: '📒',
@@ -19,6 +19,7 @@ export default function Ledgers() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const [showCreate, setShowCreate] = useState(false);
+  const [period, setPeriod] = useState<'month' | 'year' | 'all'>('month');
   const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
   const selectOne = useLedgerSelectionStore((s) => s.selectOne);
 
@@ -26,6 +27,17 @@ export default function Ledgers() {
     queryKey: ['ledgers'],
     queryFn: async () => (await ledgerApi.list()).data as Ledger[],
   });
+
+  const { data: summaries = [] } = useQuery({
+    queryKey: ['ledger-summaries', period],
+    queryFn: async () => (await statApi.ledgerSummaries(period)).data as LedgerSummary[],
+  });
+
+  const summaryMap = useMemo(() => {
+    const m = new Map<string, LedgerSummary>();
+    summaries.forEach((s) => m.set(s.ledgerId, s));
+    return m;
+  }, [summaries]);
 
   const { data: upcoming } = useQuery({
     queryKey: ['repayments', 'upcoming', 7],
@@ -107,9 +119,34 @@ export default function Ledgers() {
           </Button>
         </div>
 
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          {[
+            { key: 'month', label: '当月' },
+            { key: 'year', label: '当年' },
+            { key: 'all', label: '所有' },
+          ].map((t) => (
+            <div
+              key={t.key}
+              onClick={() => setPeriod(t.key as 'month' | 'year' | 'all')}
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                padding: '6px 0',
+                borderRadius: 6,
+                fontSize: 13,
+                background: period === t.key ? '#1677ff' : '#f5f5f5',
+                color: period === t.key ? '#fff' : '#666',
+              }}
+            >
+              {t.label}
+            </div>
+          ))}
+        </div>
+
         <List style={{ borderRadius: 12, overflow: 'hidden' }}>
           {sortedLedgers.map((l) => {
             const isSelected = selectedIds.includes(l.id);
+            const s = summaryMap.get(l.id);
             return (
               <List.Item
                 key={l.id}
@@ -118,7 +155,21 @@ export default function Ledgers() {
                     {l.icon || LEDGER_TYPE_ICON[l.type] || '📒'}
                   </span>
                 }
-                description={`${l.type === 'loan' ? '贷款账本' : l.type === 'daily' ? '日常账本' : '自定义'} · ${l.currency}`}
+                description={
+                  <div>
+                    <div className="text-secondary" style={{ fontSize: 12 }}>
+                      {l.type === 'loan' ? '贷款账本' : l.type === 'daily' ? '日常账本' : '自定义'} · {l.currency}
+                    </div>
+                    <div style={{ fontSize: 12, marginTop: 2 }}>
+                      收 <span style={{ color: '#52c41a' }}>¥{(s?.income ?? 0).toFixed(2)}</span>
+                      {'  '}支 <span style={{ color: '#ff4d4f' }}>¥{(s?.expense ?? 0).toFixed(2)}</span>
+                      {'  '}结余{' '}
+                      <span style={{ color: (s?.surplus ?? 0) >= 0 ? '#1677ff' : '#ff4d4f' }}>
+                        ¥{(s?.surplus ?? 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                }
                 onClick={() => handleOpenLedger(l)}
                 style={
                   isSelected

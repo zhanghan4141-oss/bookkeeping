@@ -138,6 +138,59 @@ export class StatService {
     return members.map((m) => m.ledgerId);
   }
 
+  /** 每个账本的收支结余汇总（账本列表用），支持当月/当年/所有 */
+  async ledgerSummaries(
+    userId: string,
+    period: 'month' | 'year' | 'all',
+  ) {
+    const now = new Date();
+    const where: Prisma.TransactionWhereInput = {
+      occurredAt: { lte: now },
+    };
+
+    if (period === 'month') {
+      where.occurredAt = {
+        gte: new Date(now.getFullYear(), now.getMonth(), 1),
+        lte: now,
+      };
+    } else if (period === 'year') {
+      where.occurredAt = {
+        gte: new Date(now.getFullYear(), 0, 1),
+        lte: now,
+      };
+    }
+
+    const members = await this.prisma.ledgerMember.findMany({
+      where: { userId },
+      select: { ledgerId: true },
+    });
+    const accessibleIds = members.map((m) => m.ledgerId);
+
+    const transactions = await this.prisma.transaction.findMany({
+      where: { ...where, ledgerId: { in: accessibleIds } },
+      select: { ledgerId: true, type: true, amount: true },
+    });
+
+    const map = new Map<string, { income: number; expense: number }>();
+    for (const tx of transactions) {
+      const entry = map.get(tx.ledgerId) ?? { income: 0, expense: 0 };
+      if (tx.type === 'income') entry.income += Number(tx.amount);
+      else if (tx.type === 'expense') entry.expense += Number(tx.amount);
+      map.set(tx.ledgerId, entry);
+    }
+
+    const round = (n: number) => Math.round(n * 100) / 100;
+    return accessibleIds.map((ledgerId) => {
+      const e = map.get(ledgerId) ?? { income: 0, expense: 0 };
+      return {
+        ledgerId,
+        income: round(e.income),
+        expense: round(e.expense),
+        surplus: round(e.income - e.expense),
+      };
+    });
+  }
+
   private emptyResult(period: Period, calendar: Calendar) {
     return {
       period,

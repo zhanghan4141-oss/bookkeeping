@@ -17,3 +17,9 @@ export class SummaryQueryDto {
   @IsString()
   ledgerIds?: string; // 逗号分隔的多账本
 }
+
+export class LedgerSummaryQueryDto {
+  @IsOptional()
+  @IsIn(['month', 'year', 'all'])
+  period?: 'month' | 'year' | 'all';
+}

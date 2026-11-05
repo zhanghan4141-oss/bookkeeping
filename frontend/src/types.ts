@@ -99,3 +99,10 @@ export interface StatSummary {
   byCategory: { categoryId: string; name: string; type: string; color: string | null; icon: string | null; amount: number }[];
   trend: { key: string; income: number; expense: number }[];
 }
+
+export interface LedgerSummary {
+  ledgerId: string;
+  income: number;
+  expense: number;
+  surplus: number;
+}

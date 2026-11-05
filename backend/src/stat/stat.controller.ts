@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { LedgerAccessService } from '../common/access/ledger-access.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/decorators/current-user.decorator.js';
-import { SummaryQueryDto } from './dto/stat.dto.js';
+import { LedgerSummaryQueryDto, SummaryQueryDto } from './dto/stat.dto.js';
 import { StatService } from './stat.service.js';
 
 @Controller()
@@ -33,5 +33,14 @@ export class StatController {
       ? query.ledgerIds.split(',').map((s) => s.trim()).filter(Boolean)
       : [];
     return this.statService.summary(user.id, ledgerIds, query);
+  }
+
+  /** 每个账本的收支结余汇总（账本列表用） */
+  @Get('stats/ledgers')
+  ledgerSummaries(
+    @CurrentUser() user: AuthUser,
+    @Query() query: LedgerSummaryQueryDto,
+  ) {
+    return this.statService.ledgerSummaries(user.id, query.period ?? 'month');
   }
 }
