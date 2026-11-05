@@ -53,39 +53,55 @@ export class LoanService {
       });
     }
 
-    const loan = await this.prisma.loan.create({
-      data: {
-        ledgerId: dto.ledgerId,
-        name,
-        direction: dto.direction ?? 'borrow',
-        principal: new Prisma.Decimal(dto.principal),
-        annualRate: new Prisma.Decimal(dto.annualRate),
-        startDate: new Date(dto.startDate),
-        termMonths: dto.termMonths,
-        repaymentDay: dto.repaymentDay,
-        repaymentMethod: dto.repaymentMethod,
-        note: dto.note,
-        repayments: {
-          create: plan.map((p) => ({
-            periodNo: p.periodNo,
-            dueDate: p.dueDate,
-            principalAmount: new Prisma.Decimal(p.principalAmount),
-            interestAmount: new Prisma.Decimal(p.interestAmount),
-            totalAmount: new Prisma.Decimal(p.totalAmount),
-          })),
+    // 原子写入：贷款 + 还款计划 + 流水 在同一事务内，任一步失败整体回滚，
+    // 避免「接口报错但贷款/流水已创建」的不一致。
+    const loan = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.loan.create({
+        data: {
+          ledgerId: dto.ledgerId,
+          name,
+          direction: dto.direction ?? 'borrow',
+          principal: new Prisma.Decimal(dto.principal),
+          annualRate: new Prisma.Decimal(dto.annualRate),
+          startDate: new Date(dto.startDate),
+          termMonths: dto.termMonths,
+          repaymentDay: dto.repaymentDay,
+          repaymentMethod: dto.repaymentMethod,
+          note: dto.note,
+          repayments: {
+            create: plan.map((p) => ({
+              periodNo: p.periodNo,
+              dueDate: p.dueDate,
+              principalAmount: new Prisma.Decimal(p.principalAmount),
+              interestAmount: new Prisma.Decimal(p.interestAmount),
+              totalAmount: new Prisma.Decimal(p.totalAmount),
+            })),
+          },
         },
-      },
-      include: { repayments: { orderBy: { periodNo: 'asc' } } },
+      });
+
+      // 写流水：放款收入 + 每期本金/利息支出（用事务客户端，保证原子性）
+      await this.writeLoanTransactions(
+        userId,
+        created.id,
+        created.ledgerId,
+        {
+          principal: dto.principal,
+          startDate: new Date(dto.startDate),
+          plan,
+        },
+        tx,
+      );
+
+      // 读回完整贷款（含默认字段，如 kind/paidAmount/status）
+      return tx.loan.findUnique({
+        where: { id: created.id },
+        include: { repayments: { orderBy: { periodNo: 'asc' } } },
+      });
     });
 
-    // 写流水：放款收入 + 每期本金/利息支出
-    await this.writeLoanTransactions(userId, loan.id, loan.ledgerId, {
-      principal: dto.principal,
-      startDate: new Date(dto.startDate),
-      plan,
-    });
-
-    return this.findOne(loan.id);
+    if (!loan) throw new NotFoundException('贷款创建失败');
+    return this.withDerived(loan);
   }
 
   /**
