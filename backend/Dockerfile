@@ -1,6 +1,8 @@
 # 构建阶段
 FROM node:24-alpine AS builder
 WORKDIR /app
+# 使用国内 npm 镜像加速（容器内默认访问 registry.npmjs.org 在国内极慢）
+RUN npm config set registry https://registry.npmmirror.com
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm install
@@ -12,6 +14,7 @@ RUN npm run build
 FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+RUN npm config set registry https://registry.npmmirror.com
 COPY package*.json ./
 RUN npm install --omit=dev
 COPY prisma ./prisma
