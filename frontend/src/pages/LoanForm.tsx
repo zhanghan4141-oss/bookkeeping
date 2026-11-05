@@ -64,7 +64,10 @@ export default function LoanForm() {
   const { id, ledgerId } = useParams();
   const navigate = useNavigate();
   const isEdit = !!id;
-  const [form, setForm] = useState({
+
+  const DRAFT_KEY = 'loanForm:draft';
+
+  const defaultForm = () => ({
     name: '',
     principal: '',
     annualRate: '',
@@ -74,6 +77,28 @@ export default function LoanForm() {
     startDate: new Date().toISOString().slice(0, 10),
     note: '',
   });
+
+  // 新建模式：从草稿恢复上次填写的内容（刷新不丢失）；编辑模式：等 existingLoan 回填
+  const [form, setForm] = useState(() => {
+    if (isEdit) return defaultForm();
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) return { ...defaultForm(), ...JSON.parse(raw) };
+    } catch {
+      // ignore
+    }
+    return defaultForm();
+  });
+
+  // 新建模式：实时保存草稿，刷新不丢失
+  useEffect(() => {
+    if (isEdit) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+    } catch {
+      // ignore
+    }
+  }, [form, isEdit]);
 
   // 编辑模式：加载贷款数据回填
   const { data: existingLoan } = useQuery({
@@ -164,6 +189,12 @@ export default function LoanForm() {
         await loanApi.update(id!, payload);
       } else {
         await loanApi.create({ ...payload, ledgerId });
+        // 创建成功后清除草稿
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+        } catch {
+          // ignore
+        }
       }
       Toast.show({ content: isEdit ? '已保存' : '已创建' });
       navigate(-1);

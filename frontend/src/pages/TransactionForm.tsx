@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, DatePicker, Form, Input, NavBar, Picker, TextArea, Toast } from 'antd-mobile';
 import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
+import { usePersistedState } from '../hooks/usePersistedState';
 import type { Category } from '../types';
 
 /** 格式化日期时间（本地时间，精确到分钟） */
@@ -20,11 +21,27 @@ export default function TransactionForm() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [type, setType] = useState<'expense' | 'income' | 'transfer'>('expense');
-  const [categoryId, setCategoryId] = useState<string>('');
-  const [occurredAt, setOccurredAt] = useState<Date>(() => new Date());
+  const [draft, setDraft, clearDraft] = usePersistedState<{
+    type: 'expense' | 'income' | 'transfer';
+    categoryId: string;
+    occurredAt: string;
+    amount?: string;
+    note?: string;
+  }>('transactionForm:draft', {
+    type: 'expense',
+    categoryId: '',
+    occurredAt: new Date().toISOString(),
+  });
 
-  const { data: categories = [] } = useQuery({
+  const type = draft.type;
+  const categoryId = draft.categoryId;
+  const occurredAt = new Date(draft.occurredAt);
+  const setType = (t: 'expense' | 'income' | 'transfer') =>
+    setDraft((d) => ({ ...d, type: t }));
+  const setCategoryId = (id: string) => setDraft((d) => ({ ...d, categoryId: id }));
+  const setOccurredAt = (v: Date) => setDraft((d) => ({ ...d, occurredAt: v.toISOString() }));
+
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ['categories', id],
     queryFn: async () => (await categoryApi.list(id)).data as Category[],
   });
@@ -36,7 +53,7 @@ export default function TransactionForm() {
 
   // 类别加载或类型切换时，默认选中第一个类别
   useEffect(() => {
-    if (type === 'transfer') return;
+    if (type === 'transfer' || categoriesLoading) return;
     if (typeCategories.length === 0) {
       setCategoryId('');
       return;
@@ -46,7 +63,7 @@ export default function TransactionForm() {
     if (!exists) {
       setCategoryId(typeCategories[0].id);
     }
-  }, [typeCategories, type, categoryId]);
+  }, [typeCategories, type, categoryId, categoriesLoading]);
 
   const onFinish = async (values: {
     amount: number;
@@ -69,6 +86,7 @@ export default function TransactionForm() {
       queryClient.invalidateQueries({ queryKey: ['transactions', id] });
       queryClient.invalidateQueries({ queryKey: ['stats', 'summary'] });
       queryClient.invalidateQueries({ queryKey: ['repayments', 'upcoming'] });
+      clearDraft();
       Toast.show({ content: '已记账' });
       navigate(-1);
     } catch (e: any) {
@@ -108,6 +126,10 @@ export default function TransactionForm() {
         <Form
           layout="vertical"
           onFinish={onFinish}
+          initialValues={{ amount: draft.amount, note: draft.note }}
+          onValuesChange={(_changed, all) =>
+            setDraft((d) => ({ ...d, amount: all.amount, note: all.note }))
+          }
           footer={
             <Button block type="submit" color="primary" size="large">
               保存
