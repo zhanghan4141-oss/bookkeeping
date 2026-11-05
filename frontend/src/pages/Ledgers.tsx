@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Form, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
@@ -6,6 +6,7 @@ import { AddCircleOutline } from 'antd-mobile-icons';
 import { ledgerApi } from '../api/ledger';
 import { repaymentApi } from '../api/misc';
 import { useAuthStore } from '../stores/auth';
+import { useLedgerSelectionStore } from '../stores/ledgerSelection';
 import type { Ledger } from '../types';
 
 const LEDGER_TYPE_ICON: Record<string, string> = {
@@ -18,6 +19,8 @@ export default function Ledgers() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const [showCreate, setShowCreate] = useState(false);
+  const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
+  const selectOne = useLedgerSelectionStore((s) => s.selectOne);
 
   const { data: ledgers = [], refetch } = useQuery({
     queryKey: ['ledgers'],
@@ -29,6 +32,15 @@ export default function Ledgers() {
     queryFn: async () => (await repaymentApi.upcoming(7)).data,
   });
 
+  // 选中的账本排最上方
+  const sortedLedgers = useMemo(() => {
+    return [...ledgers].sort((a, b) => {
+      const aSel = selectedIds.includes(a.id) ? 1 : 0;
+      const bSel = selectedIds.includes(b.id) ? 1 : 0;
+      return bSel - aSel;
+    });
+  }, [ledgers, selectedIds]);
+
   const handleCreate = async (values: { name: string; type: string[] }) => {
     try {
       await ledgerApi.create({ name: values.name, type: values.type[0] });
@@ -38,6 +50,11 @@ export default function Ledgers() {
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '创建失败' });
     }
+  };
+
+  const handleOpenLedger = (l: Ledger) => {
+    selectOne(l.id);
+    navigate(`/ledgers/${l.id}`);
   };
 
   return (
@@ -91,20 +108,29 @@ export default function Ledgers() {
         </div>
 
         <List style={{ borderRadius: 12, overflow: 'hidden' }}>
-          {ledgers.map((l) => (
-            <List.Item
-              key={l.id}
-              prefix={
-                <span style={{ fontSize: 28, marginRight: 8 }}>
-                  {l.icon || LEDGER_TYPE_ICON[l.type] || '📒'}
-                </span>
-              }
-              description={`${l.type === 'loan' ? '贷款账本' : l.type === 'daily' ? '日常账本' : '自定义'} · ${l.currency}`}
-              onClick={() => navigate(`/ledgers/${l.id}`)}
-            >
-              {l.name}
-            </List.Item>
-          ))}
+          {sortedLedgers.map((l) => {
+            const isSelected = selectedIds.includes(l.id);
+            return (
+              <List.Item
+                key={l.id}
+                prefix={
+                  <span style={{ fontSize: 28, marginRight: 8 }}>
+                    {l.icon || LEDGER_TYPE_ICON[l.type] || '📒'}
+                  </span>
+                }
+                description={`${l.type === 'loan' ? '贷款账本' : l.type === 'daily' ? '日常账本' : '自定义'} · ${l.currency}`}
+                onClick={() => handleOpenLedger(l)}
+                style={
+                  isSelected
+                    ? { background: '#e6f4ff' }
+                    : undefined
+                }
+                extra={isSelected ? <span style={{ color: '#1677ff', fontSize: 13 }}>当前</span> : undefined}
+              >
+                {l.name}
+              </List.Item>
+            );
+          })}
           {ledgers.length === 0 && (
             <List.Item description="点击右上角新建账本开始记账">暂无账本</List.Item>
           )}

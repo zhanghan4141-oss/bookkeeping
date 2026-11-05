@@ -3,17 +3,20 @@ import { useQuery } from '@tanstack/react-query';
 import { NavBar } from 'antd-mobile';
 import { repaymentApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
+import { useLedgerSelectionStore } from '../stores/ledgerSelection';
+import LedgerSelectPopup from '../components/LedgerSelectPopup';
 import type { Ledger } from '../types';
 
 export default function Repayments() {
-  const [selected, setSelected] = useState<string[]>([]);
+  const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
+  const [showPicker, setShowPicker] = useState(false);
 
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],
     queryFn: async () => (await ledgerApi.list()).data as Ledger[],
   });
 
-  // 最近编辑过的账本（updatedAt 最新，兜底 createdAt 最新）
+  // 若没有选中任何账本，默认选中最近编辑的账本
   const latestLedger = useMemo(() => {
     if (ledgers.length === 0) return null;
     return [...ledgers].sort((a, b) => {
@@ -23,32 +26,24 @@ export default function Repayments() {
     })[0];
   }, [ledgers]);
 
-  // 初始默认选中最近编辑的账本
+  const selectOne = useLedgerSelectionStore((s) => s.selectOne);
+
   useEffect(() => {
-    if (selected.length === 0 && latestLedger) {
-      setSelected([latestLedger.id]);
+    if (selectedIds.length === 0 && latestLedger) {
+      selectOne(latestLedger.id);
     }
-  }, [latestLedger, selected.length]);
+  }, [latestLedger, selectedIds.length, selectOne]);
 
   const { data } = useQuery({
-    queryKey: ['repayments', 'upcoming', 30, selected],
-    queryFn: async () => (await repaymentApi.upcoming(30, selected)).data,
+    queryKey: ['repayments', 'upcoming', 30, selectedIds],
+    queryFn: async () => (await repaymentApi.upcoming(30, selectedIds)).data,
   });
 
-  const toggle = (id: string) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
-  // 选中的账本排前面
-  const sortedLedgers = useMemo(() => {
-    return [...ledgers].sort((a, b) => {
-      const aSelected = selected.includes(a.id) ? 1 : 0;
-      const bSelected = selected.includes(b.id) ? 1 : 0;
-      return bSelected - aSelected;
-    });
-  }, [ledgers, selected]);
+  // 选中的账本对象（按原顺序）
+  const selectedLedgers = useMemo(
+    () => ledgers.filter((l) => selectedIds.includes(l.id)),
+    [ledgers, selectedIds],
+  );
 
   const pendingExpense = data?.pendingExpense;
 
@@ -59,45 +54,43 @@ export default function Repayments() {
       </NavBar>
 
       <div style={{ padding: 16 }}>
-        {/* 账本筛选 */}
+        {/* 账本筛选（折叠显示，点开弹窗多选） */}
         <div
           style={{
             background: '#fff',
             borderRadius: 12,
             padding: 12,
             marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
+          onClick={() => setShowPicker(true)}
         >
-          <div className="text-secondary" style={{ fontSize: 13, marginBottom: 8 }}>
-            统计账本（可多选）
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, flex: 1 }}>
+            <span className="text-secondary" style={{ fontSize: 13 }}>账本</span>
+            {selectedLedgers.slice(0, 3).map((l) => (
+              <span
+                key={l.id}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  background: '#e6f4ff',
+                  color: '#1677ff',
+                  fontSize: 13,
+                }}
+              >
+                {l.name}
+              </span>
+            ))}
+            {selectedLedgers.length > 3 && (
+              <span style={{ fontSize: 13, color: '#666' }}>+{selectedLedgers.length - 3}</span>
+            )}
+            {selectedLedgers.length === 0 && (
+              <span className="text-secondary" style={{ fontSize: 13 }}>点击选择</span>
+            )}
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {sortedLedgers.map((l) => {
-              const isSelected = selected.includes(l.id);
-              return (
-                <div
-                  key={l.id}
-                  onClick={() => toggle(l.id)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 16,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    background: isSelected ? '#1677ff' : '#f5f5f5',
-                    color: isSelected ? '#fff' : '#333',
-                    border: isSelected ? '1px solid #1677ff' : '1px solid transparent',
-                    fontWeight: isSelected ? 600 : 400,
-                  }}
-                >
-                  {isSelected ? '✓ ' : ''}{l.name}
-                </div>
-              );
-            })}
-          </div>
-          {ledgers.length === 0 && (
-            <div className="text-secondary" style={{ fontSize: 13 }}>暂无账本</div>
-          )}
+          <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
         </div>
 
         {/* 汇总卡片 */}
@@ -170,6 +163,12 @@ export default function Repayments() {
           <div style={{ textAlign: 'center', padding: 16, color: '#999' }}>未来 30 天暂无待支出</div>
         )}
       </div>
+
+      <LedgerSelectPopup
+        visible={showPicker}
+        onClose={() => setShowPicker(false)}
+        ledgers={ledgers}
+      />
     </div>
   );
 }

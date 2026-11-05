@@ -1,17 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Checkbox, NavBar, Picker } from 'antd-mobile';
+import { NavBar, Picker } from 'antd-mobile';
 import { LeftOutline, RightOutline } from 'antd-mobile-icons';
 import { statApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
 import Chart from '../components/Chart';
+import LedgerSelectPopup from '../components/LedgerSelectPopup';
+import { useLedgerSelectionStore } from '../stores/ledgerSelection';
 import type { Ledger, StatSummary } from '../types';
 
 export default function Stats() {
   const [calendar, setCalendar] = useState<'solar' | 'lunar'>('solar');
   const [period, setPeriod] = useState<'month' | 'year'>('month');
-  const [selected, setSelected] = useState<string[]>([]);
-  const [showPicker, setShowPicker] = useState(false);
+  const [showPeriodPicker, setShowPeriodPicker] = useState(false);
+  const [showLedgerPicker, setShowLedgerPicker] = useState(false);
+  const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
+  const selectOne = useLedgerSelectionStore((s) => s.selectOne);
   // 当前查看的月份（YYYY-MM）或年份（YYYY）
   const [currentDate, setCurrentDate] = useState(() => {
     const d = new Date();
@@ -23,11 +27,27 @@ export default function Stats() {
     queryFn: async () => (await ledgerApi.list()).data as Ledger[],
   });
 
+  // 若没有选中任何账本，默认选中最近编辑的账本
+  const latestLedger = useMemo(() => {
+    if (ledgers.length === 0) return null;
+    return [...ledgers].sort((a, b) => {
+      const ta = a.updatedAt ?? a.createdAt ?? '';
+      const tb = b.updatedAt ?? b.createdAt ?? '';
+      return tb.localeCompare(ta);
+    })[0];
+  }, [ledgers]);
+
+  useEffect(() => {
+    if (selectedIds.length === 0 && latestLedger) {
+      selectOne(latestLedger.id);
+    }
+  }, [latestLedger, selectedIds.length, selectOne]);
+
   const { data: summary } = useQuery({
-    queryKey: ['stats', 'summary', selected, calendar, period, currentDate],
+    queryKey: ['stats', 'summary', selectedIds, calendar, period, currentDate],
     queryFn: async () => {
       const params: Record<string, string> = { calendar, period };
-      if (selected.length) params.ledgerIds = selected.join(',');
+      if (selectedIds.length) params.ledgerIds = selectedIds.join(',');
       if (calendar === 'solar') params.date = currentDate;
       return (await statApi.summary(params)).data as StatSummary;
     },
@@ -51,6 +71,12 @@ export default function Stats() {
     if (period === 'month') return currentDate;
     return `${currentDate} 年`;
   }, [period, currentDate]);
+
+  // 选中的账本对象
+  const selectedLedgers = useMemo(
+    () => ledgers.filter((l) => selectedIds.includes(l.id)),
+    [ledgers, selectedIds],
+  );
 
   const pieOption = useMemo(() => {
     const expenseCats = (summary?.byCategory ?? []).filter((c) => c.type === 'expense');
@@ -92,7 +118,7 @@ export default function Stats() {
         back={null}
         style={{ background: '#fff' }}
         right={
-          <span style={{ fontSize: 14, color: '#1677ff' }} onClick={() => setShowPicker(true)}>
+          <span style={{ fontSize: 14, color: '#1677ff' }} onClick={() => setShowPeriodPicker(true)}>
             {calendar === 'lunar' ? '农历' : '公历'}·{period === 'month' ? '月' : '年'}
           </span>
         }
@@ -124,33 +150,43 @@ export default function Stats() {
           </div>
         )}
 
-        {/* 账本选择 */}
+        {/* 账本选择（折叠显示，点开弹窗多选） */}
         <div
           style={{
             background: '#fff',
             borderRadius: 12,
             padding: 12,
             marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
+          onClick={() => setShowLedgerPicker(true)}
         >
-          <div className="text-secondary" style={{ fontSize: 13, marginBottom: 8 }}>
-            汇总账本（不选则全部）
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {ledgers.map((l) => (
-              <Checkbox
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, flex: 1 }}>
+            <span className="text-secondary" style={{ fontSize: 13 }}>账本</span>
+            {selectedLedgers.slice(0, 3).map((l) => (
+              <span
                 key={l.id}
-                checked={selected.includes(l.id)}
-                onChange={(checked) =>
-                  setSelected((prev) =>
-                    checked ? [...prev, l.id] : prev.filter((x) => x !== l.id),
-                  )
-                }
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  background: '#e6f4ff',
+                  color: '#1677ff',
+                  fontSize: 13,
+                }}
               >
                 {l.name}
-              </Checkbox>
+              </span>
             ))}
+            {selectedLedgers.length > 3 && (
+              <span style={{ fontSize: 13, color: '#666' }}>+{selectedLedgers.length - 3}</span>
+            )}
+            {selectedLedgers.length === 0 && (
+              <span className="text-secondary" style={{ fontSize: 13 }}>点击选择</span>
+            )}
           </div>
+          <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
         </div>
 
         {/* 收支总览 */}
@@ -177,8 +213,8 @@ export default function Stats() {
       </div>
 
       <Picker
-        visible={showPicker}
-        onClose={() => setShowPicker(false)}
+        visible={showPeriodPicker}
+        onClose={() => setShowPeriodPicker(false)}
         columns={[
           [
             { label: '公历', value: 'solar' },
@@ -193,8 +229,14 @@ export default function Stats() {
         onConfirm={(v) => {
           setCalendar(v[0] as 'solar' | 'lunar');
           setPeriod(v[1] as 'month' | 'year');
-          setShowPicker(false);
+          setShowPeriodPicker(false);
         }}
+      />
+
+      <LedgerSelectPopup
+        visible={showLedgerPicker}
+        onClose={() => setShowLedgerPicker(false)}
+        ledgers={ledgers}
       />
     </div>
   );
