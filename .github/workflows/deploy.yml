@@ -4,6 +4,11 @@ on:
   push:
     branches: [master]
 
+# 并发保护：同一分支的部署任务排队串行执行，避免并发竞态
+concurrency:
+  group: deploy-master
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
