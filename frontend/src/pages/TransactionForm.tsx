@@ -6,6 +6,16 @@ import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
 import type { Category } from '../types';
 
+/** 格式化日期时间（本地时间，精确到分钟） */
+function formatDateTime(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day} ${h}:${min}`;
+}
+
 export default function TransactionForm() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
@@ -81,7 +91,7 @@ export default function TransactionForm() {
         <Form
           layout="vertical"
           onFinish={onFinish}
-          initialValues={{ category: [] }}
+          initialValues={{ category: [], date: new Date() }}
           footer={
             <Button block type="submit" color="primary" size="large">
               保存
@@ -110,11 +120,11 @@ export default function TransactionForm() {
             <TextArea placeholder="备注（可选）" rows={2} />
           </Form.Item>
 
-          <Form.Item name="date" label="日期">
-            <DatePicker>
+          <Form.Item name="date" label="日期时间">
+            <DatePicker precision="minute">
               {(value, actions) => (
                 <div onClick={() => actions.open()}>
-                  <Input value={value ? value.toISOString().slice(0, 10) : ''} readOnly placeholder="今天" />
+                  <Input value={value ? formatDateTime(value) : ''} readOnly placeholder="现在" />
                 </div>
               )}
             </DatePicker>

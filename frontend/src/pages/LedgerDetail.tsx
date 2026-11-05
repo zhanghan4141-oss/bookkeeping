@@ -34,6 +34,16 @@ function fmt(n: string | number) {
   return Number(n).toFixed(2);
 }
 
+/** 格式化日期时间（本地时间，精确到分钟） */
+function formatDateTime(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day} ${h}:${min}`;
+}
+
 export default function LedgerDetail() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
@@ -162,7 +172,7 @@ export default function LedgerDetail() {
       categoryId: t.categoryId ?? '',
       amount: t.amount,
       note: t.note ?? '',
-      occurredAt: t.occurredAt.slice(0, 10),
+      occurredAt: t.occurredAt, // 完整时间戳
     });
   };
 
@@ -310,7 +320,8 @@ export default function LedgerDetail() {
                     }
                     description={
                       <span>
-                        {t.note}
+                        {formatDateTime(new Date(t.occurredAt))}
+                        {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
                         {isLoanTx && <span style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }}>〔贷款〕</span>}
                       </span>
                     }
@@ -430,17 +441,18 @@ export default function LedgerDetail() {
           )}
 
           <div style={{ marginBottom: 12 }}>
-            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>日期</div>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>日期时间</div>
             <DatePicker
+              precision="minute"
               value={editForm.occurredAt ? new Date(editForm.occurredAt) : new Date()}
-              onConfirm={(v) => setEditForm((f) => ({ ...f, occurredAt: v.toISOString().slice(0, 10) }))}
+              onConfirm={(v) => setEditForm((f) => ({ ...f, occurredAt: v.toISOString() }))}
             >
               {(_value, actions) => (
                 <div
                   onClick={() => actions.open()}
                   style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}
                 >
-                  {editForm.occurredAt || '选择日期'}
+                  {editForm.occurredAt ? formatDateTime(new Date(editForm.occurredAt)) : '选择日期时间'}
                 </div>
               )}
             </DatePicker>
