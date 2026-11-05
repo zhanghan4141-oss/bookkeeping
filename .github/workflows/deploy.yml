@@ -20,6 +20,8 @@ jobs:
           username: ${{ secrets.DEPLOY_USERNAME }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
+          # 构建镜像耗时较长，超时从默认 10m 提高到 30m
+          command_timeout: 30m
           script: |
             cd /home/admin/bookkeeping
             git pull origin master
