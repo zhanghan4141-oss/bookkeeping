@@ -14,7 +14,7 @@ import {
   SwipeAction,
   Toast,
 } from 'antd-mobile';
-import { AddOutline, PayCircleOutline, TagOutline } from 'antd-mobile-icons';
+import { AddOutline, LeftOutline, PayCircleOutline, RightOutline, TagOutline } from 'antd-mobile-icons';
 import { ledgerApi } from '../api/ledger';
 import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
@@ -64,6 +64,15 @@ export default function LedgerDetail() {
   });
 
   const groups = useMemo(() => groupByDate(transactions), [transactions]);
+
+  // 切换月份
+  const shiftMonth = (delta: number) => {
+    setMonth((prev) => {
+      const [y, m] = prev.split('-').map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+  };
 
   const monthTotal = useMemo(() => {
     let income = 0;
@@ -192,12 +201,20 @@ export default function LedgerDetail() {
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 8px', fontSize: 14 }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div onClick={() => shiftMonth(-1)} style={{ padding: '2px 6px', cursor: 'pointer' }}>
+                <LeftOutline fontSize={14} />
+              </div>
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 110 }}
+              />
+              <div onClick={() => shiftMonth(1)} style={{ padding: '2px 6px', cursor: 'pointer' }}>
+                <RightOutline fontSize={14} />
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button size="mini" fill="outline" onClick={handleExport}>导出</Button>
               <Button size="mini" fill="outline" onClick={() => fileRef.current?.click()}>导入</Button>

@@ -115,9 +115,13 @@ export default function LoanForm() {
     const principal = Number(form.principal);
     const annualRate = Number(form.annualRate);
     const termMonths = Number(form.termMonths);
-    if (!principal || !termMonths || form.method === 'custom') return null;
-    return calcPlan({ principal, annualRate, termMonths, method: form.method });
+    if (!principal || !termMonths) return null;
+    // 自定义方式也显示预览：按等额本息生成默认计划（与后端一致）
+    const method = form.method === 'custom' ? 'equal_installment' : form.method;
+    return calcPlan({ principal, annualRate, termMonths, method });
   }, [form.principal, form.annualRate, form.termMonths, form.method]);
+
+  const isCustom = form.method === 'custom';
 
   const totalRepay = plan?.reduce((s, p) => s + p.total, 0) ?? 0;
   const totalInterest = plan?.reduce((s, p) => s + p.interest, 0) ?? 0;
@@ -200,11 +204,15 @@ export default function LoanForm() {
               value={[form.method]}
               onConfirm={(v) => set('method', String(v[0]))}
             >
-              {(items, actions) => (
-                <div onClick={() => actions.open()}>
-                  <Input value={String(items[0]?.label ?? '等额本息')} readOnly />
-                </div>
-              )}
+              {(_items, actions) => {
+                const currentLabel =
+                  METHODS.find((m) => m.value === form.method)?.label ?? '等额本息';
+                return (
+                  <div onClick={() => actions.open()}>
+                    <Input value={currentLabel} readOnly />
+                  </div>
+                );
+              }}
             </Picker>
           </Form.Item>
           {isCustomLocked && (
@@ -224,6 +232,9 @@ export default function LoanForm() {
 
         {plan && (
           <div style={{ background: '#f5f6f8', borderRadius: 12, padding: 16, marginTop: 8 }}>
+            <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+              {isCustom ? '默认还款计划预览（按等额本息生成，创建后可编辑）' : '还款计划预览'}
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>
                 <div className="text-secondary" style={{ fontSize: 12 }}>还款总额</div>
