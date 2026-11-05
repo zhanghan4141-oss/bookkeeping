@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `transaction` ADD COLUMN `loanId` VARCHAR(191) NULL;
+ALTER TABLE `Transaction` ADD COLUMN `loanId` VARCHAR(191) NULL;
 
 -- CreateIndex
 CREATE INDEX `Transaction_loanId_idx` ON `Transaction`(`loanId`);

@@ -468,11 +468,11 @@ export class LoanService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     await this.prisma.$executeRaw`
-      UPDATE loanrepayment
-      SET status = 'paid', paid_amount = total_amount, paid_date = due_date
-      WHERE loan_id = ${loanId}
-        AND due_date < ${today}
-        AND status IN ('pending', 'partial', 'overdue')
+      UPDATE \`LoanRepayment\`
+      SET \`status\` = 'paid', \`paidAmount\` = \`totalAmount\`, \`paidDate\` = \`dueDate\`
+      WHERE \`loanId\` = ${loanId}
+        AND \`dueDate\` < ${today}
+        AND \`status\` IN ('pending', 'partial', 'overdue')
     `;
   }
 
@@ -480,12 +480,12 @@ export class LoanService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     await this.prisma.$executeRaw`
-      UPDATE loanrepayment r
-      JOIN loan l ON l.id = r.loan_id
-      SET r.status = 'paid', r.paid_amount = r.total_amount, r.paid_date = r.due_date
-      WHERE l.ledger_id = ${ledgerId}
-        AND r.due_date < ${today}
-        AND r.status IN ('pending', 'partial', 'overdue')
+      UPDATE \`LoanRepayment\` r
+      JOIN \`Loan\` l ON l.\`id\` = r.\`loanId\`
+      SET r.\`status\` = 'paid', r.\`paidAmount\` = r.\`totalAmount\`, r.\`paidDate\` = r.\`dueDate\`
+      WHERE l.\`ledgerId\` = ${ledgerId}
+        AND r.\`dueDate\` < ${today}
+        AND r.\`status\` IN ('pending', 'partial', 'overdue')
     `;
   }
 

@@ -33,10 +33,10 @@ export class ReminderTasksService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     await this.prisma.$executeRaw`
-      UPDATE loanrepayment
-      SET status = 'paid', paid_amount = total_amount, paid_date = due_date
-      WHERE due_date < ${today}
-        AND status IN ('pending', 'partial', 'overdue')
+      UPDATE \`LoanRepayment\`
+      SET \`status\` = 'paid', \`paidAmount\` = \`totalAmount\`, \`paidDate\` = \`dueDate\`
+      WHERE \`dueDate\` < ${today}
+        AND \`status\` IN ('pending', 'partial', 'overdue')
     `;
   }
 
