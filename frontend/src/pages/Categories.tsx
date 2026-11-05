@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Dialog, Form, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
 import { DeleteOutline } from 'antd-mobile-icons';
 import { categoryApi } from '../api/category';
+import { invalidateFinancialData } from '../lib/invalidate';
 import type { Category } from '../types';
 
 export default function Categories() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
 
   const { data: categories = [], refetch } = useQuery({
@@ -26,6 +28,7 @@ export default function Categories() {
       Toast.show({ content: '添加成功' });
       setShowAdd(false);
       refetch();
+      invalidateFinancialData(queryClient);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '添加失败' });
     }
@@ -40,6 +43,7 @@ export default function Categories() {
       await categoryApi.remove(category.id);
       Toast.show({ content: '已删除' });
       refetch();
+      invalidateFinancialData(queryClient);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '删除失败' });
     }

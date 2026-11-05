@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Form, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
 import { AddCircleOutline } from 'antd-mobile-icons';
 import { ledgerApi } from '../api/ledger';
 import { repaymentApi, statApi } from '../api/misc';
+import { invalidateFinancialData } from '../lib/invalidate';
 import { useAuthStore } from '../stores/auth';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
 import type { Ledger, LedgerSummary } from '../types';
@@ -17,6 +18,7 @@ const LEDGER_TYPE_ICON: Record<string, string> = {
 
 export default function Ledgers() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const [showCreate, setShowCreate] = useState(false);
   const [period, setPeriod] = useState<'month' | 'year' | 'all'>('month');
@@ -59,6 +61,7 @@ export default function Ledgers() {
       Toast.show({ content: '创建成功' });
       setShowCreate(false);
       refetch();
+      invalidateFinancialData(queryClient);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '创建失败' });
     }

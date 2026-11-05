@@ -18,6 +18,7 @@ import { AddOutline, LeftOutline, PayCircleOutline, RightOutline, TagOutline } f
 import { ledgerApi } from '../api/ledger';
 import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
+import { invalidateFinancialData } from '../lib/invalidate';
 import type { Category, Transaction } from '../types';
 
 function groupByDate(list: Transaction[]) {
@@ -123,11 +124,7 @@ export default function LedgerDetail() {
   };
 
   // 刷新流水 + 相关统计
-  const refreshAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['transactions', id] });
-    queryClient.invalidateQueries({ queryKey: ['stats', 'summary'] });
-    queryClient.invalidateQueries({ queryKey: ['repayments', 'upcoming'] });
-  };
+  const refreshAll = () => invalidateFinancialData(queryClient);
 
   const handleImport = async (file: File) => {
     const form = new FormData();

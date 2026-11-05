@@ -5,6 +5,7 @@ import { Button, DatePicker, Form, Input, NavBar, Picker, TextArea, Toast } from
 import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { invalidateFinancialData } from '../lib/invalidate';
 import type { Category } from '../types';
 
 /** 格式化日期时间（本地时间，精确到分钟） */
@@ -83,9 +84,7 @@ export default function TransactionForm() {
         occurredAt: occurredAt.toISOString(),
       });
       // 失效流水查询 + 统计，让账本详情页立即刷新
-      queryClient.invalidateQueries({ queryKey: ['transactions', id] });
-      queryClient.invalidateQueries({ queryKey: ['stats', 'summary'] });
-      queryClient.invalidateQueries({ queryKey: ['repayments', 'upcoming'] });
+      invalidateFinancialData(queryClient);
       clearDraft();
       Toast.show({ content: '已记账' });
       navigate(-1);

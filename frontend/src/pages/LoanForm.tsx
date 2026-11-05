@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, DatePicker, Input, NavBar, Picker, Toast } from 'antd-mobile';
 import { loanApi } from '../api/loan';
+import { invalidateFinancialData } from '../lib/invalidate';
 import type { Loan } from '../types';
 
 const METHODS = [
@@ -60,14 +61,26 @@ function fmt(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+interface LoanFormState {
+  name: string;
+  principal: string;
+  annualRate: string;
+  termMonths: string;
+  repaymentDay: string;
+  method: string;
+  startDate: string;
+  note: string;
+}
+
 export default function LoanForm() {
   const { id, ledgerId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isEdit = !!id;
 
   const DRAFT_KEY = 'loanForm:draft';
 
-  const defaultForm = () => ({
+  const defaultForm = (): LoanFormState => ({
     name: '',
     principal: '',
     annualRate: '',
@@ -79,11 +92,13 @@ export default function LoanForm() {
   });
 
   // 新建模式：从草稿恢复上次填写的内容（刷新不丢失）；编辑模式：等 existingLoan 回填
-  const [form, setForm] = useState(() => {
+  const [form, setForm] = useState<LoanFormState>(() => {
     if (isEdit) return defaultForm();
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) return { ...defaultForm(), ...JSON.parse(raw) };
+      if (raw) {
+        return { ...defaultForm(), ...(JSON.parse(raw) as Partial<LoanFormState>) };
+      }
     } catch {
       // ignore
     }
@@ -197,6 +212,7 @@ export default function LoanForm() {
         }
       }
       Toast.show({ content: isEdit ? '已保存' : '已创建' });
+      invalidateFinancialData(queryClient);
       navigate(-1);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '保存失败' });

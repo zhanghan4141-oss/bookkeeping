@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, DatePicker, Dialog, Input, List, NavBar, Popup, Toast } from 'antd-mobile';
 import { loanApi } from '../api/loan';
+import { invalidateFinancialData } from '../lib/invalidate';
 import type { Loan, LoanRepayment } from '../types';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -15,6 +16,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 export default function LoanDetail() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [paying, setPaying] = useState<LoanRepayment | null>(null);
   const [payAmount, setPayAmount] = useState('');
   // 提前还款状态
@@ -25,7 +27,7 @@ export default function LoanDetail() {
   const [editingPlan, setEditingPlan] = useState(false);
   const [editPeriods, setEditPeriods] = useState<{ dueDate: string; totalAmount: string }[]>([]);
 
-  const { data: loan, refetch } = useQuery({
+  const { data: loan } = useQuery({
     queryKey: ['loan', id],
     queryFn: async () => (await loanApi.get(id)).data as Loan,
   });
@@ -42,7 +44,7 @@ export default function LoanDetail() {
       Toast.show({ content: '已登记还款' });
       setPaying(null);
       setPayAmount('');
-      refetch();
+      invalidateFinancialData(queryClient);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '操作失败' });
     }
@@ -56,7 +58,7 @@ export default function LoanDetail() {
     try {
       await loanApi.undo(id, r.periodNo);
       Toast.show({ content: '已撤销' });
-      refetch();
+      invalidateFinancialData(queryClient);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '操作失败' });
     }
@@ -75,6 +77,7 @@ export default function LoanDetail() {
     try {
       await loanApi.remove(id);
       Toast.show({ content: '已删除' });
+      invalidateFinancialData(queryClient);
       navigate(-1);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '删除失败' });
@@ -97,7 +100,7 @@ export default function LoanDetail() {
       Toast.show({ content: '已提前还款' });
       setShowPrepay(false);
       setPrepayAmount('');
-      refetch();
+      invalidateFinancialData(queryClient);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '提前还款失败' });
     }
@@ -144,7 +147,7 @@ export default function LoanDetail() {
       );
       Toast.show({ content: '已保存' });
       setEditingPlan(false);
-      refetch();
+      invalidateFinancialData(queryClient);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '保存失败' });
     }
