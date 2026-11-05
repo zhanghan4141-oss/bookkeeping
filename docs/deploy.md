@@ -37,10 +37,19 @@ sudo bash install-docker.sh https://kscq6k8w.mirror.aliyuncs.com
 ### 方式二：手动安装（脚本不可用时）
 
 ```bash
-sudo apt update && sudo apt install -y docker.io docker-compose-v2
+sudo apt update && sudo apt install -y docker.io docker-compose-v2 docker-buildx-plugin
 sudo usermod -aG docker admin
 # 退出 SSH 重新登录使 docker 组生效
 ```
+
+> ⚠️ **必须安装 `docker-buildx-plugin`**。缺少 buildx 会导致 `docker compose up --build` 构建时出现
+> "Bake is configured but buildx isn't installed" 警告，构建回退到旧模式、缓存效率低、速度慢。
+>
+> 如果之前手动安装时漏了 buildx，可单独补装：
+> ```bash
+> sudo apt update && sudo apt install -y docker-buildx-plugin
+> ```
+> 验证 buildx 是否就绪：`docker buildx version`
 
 ### 配置国内镜像加速（必须）
 

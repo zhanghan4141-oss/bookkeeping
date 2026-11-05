@@ -16,6 +16,7 @@ fi
 if command -v docker >/dev/null 2>&1; then
   echo "Docker 已安装：$(docker --version)"
   docker compose version 2>/dev/null && echo "Docker Compose 插件已就绪" || echo "警告：未检测到 docker compose 插件"
+  docker buildx version 2>/dev/null && echo "Docker Buildx 插件已就绪" || echo "警告：未检测到 docker buildx 插件（可用 apt install docker-buildx-plugin 安装）"
   exit 0
 fi
 
