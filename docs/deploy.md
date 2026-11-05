@@ -170,6 +170,23 @@ vim .env
 
 ## 三、启动 Docker 服务
 
+### 低内存服务器：顺序构建（推荐）
+
+`docker compose up -d --build` 会**并发构建 backend + frontend**，两个 `npm install`/`npm run build` 同时跑，内存峰值翻倍，1.6GB 服务器容易 OOM 卡死。
+
+**顺序构建（先 backend 再 frontend，内存峰值减半）：**
+
+```bash
+cd /home/admin/bookkeeping/deploy
+docker compose build backend
+docker compose build frontend
+docker compose up -d
+```
+
+### 高内存服务器：一键构建
+
+内存 ≥ 4GB 可直接：
+
 ```bash
 cd /home/admin/bookkeeping/deploy
 docker compose up -d --build
@@ -294,7 +311,10 @@ curl -sI http://127.0.0.1:8081 | head -5
 cd /home/admin/bookkeeping
 git pull
 cd deploy
-docker compose up -d --build
+# 低内存服务器用顺序构建，避免 OOM
+docker compose build backend
+docker compose build frontend
+docker compose up -d
 ```
 
 数据库迁移自动执行。nginx 配置若无变化无需重载。

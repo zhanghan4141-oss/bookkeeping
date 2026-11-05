@@ -343,7 +343,7 @@ export default function LoanDetail() {
             />
           </div>
           <div className="text-secondary" style={{ fontSize: 12, marginBottom: 16 }}>
-            还款日期之后的还款计划将重新计算，每期金额相应减少
+            小于剩余本金时重算后续每期金额；等于或大于剩余本金时提前结清贷款
           </div>
           <Button block color="primary" onClick={handlePrepay}>确认提前还款</Button>
         </div>

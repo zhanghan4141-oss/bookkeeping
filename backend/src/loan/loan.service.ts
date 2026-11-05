@@ -176,7 +176,11 @@ export class LoanService {
     return this.findOne(loanId);
   }
 
-  /** 提前还款：部分提前还本金，重算剩余计划 + 重建流水 */
+  /**
+   * 提前还款：
+   * - amount < 剩余本金：部分提前还本金，重算剩余计划（期数不变、每期金额变小）
+   * - amount >= 剩余本金：提前结清，删除剩余计划，贷款标记还清
+   */
   async prepay(userId: string, loanId: string, dto: PrepayDto) {
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
@@ -202,26 +206,68 @@ export class LoanService {
     }, 0);
 
     const prepayAmount = dto.amount;
-    if (prepayAmount >= remainingPrincipal - 0.005) {
-      throw new BadRequestException('提前还款金额不能大于等于剩余本金');
-    }
+    const isFullSettlement = prepayAmount >= remainingPrincipal - 0.005;
 
-    const newPrincipal = Math.round((remainingPrincipal - prepayAmount) * 100) / 100;
-    const remainTermMonths = remaining.length;
-
-    // 重新生成剩余期数的还款计划（保持原到期日不变）
-    const newPlan = generateRepaymentPlan({
-      principal: newPrincipal,
-      annualRate: Number(loan.annualRate),
-      startDate: remaining[0].dueDate,
-      termMonths: remainTermMonths,
-      repaymentDay: loan.repaymentDay,
-      method: loan.repaymentMethod as RepaymentMethod,
-      dueDates: remaining.map((r) => r.dueDate),
-    });
-
-    // 事务：删除旧计划 + 旧流水，重建新计划 + 新流水
     await this.prisma.$transaction(async (tx) => {
+      if (isFullSettlement) {
+        // ===== 提前结清 =====
+        // 1. 删除剩余期的流水（该贷款关联的，occurredAt >= 剩余第一期到期日）
+        await tx.transaction.deleteMany({
+          where: {
+            loanId,
+            occurredAt: { gte: remaining[0].dueDate },
+          },
+        });
+        // 2. 删除剩余还款计划
+        await tx.loanRepayment.deleteMany({
+          where: {
+            loanId,
+            periodNo: { in: remaining.map((r) => r.periodNo) },
+          },
+        });
+        // 3. 提前结清流水（本金支出）
+        const principalCategory = await this.findCategory(
+          tx,
+          loan.ledgerId,
+          '还款本金',
+        );
+        if (principalCategory) {
+          await tx.transaction.create({
+            data: {
+              ledgerId: loan.ledgerId,
+              categoryId: principalCategory.id,
+              userId,
+              type: 'expense',
+              amount: new Prisma.Decimal(remainingPrincipal),
+              note: `${loan.name} 提前结清`,
+              occurredAt: prepayDate,
+              loanId,
+            },
+          });
+        }
+        // 4. 贷款标记还清
+        await tx.loan.update({
+          where: { id: loanId },
+          data: { status: 'paid_off' },
+        });
+        return;
+      }
+
+      // ===== 部分提前还本金 =====
+      const newPrincipal = Math.round((remainingPrincipal - prepayAmount) * 100) / 100;
+      const remainTermMonths = remaining.length;
+
+      // 重新生成剩余期数的还款计划（保持原到期日不变）
+      const newPlan = generateRepaymentPlan({
+        principal: newPrincipal,
+        annualRate: Number(loan.annualRate),
+        startDate: remaining[0].dueDate,
+        termMonths: remainTermMonths,
+        repaymentDay: loan.repaymentDay,
+        method: loan.repaymentMethod as RepaymentMethod,
+        dueDates: remaining.map((r) => r.dueDate),
+      });
+
       // 1. 删除「提前还款日之后」的流水（该贷款关联的，occurredAt > prepayDate）
       await tx.transaction.deleteMany({
         where: {
@@ -392,6 +438,8 @@ export class LoanService {
   }
 
   async findAll(ledgerId: string) {
+    // 先把到期的期自动标记为已还
+    await this.autoSettleExpiredByLedger(ledgerId);
     const loans = await this.prisma.loan.findMany({
       where: { ledgerId },
       include: {
@@ -405,12 +453,40 @@ export class LoanService {
   }
 
   async findOne(id: string) {
+    // 先把到期的期自动标记为已还
+    await this.autoSettleExpired(id);
     const loan = await this.prisma.loan.findUnique({
       where: { id },
       include: { repayments: { orderBy: { periodNo: 'asc' } } },
     });
     if (!loan) throw new NotFoundException('贷款不存在');
     return this.withActualRate(loan);
+  }
+
+  /** 自动把「还款日已过」的期标记为已还（到期自动已还） */
+  private async autoSettleExpired(loanId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    await this.prisma.$executeRaw`
+      UPDATE loanrepayment
+      SET status = 'paid', paid_amount = total_amount, paid_date = due_date
+      WHERE loan_id = ${loanId}
+        AND due_date < ${today}
+        AND status IN ('pending', 'partial', 'overdue')
+    `;
+  }
+
+  private async autoSettleExpiredByLedger(ledgerId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    await this.prisma.$executeRaw`
+      UPDATE loanrepayment r
+      JOIN loan l ON l.id = r.loan_id
+      SET r.status = 'paid', r.paid_amount = r.total_amount, r.paid_date = r.due_date
+      WHERE l.ledger_id = ${ledgerId}
+        AND r.due_date < ${today}
+        AND r.status IN ('pending', 'partial', 'overdue')
+    `;
   }
 
   /** 附加实际年利率（XIRR） */

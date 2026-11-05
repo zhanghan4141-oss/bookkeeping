@@ -26,6 +26,9 @@ jobs:
             cd /home/admin/bookkeeping
             git pull origin master
             cd deploy
-            docker compose up -d --build
+            # 顺序构建（先 backend 再 frontend），避免并发构建内存峰值过高导致低内存服务器 OOM 卡死
+            docker compose build backend
+            docker compose build frontend
+            docker compose up -d
             docker image prune -f
             docker compose ps

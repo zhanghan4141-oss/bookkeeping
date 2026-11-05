@@ -16,29 +16,28 @@ export class ReminderTasksService {
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   async handleDailyReminder() {
     this.logger.log('开始执行每日还款提醒');
-    await this.markOverdue();
+    await this.settleExpired();
     await this.sendReminders();
     this.logger.log('每日还款提醒完成');
   }
 
   /** 手动触发（测试用），通过 HTTP 调用 */
   async runNow() {
-    await this.markOverdue();
+    await this.settleExpired();
     await this.sendReminders();
     return { success: true };
   }
 
-  /** 标记逾期：dueDate < today 且未还清 */
-  private async markOverdue() {
+  /** 自动标记到期已还：dueDate < today 且未还清 → 标为已还 */
+  private async settleExpired() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    await this.prisma.loanRepayment.updateMany({
-      where: {
-        dueDate: { lt: today },
-        status: { in: ['pending', 'partial'] },
-      },
-      data: { status: 'overdue' },
-    });
+    await this.prisma.$executeRaw`
+      UPDATE loanrepayment
+      SET status = 'paid', paid_amount = total_amount, paid_date = due_date
+      WHERE due_date < ${today}
+        AND status IN ('pending', 'partial', 'overdue')
+    `;
   }
 
   /** 发送还款提醒：leadDays 内到期且未还清 */
