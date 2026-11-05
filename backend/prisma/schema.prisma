@@ -117,6 +117,7 @@ model Loan {
   repayments  LoanRepayment[]
   transactions Transaction[]
 
+  @@unique([ledgerId, name])
   @@index([ledgerId])
 }
 

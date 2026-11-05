@@ -16,6 +16,9 @@ export class LoanService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateLoanDto) {
+    const name = dto.name.trim();
+    await this.assertNameUnique(dto.ledgerId, name);
+
     // 自定义方式：未传 customPeriods 时，按等额本息生成默认计划（后续可在还款计划编辑里改）
     let plan: ReturnType<typeof generateRepaymentPlan>;
     if (
@@ -53,7 +56,7 @@ export class LoanService {
     const loan = await this.prisma.loan.create({
       data: {
         ledgerId: dto.ledgerId,
-        name: dto.name,
+        name,
         direction: dto.direction ?? 'borrow',
         principal: new Prisma.Decimal(dto.principal),
         annualRate: new Prisma.Decimal(dto.annualRate),
@@ -427,6 +430,25 @@ export class LoanService {
     return db.category.findFirst({ where: { ledgerId, name } });
   }
 
+  /** 校验同一账本内贷款名称唯一 */
+  private async assertNameUnique(
+    ledgerId: string,
+    name: string,
+    excludeId?: string,
+  ) {
+    const trimmed = name.trim();
+    const existing = await this.prisma.loan.findFirst({
+      where: {
+        ledgerId,
+        name: trimmed,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+    });
+    if (existing) {
+      throw new BadRequestException('该账本下已存在同名贷款');
+    }
+  }
+
   private toCustomPeriodDates(
     customPeriods?: { dueDate: string; totalAmount: number }[],
   ): { dueDate: Date; totalAmount: number }[] | undefined {
@@ -523,6 +545,11 @@ export class LoanService {
     });
     if (!existing) throw new NotFoundException('贷款不存在');
 
+    // 名称唯一性校验（同一账本内）
+    if (dto.name !== undefined) {
+      await this.assertNameUnique(existing.ledgerId, dto.name, id);
+    }
+
     const hasPaid = existing.repayments.some((r) => Number(r.paidAmount) > 0);
     const paramsChanged =
       dto.principal !== undefined ||
@@ -548,7 +575,7 @@ export class LoanService {
 
     // 基础字段更新
     const data: Prisma.LoanUpdateInput = {};
-    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.direction !== undefined) data.direction = dto.direction;
     if (dto.note !== undefined) data.note = dto.note;
     if (dto.status !== undefined) data.status = dto.status;
