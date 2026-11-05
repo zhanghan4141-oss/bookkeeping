@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   AddMemberDto,
@@ -20,21 +21,24 @@ export class LedgerService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateLedgerDto) {
-    const ledger = await this.prisma.ledger.create({
-      data: {
-        name: dto.name,
-        type: dto.type,
-        icon: dto.icon,
-        color: dto.color,
-        currency: dto.currency ?? 'CNY',
-        members: {
-          create: { userId, role: 'owner' },
+    // 账本 + 成员 + 内置类别 原子写入，避免账本已创建但类别缺失
+    return this.prisma.$transaction(async (tx) => {
+      const ledger = await tx.ledger.create({
+        data: {
+          name: dto.name,
+          type: dto.type,
+          icon: dto.icon,
+          color: dto.color,
+          currency: dto.currency ?? 'CNY',
+          members: {
+            create: { userId, role: 'owner' },
+          },
         },
-      },
-    });
+      });
 
-    await this.seedCategories(ledger.id, dto.type);
-    return ledger;
+      await this.seedCategories(ledger.id, dto.type, tx);
+      return ledger;
+    });
   }
 
   async findAll(userId: string) {
@@ -108,7 +112,12 @@ export class LedgerService {
 
   // ---- 内置类别 ----
 
-  private async seedCategories(ledgerId: string, type: string) {
+  private async seedCategories(
+    ledgerId: string,
+    type: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prisma;
     if (type === 'loan') {
       const data = LOAN_CATEGORIES.map((c, i) => ({
         ledgerId,
@@ -117,7 +126,7 @@ export class LedgerService {
         sortOrder: i,
         isBuiltin: true,
       }));
-      await this.prisma.category.createMany({ data });
+      await db.category.createMany({ data });
       return;
     }
 
@@ -135,6 +144,6 @@ export class LedgerService {
       sortOrder: i,
       isBuiltin: true,
     }));
-    await this.prisma.category.createMany({ data: [...expense, ...income] });
+    await db.category.createMany({ data: [...expense, ...income] });
   }
 }

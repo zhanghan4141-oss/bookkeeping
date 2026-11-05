@@ -759,41 +759,48 @@ export class LoanService {
       status = 'partial';
     }
 
-    const updated = await this.prisma.loanRepayment.update({
-      where: { loanId_periodNo: { loanId, periodNo } },
-      data: {
-        paidAmount: new Prisma.Decimal(newPaid),
-        status,
-        paidDate: dto.paidDate ? new Date(dto.paidDate) : new Date(),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.loanRepayment.update({
+        where: { loanId_periodNo: { loanId, periodNo } },
+        data: {
+          paidAmount: new Prisma.Decimal(newPaid),
+          status,
+          paidDate: dto.paidDate ? new Date(dto.paidDate) : new Date(),
+        },
+      });
+
+      await this.recalcLoanStatus(loanId, tx);
+      return updated;
     });
-
-    await this.recalcLoanStatus(loanId);
-
-    return updated;
   }
 
   /** 撤销某期还款（恢复 pending） */
   async undoRepayment(loanId: string, periodNo: number) {
-    const updated = await this.prisma.loanRepayment.update({
-      where: { loanId_periodNo: { loanId, periodNo } },
-      data: {
-        paidAmount: new Prisma.Decimal(0),
-        status: 'pending',
-        paidDate: null,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.loanRepayment.update({
+        where: { loanId_periodNo: { loanId, periodNo } },
+        data: {
+          paidAmount: new Prisma.Decimal(0),
+          status: 'pending',
+          paidDate: null,
+        },
+      });
+      await this.recalcLoanStatus(loanId, tx);
+      return updated;
     });
-    await this.recalcLoanStatus(loanId);
-    return updated;
   }
 
   /** 根据还款进度更新贷款状态 */
-  private async recalcLoanStatus(loanId: string) {
-    const repayments = await this.prisma.loanRepayment.findMany({
+  private async recalcLoanStatus(
+    loanId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prisma;
+    const repayments = await db.loanRepayment.findMany({
       where: { loanId },
     });
     const allPaid = repayments.length > 0 && repayments.every((r) => r.status === 'paid');
-    await this.prisma.loan.update({
+    await db.loan.update({
       where: { id: loanId },
       data: { status: allPaid ? 'paid_off' : 'active' },
     });

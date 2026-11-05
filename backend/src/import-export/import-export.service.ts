@@ -180,16 +180,18 @@ export class ImportExportService {
       customPeriods,
     });
 
-    await this.prisma.loanRepayment.deleteMany({ where: { loanId } });
-    await this.prisma.loanRepayment.createMany({
-      data: plan.map((p) => ({
-        loanId,
-        periodNo: p.periodNo,
-        dueDate: p.dueDate,
-        principalAmount: new Prisma.Decimal(p.principalAmount),
-        interestAmount: new Prisma.Decimal(p.interestAmount),
-        totalAmount: new Prisma.Decimal(p.totalAmount),
-      })),
+    await this.prisma.$transaction(async (tx) => {
+      await tx.loanRepayment.deleteMany({ where: { loanId } });
+      await tx.loanRepayment.createMany({
+        data: plan.map((p) => ({
+          loanId,
+          periodNo: p.periodNo,
+          dueDate: p.dueDate,
+          principalAmount: new Prisma.Decimal(p.principalAmount),
+          interestAmount: new Prisma.Decimal(p.interestAmount),
+          totalAmount: new Prisma.Decimal(p.totalAmount),
+        })),
+      });
     });
 
     return { success: true, periods: plan.length };
