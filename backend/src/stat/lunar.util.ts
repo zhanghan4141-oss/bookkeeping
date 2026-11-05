@@ -24,15 +24,26 @@ export function solarYearKey(date: Date): string {
   return String(date.getFullYear());
 }
 
-/** 根据统计周期（month/year）和历法（solar/lunar）生成键 */
+export function solarDayKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** 根据统计粒度（day/month/year）和历法（solar/lunar）生成键 */
 export function periodKey(
   date: Date,
-  period: 'month' | 'year',
+  period: 'day' | 'month' | 'year',
   calendar: 'solar' | 'lunar',
 ): string {
   if (calendar === 'lunar') {
+    // 农历模式下，日粒度仍用公历日（农历日不常用，且展示用公历）
+    if (period === 'day') return solarDayKey(date);
     const { year, month, key } = lunarMonthKey(date);
     return period === 'month' ? key : String(year);
   }
-  return period === 'month' ? solarMonthKey(date).key : solarYearKey(date);
+  if (period === 'day') return solarDayKey(date);
+  if (period === 'month') return solarMonthKey(date).key;
+  return solarYearKey(date);
 }

@@ -91,7 +91,7 @@ export interface ReminderSetting {
 }
 
 export interface StatSummary {
-  period: 'month' | 'year';
+  period: 'day' | 'month' | 'year';
   calendar: 'solar' | 'lunar';
   totalIncome: number;
   totalExpense: number;

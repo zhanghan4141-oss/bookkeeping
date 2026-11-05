@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsIn, IsOptional, IsString } from 'class-validator';
 
 export class SummaryQueryDto {
   @IsOptional()
@@ -16,6 +16,14 @@ export class SummaryQueryDto {
   @IsOptional()
   @IsString()
   ledgerIds?: string; // 逗号分隔的多账本
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string; // 自定义区间起始（YYYY-MM-DD）
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string; // 自定义区间结束（YYYY-MM-DD，含当天）
 }
 
 export class LedgerSummaryQueryDto {

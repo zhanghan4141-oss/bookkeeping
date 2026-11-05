@@ -5,7 +5,16 @@ import { periodKey } from './lunar.util.js';
 import type { SummaryQueryDto } from './dto/stat.dto.js';
 
 type Calendar = 'solar' | 'lunar';
-type Period = 'month' | 'year';
+type Period = 'day' | 'month' | 'year';
+
+/** 根据日期范围跨度确定趋势粒度：跨年→年，跨月→月，否则→日 */
+function determineGranularity(startStr: string, endStr: string): Period {
+  const start = new Date(`${startStr}T00:00:00`);
+  const end = new Date(`${endStr}T00:00:00`);
+  if (start.getFullYear() !== end.getFullYear()) return 'year';
+  if (start.getMonth() !== end.getMonth()) return 'month';
+  return 'day';
+}
 
 @Injectable()
 export class StatService {
@@ -18,32 +27,42 @@ export class StatService {
    * @param date 可选，指定统计周期：period=month 时为 YYYY-MM，period=year 时为 YYYY；缺省统计全部
    */
   async summary(userId: string, ledgerIds: string[], query: SummaryQueryDto) {
-    const period: Period = query.period ?? 'month';
     const calendar: Calendar = query.calendar ?? 'solar';
 
     // 校验账本权限，过滤出可访问的
     const accessible = await this.filterAccessible(userId, ledgerIds);
     if (accessible.length === 0) {
-      return this.emptyResult(period, calendar);
+      return this.emptyResult('month', calendar);
     }
 
     const now = new Date();
 
-    // 日期范围过滤（按月/按年）
+    // 日期范围过滤 + 确定趋势粒度
     const where: Prisma.TransactionWhereInput = {
       ledgerId: { in: accessible },
       occurredAt: { lte: now },
     };
-    if (query.date && calendar === 'solar') {
+
+    let period: Period = query.period ?? 'month';
+
+    if (query.startDate && query.endDate) {
+      // 自定义起止日期（含结束当天）
+      const start = new Date(`${query.startDate}T00:00:00`);
+      const end = new Date(`${query.endDate}T00:00:00`);
+      end.setDate(end.getDate() + 1);
+      where.occurredAt = { gte: start, lt: end, lte: now };
+      period = determineGranularity(query.startDate, query.endDate);
+    } else if (query.date && calendar === 'solar') {
+      // 旧逻辑：按月/按年 + 参考日期
       if (period === 'month' && /^\d{4}-\d{2}$/.test(query.date)) {
         const start = new Date(`${query.date}-01T00:00:00`);
         const end = new Date(start);
         end.setMonth(end.getMonth() + 1);
-        where.occurredAt = { gte: start, lt: end };
+        where.occurredAt = { gte: start, lt: end, lte: now };
       } else if (period === 'year' && /^\d{4}$/.test(query.date)) {
         const start = new Date(`${query.date}-01-01T00:00:00`);
         const end = new Date(`${Number(query.date) + 1}-01-01T00:00:00`);
-        where.occurredAt = { gte: start, lt: end };
+        where.occurredAt = { gte: start, lt: end, lte: now };
       }
     }
 

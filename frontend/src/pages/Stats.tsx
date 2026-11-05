@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { NavBar, Picker } from 'antd-mobile';
+import { Button, DatePicker, NavBar, Popup } from 'antd-mobile';
 import { LeftOutline, RightOutline } from 'antd-mobile-icons';
 import { statApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
@@ -9,17 +9,33 @@ import LedgerSelectPopup from '../components/LedgerSelectPopup';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
 import type { Ledger, StatSummary } from '../types';
 
+function fmtDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function parseDate(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export default function Stats() {
   const [calendar, setCalendar] = useState<'solar' | 'lunar'>('solar');
-  const [period, setPeriod] = useState<'month' | 'year'>('month');
-  const [showPeriodPicker, setShowPeriodPicker] = useState(false);
+  const [showRangePicker, setShowRangePicker] = useState(false);
   const [showLedgerPicker, setShowLedgerPicker] = useState(false);
+  const [tempStart, setTempStart] = useState('');
+  const [tempEnd, setTempEnd] = useState('');
   const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
   const selectOne = useLedgerSelectionStore((s) => s.selectOne);
-  // 当前查看的月份（YYYY-MM）或年份（YYYY）
-  const [currentDate, setCurrentDate] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+  // 统计日期范围（默认当月）
+  const [range, setRange] = useState(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { start: fmtDate(start), end: fmtDate(end) };
   });
 
   const { data: ledgers = [] } = useQuery({
@@ -44,51 +60,46 @@ export default function Stats() {
   }, [latestLedger, selectedIds.length, selectOne]);
 
   const { data: summary } = useQuery({
-    queryKey: ['stats', 'summary', selectedIds, calendar, period, currentDate],
+    queryKey: ['stats', 'summary', selectedIds, calendar, range.start, range.end],
     queryFn: async () => {
-      const params: Record<string, string> = { calendar, period };
+      const params: Record<string, string> = {
+        calendar,
+        startDate: range.start,
+        endDate: range.end,
+      };
       if (selectedIds.length) params.ledgerIds = selectedIds.join(',');
-      if (calendar === 'solar') params.date = currentDate;
       return (await statApi.summary(params)).data as StatSummary;
     },
   });
 
-  // 切换月份/年份
+  // 左右箭头：整体平移整个区间
   const shift = (delta: number) => {
-    setCurrentDate((prev) => {
-      if (period === 'month') {
-        const [y, m] = prev.split('-').map(Number);
-        const d = new Date(y, m - 1 + delta, 1);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      }
-      // 年份：prev 可能是 'YYYY' 或 'YYYY-MM'，取年份部分
-      const y = Number(prev.slice(0, 4)) + delta;
-      return String(y);
+    setRange((prev) => {
+      const start = parseDate(prev.start);
+      const end = parseDate(prev.end);
+      const duration = end.getTime() - start.getTime() + 86400000;
+      return {
+        start: fmtDate(new Date(start.getTime() + delta * duration)),
+        end: fmtDate(new Date(end.getTime() + delta * duration)),
+      };
     });
   };
 
-  // 切换周期时，同步调整 currentDate 格式
-  const handlePeriodChange = (newPeriod: 'month' | 'year') => {
-    setCurrentDate((prev) => {
-      if (newPeriod === 'year') {
-        // 切到年：取年份部分
-        return prev.slice(0, 4);
-      }
-      // 切到月：如果当前是年份（YYYY），补上当前月份
-      if (/^\d{4}$/.test(prev)) {
-        const now = new Date();
-        return `${prev}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      }
-      return prev;
-    });
-    setPeriod(newPeriod);
+  const openRangePicker = () => {
+    setTempStart(range.start);
+    setTempEnd(range.end);
+    setShowRangePicker(true);
   };
 
-  // 显示当前周期标签
-  const periodLabel = useMemo(() => {
-    if (period === 'month') return currentDate;
-    return `${currentDate}`;
-  }, [period, currentDate]);
+  const confirmRange = () => {
+    if (tempStart && tempEnd) {
+      // 若起止颠倒，自动交换
+      const a = parseDate(tempStart);
+      const b = parseDate(tempEnd);
+      setRange(a <= b ? { start: tempStart, end: tempEnd } : { start: tempEnd, end: tempStart });
+    }
+    setShowRangePicker(false);
+  };
 
   // 选中的账本对象
   const selectedLedgers = useMemo(
@@ -141,8 +152,11 @@ export default function Stats() {
         back={null}
         style={{ background: '#fff' }}
         right={
-          <span style={{ fontSize: 14, color: '#1677ff' }} onClick={() => setShowPeriodPicker(true)}>
-            {calendar === 'lunar' ? '农历' : '公历'}·{period === 'month' ? '月' : '年'}
+          <span
+            style={{ fontSize: 14, color: '#1677ff' }}
+            onClick={() => setCalendar((c) => (c === 'solar' ? 'lunar' : 'solar'))}
+          >
+            {calendar === 'lunar' ? '农历' : '公历'}
           </span>
         }
       >
@@ -150,28 +164,28 @@ export default function Stats() {
       </NavBar>
 
       <div style={{ padding: 16 }}>
-        {/* 周期切换（左右滑动） */}
-        {calendar === 'solar' && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: '#fff',
-              borderRadius: 12,
-              padding: '10px 16px',
-              marginBottom: 12,
-            }}
-          >
-            <div onClick={() => shift(-1)} style={{ padding: '4px 8px', cursor: 'pointer' }}>
-              <LeftOutline />
-            </div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>{periodLabel}</div>
-            <div onClick={() => shift(1)} style={{ padding: '4px 8px', cursor: 'pointer' }}>
-              <RightOutline />
-            </div>
+        {/* 日期范围（左右平移 + 点击中间设置起止） */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#fff',
+            borderRadius: 12,
+            padding: '10px 16px',
+            marginBottom: 12,
+          }}
+        >
+          <div onClick={() => shift(-1)} style={{ padding: '4px 8px', cursor: 'pointer' }}>
+            <LeftOutline />
           </div>
-        )}
+          <div onClick={openRangePicker} style={{ fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+            {range.start} ~ {range.end}
+          </div>
+          <div onClick={() => shift(1)} style={{ padding: '4px 8px', cursor: 'pointer' }}>
+            <RightOutline />
+          </div>
+        </div>
 
         {/* 账本选择（折叠显示，点开弹窗多选） */}
         <div
@@ -235,26 +249,51 @@ export default function Stats() {
         </div>
       </div>
 
-      <Picker
-        visible={showPeriodPicker}
-        onClose={() => setShowPeriodPicker(false)}
-        columns={[
-          [
-            { label: '公历', value: 'solar' },
-            { label: '农历', value: 'lunar' },
-          ],
-          [
-            { label: '按月', value: 'month' },
-            { label: '按年', value: 'year' },
-          ],
-        ]}
-        value={[calendar, period]}
-        onConfirm={(v) => {
-          setCalendar(v[0] as 'solar' | 'lunar');
-          handlePeriodChange(v[1] as 'month' | 'year');
-          setShowPeriodPicker(false);
-        }}
-      />
+      {/* 自定义日期范围弹窗 */}
+      <Popup
+        visible={showRangePicker}
+        onMaskClick={() => setShowRangePicker(false)}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 16 }}>设置统计区间</h3>
+          <div style={{ marginBottom: 16 }}>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>起始日期</div>
+            <DatePicker
+              precision="day"
+              value={tempStart ? parseDate(tempStart) : new Date()}
+              onConfirm={(v) => setTempStart(fmtDate(v))}
+            >
+              {(value, actions) => (
+                <div
+                  onClick={() => actions.open()}
+                  style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}
+                >
+                  {value ? fmtDate(value) : '选择日期'}
+                </div>
+              )}
+            </DatePicker>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>结束日期</div>
+            <DatePicker
+              precision="day"
+              value={tempEnd ? parseDate(tempEnd) : new Date()}
+              onConfirm={(v) => setTempEnd(fmtDate(v))}
+            >
+              {(value, actions) => (
+                <div
+                  onClick={() => actions.open()}
+                  style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}
+                >
+                  {value ? fmtDate(value) : '选择日期'}
+                </div>
+              )}
+            </DatePicker>
+          </div>
+          <Button block color="primary" onClick={confirmRange}>确定</Button>
+        </div>
+      </Popup>
 
       <LedgerSelectPopup
         visible={showLedgerPicker}
