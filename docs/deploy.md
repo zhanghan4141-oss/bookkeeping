@@ -16,9 +16,24 @@
 
 ## 前置条件
 
-- 阿里云 ECS，Ubuntu 22.04，已安装 Docker + Docker Compose v2
+- 阿里云 ECS，Ubuntu 22.04，已安装 Docker + Docker Compose v2 + **docker-buildx-plugin**
+- **内存 ≥ 2GB，并建议配置 2GB swap**（`docker compose build` 会并发跑两个 `npm install`，内存峰值高，低内存易 OOM 卡死）
 - 域名 `bookkeeping.zhangyuning.xyz` 的 A 记录指向服务器公网 IP（与 www 同 IP）
 - 安全组放行 80、443
+
+### 检查/添加 swap（低内存服务器必做）
+
+```bash
+free -m   # 看 Swap 行是否为 0，若为 0 则执行下面命令添加 2GB swap
+
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+> 阿里云轻量服务器常见 1.6GB 内存，跑 MySQL 容器后只剩约 590MB，构建必卡。加 swap 后构建虽慢但不会崩。
 
 ---
 
@@ -297,6 +312,53 @@ docker compose exec db mysqldump -u bookkeeping -p bookkeeping > backup.sql
 
 ## 八、故障排查与重建
 
+### 构建卡死排查（重点）
+
+构建卡在 `npm install` 不动，是低内存国内服务器最常见的故障。按以下顺序排查：
+
+**1. 看是不是卡住（而非慢）**
+
+```bash
+ps aux --sort=-%mem | head -15
+```
+
+- 若看到多个 `npm install` 进程处于 `D` 状态（不可中断睡眠），说明构建卡死且**任务堆积**（连续 push 触发多次构建）
+- 堆积会耗尽内存，导致后续一切变慢/卡住
+
+**2. 终止卡死的构建进程**
+
+```bash
+sudo kill -9 <卡住的 PID>
+# 例：sudo kill -9 8612 8621 8661
+```
+
+> `D` 状态进程 kill 后可能不会立即消失（在等 I/O），可等待或最后重启。
+
+**3. 检查内存（最常被忽视的根因）**
+
+```bash
+free -m
+```
+
+- `available` 低于 600MB 时，构建极易 OOM 卡死 → **加 swap**（见前置条件）
+- 检查是否有**多余的 MySQL 实例**（`ps aux | grep mysqld`）。项目用 Docker 里的 MySQL，若还有系统 apt 装的 `/usr/sbin/mysqld` 且无其他服务依赖，可停掉释放约 350MB：
+  ```bash
+  sudo systemctl disable --now mysql
+  ```
+
+**4. 检查 npm 源连通性（在服务器上，勿用 HEAD 请求）**
+
+```bash
+curl -s -o /dev/null -w "npmmirror: HTTP %{http_code} 耗时 %{time_total}s\n" --max-time 10 https://registry.npmmirror.com/react
+```
+
+- `HTTP 200` 且几秒内返回 → 源正常，卡住是内存/audit 问题
+- `HTTP 000` 或超时 → 源不通，换源（Dockerfile 里 `registry.npmmirror.com`）
+
+**5. 确认 Dockerfile 是最新版**
+
+上述坑（node 版本、npm 镜像、audit 跳过）都已通过 Dockerfile 修复，确认服务器代码已 `git pull` 到最新。
+
 ### 完全重建（数据会丢失！）
 当遇到无法修复的容器异常时（如 MySQL 初始化失败、backend 持续 Restarting），可清除所有数据和容器重新开始：
 
@@ -349,6 +411,10 @@ sudo docker compose up -d       # 重新启动（镜像已构建过，无需 --b
 | 8081 端口冲突 | 其他服务占用 | 修改 `docker-compose.yml` 中 `8081:80` 为其他端口，同步修改 nginx `proxy_pass` |
 | 收不到还款邮件 | SMTP 配置错误 | 确认用授权码、端口与 `SMTP_SECURE` 匹配（QQ 邮箱 465+true） |
 | 前端更新没生效 | 浏览器缓存 | Ctrl+Shift+R 强刷 |
+| 构建卡在 `npm install` 不动 | npm audit/fund 请求卡住 | Dockerfile 已加 `--no-audit --no-fund`；确认已 pull 最新代码 |
+| 构建报 `Run Command Timeout` | SSH 命令超时（默认10m） | workflow 已改 `command_timeout: 30m` |
+| 构建报 `EBADENGINE` | node 版本旧 | Dockerfile 已改用 `node:24-alpine` |
+| 连续 push 构建冲突 | 部署任务并发竞态 | workflow 已加 `concurrency` 排队串行 |
 
 ---
 
