@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Dialog, List, NavBar, Popup, Input, Toast } from 'antd-mobile';
+import { Button, DatePicker, Dialog, Input, List, NavBar, Popup, Toast } from 'antd-mobile';
 import { loanApi } from '../api/loan';
 import type { Loan, LoanRepayment } from '../types';
 
@@ -17,6 +17,9 @@ export default function LoanDetail() {
   const navigate = useNavigate();
   const [paying, setPaying] = useState<LoanRepayment | null>(null);
   const [payAmount, setPayAmount] = useState('');
+  // 编辑还款计划状态
+  const [editingPlan, setEditingPlan] = useState(false);
+  const [editPeriods, setEditPeriods] = useState<{ dueDate: string; totalAmount: string }[]>([]);
 
   const { data: loan, refetch } = useQuery({
     queryKey: ['loan', id],
@@ -55,7 +58,56 @@ export default function LoanDetail() {
     }
   };
 
+  // 进入编辑还款计划模式
+  const startEditPlan = () => {
+    if (!loan) return;
+    // 若有已还期，额外确认
+    const hasPaid = loan.repayments.some((r) => Number(r.paidAmount) > 0);
+    const doStart = () => {
+      setEditPeriods(
+        loan.repayments.map((r) => ({
+          dueDate: r.dueDate.slice(0, 10),
+          totalAmount: r.totalAmount,
+        })),
+      );
+      setEditingPlan(true);
+    };
+    if (hasPaid) {
+      Dialog.confirm({
+        content: '已有已还的期，修改已还期的金额可能导致还款状态变化，确认继续？',
+        onConfirm: doStart,
+      });
+    } else {
+      doStart();
+    }
+  };
+
+  const saveEditPlan = async () => {
+    // 校验
+    if (editPeriods.length !== loan?.termMonths) {
+      Toast.show({ content: '期数不匹配' });
+      return;
+    }
+    if (editPeriods.some((p) => !p.dueDate || !p.totalAmount)) {
+      Toast.show({ content: '请完整填写每期日期和金额' });
+      return;
+    }
+    try {
+      await loanApi.updateRepayments(
+        id,
+        editPeriods.map((p) => ({ dueDate: p.dueDate, totalAmount: Number(p.totalAmount) })),
+      );
+      Toast.show({ content: '已保存' });
+      setEditingPlan(false);
+      refetch();
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '保存失败' });
+    }
+  };
+
   if (!loan) return null;
+
+  const isCustom = loan.repaymentMethod === 'custom';
 
   return (
     <div className="page">
@@ -89,53 +141,105 @@ export default function LoanDetail() {
             )}
           </div>
           <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-            <Button size="mini" fill="outline" onClick={() => navigate(`/loans/${id}/edit`)}>编辑</Button>
+            <Button size="mini" fill="outline" onClick={() => navigate(`/loans/${id}/edit`)}>编辑贷款信息</Button>
             <Button size="mini" fill="outline" onClick={() => { window.open(`/api/loans/${id}/export`, '_blank'); }}>导出计划</Button>
           </div>
         </div>
 
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>还款计划</div>
-        <List style={{ borderRadius: 12, overflow: 'hidden' }}>
-          {loan.repayments.map((r) => {
-            const st = STATUS_MAP[r.status] ?? STATUS_MAP.pending;
-            const remain = Number(r.totalAmount) - Number(r.paidAmount);
-            return (
-              <List.Item
-                key={r.periodNo}
-                description={
-                  <div style={{ fontSize: 12, marginTop: 2 }}>
-                    本金 ¥{Number(r.principalAmount).toFixed(2)} · 利息 ¥{Number(r.interestAmount).toFixed(2)}
-                    <span style={{ marginLeft: 8 }}>{r.dueDate.slice(0, 10)}</span>
+        {/* 还款计划标题 + 编辑计划按钮（仅自定义） */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>还款计划</span>
+          {isCustom && !editingPlan && (
+            <Button size="mini" color="primary" fill="outline" onClick={startEditPlan}>编辑计划</Button>
+          )}
+        </div>
+
+        {/* 编辑模式：每期日期+金额可编辑 */}
+        {editingPlan ? (
+          <div style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+            {editPeriods.map((p, i) => {
+              const orig = loan.repayments[i];
+              const isPaid = orig && Number(orig.paidAmount) > 0;
+              return (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ width: 50, fontSize: 13, color: '#666' }}>
+                    第{i + 1}期{isPaid ? '✓' : ''}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <DatePicker
+                      value={p.dueDate ? new Date(p.dueDate) : new Date()}
+                      onConfirm={(v) => {
+                        const date = v.toISOString().slice(0, 10);
+                        setEditPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, dueDate: date } : x)));
+                      }}
+                    >
+                      {(_value, actions) => (
+                        <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                          {p.dueDate || '日期'}
+                        </div>
+                      )}
+                    </DatePicker>
                   </div>
-                }
-                extra={
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 600 }}>¥{Number(r.totalAmount).toFixed(2)}</div>
-                    <div style={{ fontSize: 12, color: st.color }}>{st.label}</div>
+                  <div style={{ flex: 1 }}>
+                    <Input
+                      type="number"
+                      placeholder="金额"
+                      value={p.totalAmount}
+                      onChange={(v) => setEditPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, totalAmount: v } : x)))}
+                      style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13 }}
+                    />
                   </div>
-                }
-              >
-                第 {r.periodNo} 期
-                {r.status !== 'paid' && r.status !== 'overdue' && (
-                  <Button
-                    size="mini"
-                    color="primary"
-                    fill="none"
-                    style={{ marginLeft: 8 }}
-                    onClick={(e) => { e.stopPropagation(); setPaying(r); setPayAmount(String(Math.max(remain, 0))); }}
-                  >
-                    还款
-                  </Button>
-                )}
-                {(r.status === 'paid' || r.status === 'partial') && (
-                  <Button size="mini" fill="none" style={{ marginLeft: 8 }} onClick={(e) => { e.stopPropagation(); handleUndo(r); }}>
-                    撤销
-                  </Button>
-                )}
-              </List.Item>
-            );
-          })}
-        </List>
+                </div>
+              );
+            })}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <Button block fill="outline" onClick={() => setEditingPlan(false)}>取消</Button>
+              <Button block color="primary" onClick={saveEditPlan}>保存</Button>
+            </div>
+          </div>
+        ) : (
+          <List style={{ borderRadius: 12, overflow: 'hidden' }}>
+            {loan.repayments.map((r) => {
+              const st = STATUS_MAP[r.status] ?? STATUS_MAP.pending;
+              const remain = Number(r.totalAmount) - Number(r.paidAmount);
+              return (
+                <List.Item
+                  key={r.periodNo}
+                  description={
+                    <div style={{ fontSize: 12, marginTop: 2 }}>
+                      本金 ¥{Number(r.principalAmount).toFixed(2)} · 利息 ¥{Number(r.interestAmount).toFixed(2)}
+                      <span style={{ marginLeft: 8 }}>{r.dueDate.slice(0, 10)}</span>
+                    </div>
+                  }
+                  extra={
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 600 }}>¥{Number(r.totalAmount).toFixed(2)}</div>
+                      <div style={{ fontSize: 12, color: st.color }}>{st.label}</div>
+                    </div>
+                  }
+                >
+                  第 {r.periodNo} 期
+                  {r.status !== 'paid' && r.status !== 'overdue' && (
+                    <Button
+                      size="mini"
+                      color="primary"
+                      fill="none"
+                      style={{ marginLeft: 8 }}
+                      onClick={(e) => { e.stopPropagation(); setPaying(r); setPayAmount(String(Math.max(remain, 0))); }}
+                    >
+                      还款
+                    </Button>
+                  )}
+                  {(r.status === 'paid' || r.status === 'partial') && (
+                    <Button size="mini" fill="none" style={{ marginLeft: 8 }} onClick={(e) => { e.stopPropagation(); handleUndo(r); }}>
+                      撤销
+                    </Button>
+                  )}
+                </List.Item>
+              );
+            })}
+          </List>
+        )}
       </div>
 
       <Popup

@@ -6,6 +6,7 @@ import {
   PayRepaymentDto,
   PrepayDto,
   UpdateLoanDto,
+  UpdateRepaymentsDto,
 } from './dto/loan.dto.js';
 import { calculateXIRR, generateRepaymentPlan } from './loan-calculator.js';
 import type { RepaymentMethod } from './loan-calculator.js';
@@ -15,15 +16,39 @@ export class LoanService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateLoanDto) {
-    const plan = generateRepaymentPlan({
-      principal: dto.principal,
-      annualRate: dto.annualRate,
-      startDate: new Date(dto.startDate),
-      termMonths: dto.termMonths,
-      repaymentDay: dto.repaymentDay,
-      method: dto.repaymentMethod,
-      customPeriods: this.toCustomPeriodDates(dto.customPeriods),
-    });
+    // 自定义方式：未传 customPeriods 时，按等额本息生成默认计划（后续可在还款计划编辑里改）
+    let plan: ReturnType<typeof generateRepaymentPlan>;
+    if (
+      dto.repaymentMethod === 'custom' &&
+      (!dto.customPeriods || dto.customPeriods.length === 0)
+    ) {
+      const equalPlan = generateRepaymentPlan({
+        principal: dto.principal,
+        annualRate: dto.annualRate,
+        startDate: new Date(dto.startDate),
+        termMonths: dto.termMonths,
+        repaymentDay: dto.repaymentDay,
+        method: 'equal_installment',
+      });
+      // 转成自定义格式：本金利息归零，总额=等额本息月供
+      plan = equalPlan.map((p) => ({
+        periodNo: p.periodNo,
+        dueDate: p.dueDate,
+        principalAmount: 0,
+        interestAmount: 0,
+        totalAmount: p.totalAmount,
+      }));
+    } else {
+      plan = generateRepaymentPlan({
+        principal: dto.principal,
+        annualRate: dto.annualRate,
+        startDate: new Date(dto.startDate),
+        termMonths: dto.termMonths,
+        repaymentDay: dto.repaymentDay,
+        method: dto.repaymentMethod,
+        customPeriods: this.toCustomPeriodDates(dto.customPeriods),
+      });
+    }
 
     const loan = await this.prisma.loan.create({
       data: {
@@ -58,6 +83,97 @@ export class LoanService {
     });
 
     return this.findOne(loan.id);
+  }
+
+  /**
+   * 编辑还款计划（仅自定义方式）。
+   * 接受完整的 customPeriods（日期+总额），重建计划 + 流水。
+   * 已还的期保留 paidAmount/status/paidDate。
+   */
+  async updateRepayments(
+    userId: string,
+    loanId: string,
+    dto: UpdateRepaymentsDto,
+  ) {
+    const loan = await this.prisma.loan.findUnique({
+      where: { id: loanId },
+      include: { repayments: { orderBy: { periodNo: 'asc' } } },
+    });
+    if (!loan) throw new NotFoundException('贷款不存在');
+    if (loan.repaymentMethod !== 'custom') {
+      throw new BadRequestException('仅自定义还款方式可编辑还款计划');
+    }
+
+    const customPeriods = this.toCustomPeriodDates(dto.customPeriods);
+    if (!customPeriods || customPeriods.length !== loan.termMonths) {
+      throw new BadRequestException(
+        `还款计划期数不匹配：需要 ${loan.termMonths} 期`,
+      );
+    }
+
+    // 保留已还期的状态映射
+    const paidMap = new Map(
+      loan.repayments
+        .filter((r) => Number(r.paidAmount) > 0)
+        .map((r) => [r.periodNo, r]),
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      // 删除旧流水 + 旧计划
+      await tx.transaction.deleteMany({ where: { loanId } });
+      await tx.loanRepayment.deleteMany({ where: { loanId } });
+
+      // 重建计划（保留已还期状态）
+      await tx.loanRepayment.createMany({
+        data: customPeriods.map((p, i) => {
+          const periodNo = i + 1;
+          const paid = paidMap.get(periodNo);
+          const totalAmount = p.totalAmount;
+          // 若该期已还，且新的总额小于已还金额，则报错
+          if (paid && Number(paid.paidAmount) > totalAmount + 0.005) {
+            throw new BadRequestException(
+              `第${periodNo}期已还 ${paid.paidAmount} 元，不能小于已还金额`,
+            );
+          }
+          return {
+            loanId,
+            periodNo,
+            dueDate: p.dueDate,
+            principalAmount: new Prisma.Decimal(0),
+            interestAmount: new Prisma.Decimal(0),
+            totalAmount: new Prisma.Decimal(totalAmount),
+            paidAmount: paid ? paid.paidAmount : new Prisma.Decimal(0),
+            status: paid
+              ? Number(paid.paidAmount) >= totalAmount - 0.005
+                ? 'paid'
+                : 'partial'
+              : 'pending',
+            paidDate: paid ? paid.paidDate : null,
+          };
+        }),
+      });
+
+      // 写新流水（放款收入 + 每期还款总额）
+      await this.writeLoanTransactions(
+        userId,
+        loanId,
+        loan.ledgerId,
+        {
+          principal: Number(loan.principal),
+          startDate: loan.startDate,
+          plan: customPeriods.map((p, i) => ({
+            periodNo: i + 1,
+            dueDate: p.dueDate,
+            principalAmount: 0,
+            interestAmount: 0,
+            totalAmount: p.totalAmount,
+          })),
+        },
+        tx,
+      );
+    });
+
+    return this.findOne(loanId);
   }
 
   /** 提前还款：部分提前还本金，重算剩余计划 + 重建流水 */
@@ -134,7 +250,7 @@ export class LoanService {
         })),
       });
 
-      // 4. 写新流水（本金 + 利息，以及提前还款本身）
+      // 4. 写新流水（本金 + 利息）
       await this.writeLoanTransactions(
         userId,
         loan.id,

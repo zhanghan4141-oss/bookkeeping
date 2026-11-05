@@ -16,6 +16,7 @@ import {
   PayRepaymentDto,
   PrepayDto,
   UpdateLoanDto,
+  UpdateRepaymentsDto,
 } from './dto/loan.dto.js';
 import { LoanService } from './loan.service.js';
 
@@ -50,6 +51,17 @@ export class LoanController {
     const loan = await this.loanService.findLoanEntity(id);
     await this.access.assertWritable(loan.ledgerId, user.id);
     return this.loanService.prepay(user.id, id, dto);
+  }
+
+  @Patch('loans/:id/repayments')
+  async updateRepayments(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateRepaymentsDto,
+  ) {
+    const loan = await this.loanService.findLoanEntity(id);
+    await this.access.assertWritable(loan.ledgerId, user.id);
+    return this.loanService.updateRepayments(user.id, id, dto);
   }
 
   @Get('loans/:id')

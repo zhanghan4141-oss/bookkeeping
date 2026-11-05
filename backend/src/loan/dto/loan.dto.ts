@@ -152,3 +152,10 @@ export class PrepayDto {
   @IsDateString()
   prepayDate!: string; // 提前还款日期
 }
+
+export class UpdateRepaymentsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CustomPeriodDto)
+  customPeriods!: CustomPeriodDto[];
+}
