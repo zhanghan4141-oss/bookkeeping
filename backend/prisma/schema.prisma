@@ -126,6 +126,7 @@ model LoanRepayment {
   id              String   @id @default(cuid())
   loanId          String
   periodNo        Int
+  kind            String   @default("period") // period | prepay
   dueDate         DateTime @db.Date
   principalAmount Decimal  @db.Decimal(14, 2)
   interestAmount  Decimal  @db.Decimal(14, 2)

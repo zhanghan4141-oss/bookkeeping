@@ -40,6 +40,7 @@ export interface LoanRepayment {
   id: string;
   loanId: string;
   periodNo: number;
+  kind: 'period' | 'prepay';
   dueDate: string;
   principalAmount: string;
   interestAmount: string;
@@ -47,6 +48,7 @@ export interface LoanRepayment {
   paidAmount: string;
   status: 'pending' | 'partial' | 'paid' | 'overdue';
   paidDate: string | null;
+  note?: string | null;
 }
 
 export interface Loan {
@@ -63,6 +65,8 @@ export interface Loan {
   status: 'active' | 'paid_off' | 'closed';
   note: string | null;
   actualAnnualRate?: number | null;
+  remainingPrincipal?: number;
+  remainingInterest?: number;
   repayments: LoanRepayment[];
 }
 

@@ -176,6 +176,20 @@ export default function LoanDetail() {
               <div style={{ fontSize: 20, fontWeight: 700 }}>{loan.termMonths} 期</div>
             </div>
           </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>剩余未还本金</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#1677ff' }}>
+                ¥{(loan.remainingPrincipal ?? 0).toFixed(2)}
+              </div>
+            </div>
+            <div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>剩余未还利息</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#faad14' }}>
+                ¥{(loan.remainingInterest ?? 0).toFixed(2)}
+              </div>
+            </div>
+          </div>
           <div className="text-secondary" style={{ fontSize: 13 }}>
             {loan.direction === 'lend' ? '我借入（应还）' : '我借出（应收）'} · 每月 {loan.repaymentDay} 号还款 ·{' '}
             {loan.repaymentMethod === 'equal_installment' ? '等额本息' : loan.repaymentMethod === 'equal_principal' ? '等额本金' : loan.repaymentMethod === 'interest_first' ? '先息后本' : '自定义'}
@@ -247,6 +261,31 @@ export default function LoanDetail() {
         ) : (
           <List style={{ borderRadius: 12, overflow: 'hidden' }}>
             {loan.repayments.map((r) => {
+              if (r.kind === 'prepay') {
+                return (
+                  <List.Item
+                    key={r.id}
+                    description={
+                      <div style={{ fontSize: 12, marginTop: 2 }}>
+                        提前还本金
+                        <span style={{ marginLeft: 8 }}>{r.dueDate.slice(0, 10)}</span>
+                      </div>
+                    }
+                    extra={
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 600, color: '#52c41a' }}>
+                          ¥{Number(r.totalAmount).toFixed(2)}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#52c41a' }}>已还</div>
+                      </div>
+                    }
+                  >
+                    <span style={{ color: '#52c41a', fontWeight: 600 }}>
+                      {r.note ?? '提前还款'}
+                    </span>
+                  </List.Item>
+                );
+              }
               const st = STATUS_MAP[r.status] ?? STATUS_MAP.pending;
               const remain = Number(r.totalAmount) - Number(r.paidAmount);
               return (

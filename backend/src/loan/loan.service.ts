@@ -210,15 +210,19 @@ export class LoanService {
 
     const prepayAmount = dto.amount;
     const isFullSettlement = prepayAmount >= remainingPrincipal - 0.005;
+    const remainingDueDates = remaining.map((r) => r.dueDate);
+    // 提前还款记录的 periodNo 用大偏移量，避免与正常期数（<=360）冲突，排序时自然排在计划末尾
+    const prepayNo =
+      10000 + loan.repayments.filter((r) => r.kind === 'prepay').length + 1;
 
     await this.prisma.$transaction(async (tx) => {
       if (isFullSettlement) {
         // ===== 提前结清 =====
-        // 1. 删除剩余期的流水（该贷款关联的，occurredAt >= 剩余第一期到期日）
+        // 1. 删除剩余期的流水（按到期日精确匹配，保留已还期的流水）
         await tx.transaction.deleteMany({
           where: {
             loanId,
-            occurredAt: { gte: remaining[0].dueDate },
+            occurredAt: { in: remainingDueDates },
           },
         });
         // 2. 删除剩余还款计划
@@ -248,7 +252,23 @@ export class LoanService {
             },
           });
         }
-        // 4. 贷款标记还清
+        // 4. 提前结清也加入还款计划（还多少记多少）
+        await tx.loanRepayment.create({
+          data: {
+            loanId,
+            periodNo: prepayNo,
+            kind: 'prepay',
+            dueDate: prepayDate,
+            principalAmount: new Prisma.Decimal(remainingPrincipal),
+            interestAmount: new Prisma.Decimal(0),
+            totalAmount: new Prisma.Decimal(remainingPrincipal),
+            paidAmount: new Prisma.Decimal(remainingPrincipal),
+            status: 'paid',
+            paidDate: prepayDate,
+            note: '提前结清',
+          },
+        });
+        // 5. 贷款标记还清
         await tx.loan.update({
           where: { id: loanId },
           data: { status: 'paid_off' },
@@ -271,11 +291,11 @@ export class LoanService {
         dueDates: remaining.map((r) => r.dueDate),
       });
 
-      // 1. 删除「提前还款日之后」的流水（该贷款关联的，occurredAt > prepayDate）
+      // 1. 删除剩余期的流水（按到期日精确匹配，保留已还期的流水）
       await tx.transaction.deleteMany({
         where: {
           loanId,
-          occurredAt: { gt: prepayDate },
+          occurredAt: { in: remainingDueDates },
         },
       });
 
@@ -287,19 +307,32 @@ export class LoanService {
         },
       });
 
-      // 3. 重建新还款计划（保留原 periodNo 起始，期数 = 剩余期数）
+      // 3. 重建新还款计划（保留原 periodNo 起始、原到期日；部分已还的期保留已还金额）
       await tx.loanRepayment.createMany({
-        data: newPlan.map((p, i) => ({
-          loanId,
-          periodNo: remaining[0].periodNo + i,
-          dueDate: p.dueDate,
-          principalAmount: new Prisma.Decimal(p.principalAmount),
-          interestAmount: new Prisma.Decimal(p.interestAmount),
-          totalAmount: new Prisma.Decimal(p.totalAmount),
-        })),
+        data: newPlan.map((p, i) => {
+          const orig = remaining[i];
+          const periodNo = remaining[0].periodNo + i;
+          const totalAmount = p.totalAmount;
+          const paidAmount = orig ? Number(orig.paidAmount) : 0;
+          let status = 'pending';
+          if (paidAmount > 0) {
+            status = paidAmount >= totalAmount - 0.005 ? 'paid' : 'partial';
+          }
+          return {
+            loanId,
+            periodNo,
+            dueDate: p.dueDate,
+            principalAmount: new Prisma.Decimal(p.principalAmount),
+            interestAmount: new Prisma.Decimal(p.interestAmount),
+            totalAmount: new Prisma.Decimal(totalAmount),
+            paidAmount: new Prisma.Decimal(paidAmount),
+            status,
+            paidDate: orig?.paidDate ?? null,
+          };
+        }),
       });
 
-      // 4. 写新流水（本金 + 利息）
+      // 4. 写新流水（只写每期本金/利息支出，不重复写放款收入）
       await this.writeLoanTransactions(
         userId,
         loan.id,
@@ -308,6 +341,7 @@ export class LoanService {
           principal: newPrincipal,
           startDate: remaining[0].dueDate,
           plan: newPlan,
+          writeIncome: false,
         },
         tx,
       );
@@ -332,6 +366,23 @@ export class LoanService {
           },
         });
       }
+
+      // 6. 提前还款也加入还款计划（还多少记多少）
+      await tx.loanRepayment.create({
+        data: {
+          loanId,
+          periodNo: prepayNo,
+          kind: 'prepay',
+          dueDate: prepayDate,
+          principalAmount: new Prisma.Decimal(prepayAmount),
+          interestAmount: new Prisma.Decimal(0),
+          totalAmount: new Prisma.Decimal(prepayAmount),
+          paidAmount: new Prisma.Decimal(prepayAmount),
+          status: 'paid',
+          paidDate: prepayDate,
+          note: '提前还款',
+        },
+      });
     });
 
     return this.findOne(loanId);
@@ -349,6 +400,8 @@ export class LoanService {
       principal: number;
       startDate: Date;
       plan: { dueDate: Date; principalAmount: number; interestAmount: number; totalAmount: number }[];
+      /** 是否写「放款收款」收入流水，默认 true；提前还款重算时传 false，避免多记一笔放款 */
+      writeIncome?: boolean;
     },
     tx?: Prisma.TransactionClient,
   ) {
@@ -360,7 +413,7 @@ export class LoanService {
     const transactions: Prisma.TransactionCreateManyInput[] = [];
 
     // 放款收入（本金入账）
-    if (incomeCategory) {
+    if (params.writeIncome !== false && incomeCategory) {
       transactions.push({
         ledgerId,
         categoryId: incomeCategory.id,
@@ -471,7 +524,7 @@ export class LoanService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return loans.map((l) => this.withActualRate(l));
+    return loans.map((l) => this.withDerived(l));
   }
 
   async findOne(id: string) {
@@ -482,7 +535,7 @@ export class LoanService {
       include: { repayments: { orderBy: { periodNo: 'asc' } } },
     });
     if (!loan) throw new NotFoundException('贷款不存在');
-    return this.withActualRate(loan);
+    return this.withDerived(loan);
   }
 
   /** 自动把「还款日已过」的期标记为已还（到期自动已还） */
@@ -511,11 +564,19 @@ export class LoanService {
     `;
   }
 
-  /** 附加实际年利率（XIRR） */
-  private withActualRate(loan: {
+  /** 附加实际年利率（XIRR）与剩余未还本金/利息 */
+  private withDerived(loan: {
     principal: Prisma.Decimal;
     startDate: Date;
-    repayments: { dueDate: Date; totalAmount: Prisma.Decimal }[];
+    repayments: {
+      kind: string;
+      status: string;
+      dueDate: Date;
+      principalAmount: Prisma.Decimal;
+      interestAmount: Prisma.Decimal;
+      totalAmount: Prisma.Decimal;
+      paidAmount: Prisma.Decimal;
+    }[];
   }) {
     const xirr = calculateXIRR(
       Number(loan.principal),
@@ -525,9 +586,21 @@ export class LoanService {
         totalAmount: Number(r.totalAmount),
       })),
     );
+
+    let remainingPrincipal = 0;
+    let remainingInterest = 0;
+    for (const r of loan.repayments) {
+      if (r.kind !== 'period' || r.status === 'paid') continue;
+      const ratio = Number(r.paidAmount) / Math.max(Number(r.totalAmount), 1);
+      remainingPrincipal += Number(r.principalAmount) * (1 - ratio);
+      remainingInterest += Number(r.interestAmount) * (1 - ratio);
+    }
+
     return {
       ...loan,
       actualAnnualRate: xirr === null ? null : Math.round(xirr * 10000) / 100,
+      remainingPrincipal: Math.round(remainingPrincipal * 100) / 100,
+      remainingInterest: Math.round(remainingInterest * 100) / 100,
     };
   }
 

@@ -45,6 +45,9 @@ export default function Loans() {
                     <div className="text-secondary" style={{ fontSize: 12 }}>
                       本金 ¥{Number(loan.principal).toFixed(2)} · 年利率 {loan.annualRate}% · {loan.termMonths}期
                     </div>
+                    <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
+                      剩余本金 ¥{(loan.remainingPrincipal ?? 0).toFixed(2)} · 剩余利息 ¥{(loan.remainingInterest ?? 0).toFixed(2)}
+                    </div>
                     <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
                   </div>
                 }
