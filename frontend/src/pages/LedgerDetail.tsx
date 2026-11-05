@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -51,6 +51,8 @@ export default function LedgerDetail() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [editing, setEditing] = useState<Transaction | null>(null);
+  // 展开的日期集合（默认展开最近一天，其余折叠）
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const [editForm, setEditForm] = useState({
     type: 'expense',
     categoryId: '',
@@ -75,6 +77,27 @@ export default function LedgerDetail() {
   });
 
   const groups = useMemo(() => groupByDate(transactions), [transactions]);
+
+  // 月份切换或数据变化时，默认展开最近一天，其余折叠
+  useEffect(() => {
+    if (groups.length > 0) {
+      const latestDate = groups[0][0];
+      setExpandedDates(new Set([latestDate]));
+    }
+  }, [month, transactions.length]);
+
+  // 切换某天的展开/折叠
+  const toggleDate = (date: string) => {
+    setExpandedDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) {
+        next.delete(date);
+      } else {
+        next.add(date);
+      }
+      return next;
+    });
+  };
 
   // 切换月份
   const shiftMonth = (delta: number) => {
@@ -285,25 +308,35 @@ export default function LedgerDetail() {
         {groups.map(([date, items]) => {
           const dayIncome = items.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
           const dayExpense = items.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+          const isExpanded = expandedDates.has(date);
           return (
             <div key={date} style={{ background: '#fff', marginBottom: 8, borderRadius: 12, overflow: 'hidden' }}>
               <div
+                onClick={() => toggleDate(date)}
                 style={{
                   padding: '8px 12px',
                   fontSize: 13,
                   color: '#666',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  borderBottom: '1px solid #f5f5f5',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  borderBottom: isExpanded ? '1px solid #f5f5f5' : 'none',
                 }}
               >
-                <span>{date}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#bbb', fontSize: 12, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>
+                    ▶
+                  </span>
+                  <span>{date}</span>
+                  <span style={{ fontSize: 12, color: '#999' }}>{items.length} 笔</span>
+                </span>
                 <span>
                   {dayExpense > 0 && <span style={{ color: '#ff4d4f' }}>支 ¥{fmt(dayExpense)} </span>}
                   {dayIncome > 0 && <span style={{ color: '#52c41a' }}>收 ¥{fmt(dayIncome)}</span>}
                 </span>
               </div>
-              {items.map((t) => {
+              {isExpanded && items.map((t) => {
                 const isLoanTx = !!t.loanId;
                 const content = (
                   <List.Item
@@ -322,7 +355,11 @@ export default function LedgerDetail() {
                       <span>
                         {formatDateTime(new Date(t.occurredAt))}
                         {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
-                        {isLoanTx && <span style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }}>〔贷款〕</span>}
+                        {isLoanTx && (
+                          <span style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }}>
+                            〔{t.loan?.name ?? '贷款'}〕
+                          </span>
+                        )}
                       </span>
                     }
                     onClick={() => !isLoanTx && openEdit(t)}

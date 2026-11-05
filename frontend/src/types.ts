@@ -33,6 +33,7 @@ export interface Transaction {
   loanId?: string | null;
   category?: { id: string; name: string; icon: string | null; color: string | null; type: string } | null;
   user?: { id: string; nickname: string; avatarUrl: string | null };
+  loan?: { id: string; name: string } | null;
 }
 
 export interface LoanRepayment {

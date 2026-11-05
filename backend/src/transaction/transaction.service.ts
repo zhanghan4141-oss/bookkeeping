@@ -29,6 +29,7 @@ export class TransactionService {
       include: {
         category: { select: { id: true, name: true, icon: true, color: true, type: true } },
         user: { select: { id: true, nickname: true, avatarUrl: true } },
+        loan: { select: { id: true, name: true } },
       },
       orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }],
       take: 500,

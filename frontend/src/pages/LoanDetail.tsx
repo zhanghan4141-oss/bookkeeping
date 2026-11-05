@@ -17,6 +17,10 @@ export default function LoanDetail() {
   const navigate = useNavigate();
   const [paying, setPaying] = useState<LoanRepayment | null>(null);
   const [payAmount, setPayAmount] = useState('');
+  // 提前还款状态
+  const [showPrepay, setShowPrepay] = useState(false);
+  const [prepayAmount, setPrepayAmount] = useState('');
+  const [prepayDate, setPrepayDate] = useState(() => new Date().toISOString().slice(0, 10));
   // 编辑还款计划状态
   const [editingPlan, setEditingPlan] = useState(false);
   const [editPeriods, setEditPeriods] = useState<{ dueDate: string; totalAmount: string }[]>([]);
@@ -74,6 +78,28 @@ export default function LoanDetail() {
       navigate(-1);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '删除失败' });
+    }
+  };
+
+  // 提前还款
+  const handlePrepay = async () => {
+    const amount = Number(prepayAmount);
+    if (!amount || amount <= 0) {
+      Toast.show({ content: '请输入提前还款金额' });
+      return;
+    }
+    if (!prepayDate) {
+      Toast.show({ content: '请选择还款日期' });
+      return;
+    }
+    try {
+      await loanApi.prepay(id, { amount, prepayDate });
+      Toast.show({ content: '已提前还款' });
+      setShowPrepay(false);
+      setPrepayAmount('');
+      refetch();
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '提前还款失败' });
     }
   };
 
@@ -159,7 +185,8 @@ export default function LoanDetail() {
               </span>
             )}
           </div>
-          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+          <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button size="mini" color="primary" onClick={() => setShowPrepay(true)}>提前还款</Button>
             <Button size="mini" fill="outline" onClick={() => navigate(`/loans/${id}/edit`)}>编辑贷款信息</Button>
             <Button size="mini" fill="outline" onClick={() => { window.open(`/api/loans/${id}/export`, '_blank'); }}>导出计划</Button>
             <Button size="mini" fill="outline" color="danger" onClick={handleDeleteLoan}>删除</Button>
@@ -280,6 +307,45 @@ export default function LoanDetail() {
             style={{ fontSize: 24, marginBottom: 16 }}
           />
           <Button block color="primary" onClick={handlePay}>确认还款</Button>
+        </div>
+      </Popup>
+
+      {/* 提前还款弹窗 */}
+      <Popup
+        visible={showPrepay}
+        onMaskClick={() => setShowPrepay(false)}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 16 }}>提前还款</h3>
+          <div style={{ marginBottom: 16 }}>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>还款日期</div>
+            <DatePicker
+              precision="day"
+              value={new Date(prepayDate)}
+              onConfirm={(v) => v && setPrepayDate(v.toISOString().slice(0, 10))}
+            >
+              {(value, actions) => (
+                <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                  {value ? value.toISOString().slice(0, 10) : '选择日期'}
+                </div>
+              )}
+            </DatePicker>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>提前还款金额（本金）</div>
+            <Input
+              type="number"
+              placeholder="提前还的本金金额"
+              value={prepayAmount}
+              onChange={setPrepayAmount}
+              style={{ fontSize: 20 }}
+            />
+          </div>
+          <div className="text-secondary" style={{ fontSize: 12, marginBottom: 16 }}>
+            还款日期之后的还款计划将重新计算，每期金额相应减少
+          </div>
+          <Button block color="primary" onClick={handlePrepay}>确认提前还款</Button>
         </div>
       </Popup>
     </div>
