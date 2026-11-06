@@ -14,7 +14,7 @@ import {
   SwipeAction,
   Toast,
 } from 'antd-mobile';
-import { AddOutline, LeftOutline, PayCircleOutline, RightOutline, TagOutline } from 'antd-mobile-icons';
+import { AddOutline, LeftOutline, PayCircleOutline, RightOutline, TagOutline, UserOutline } from 'antd-mobile-icons';
 import { ledgerApi } from '../api/ledger';
 import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
@@ -287,20 +287,19 @@ export default function LedgerDetail() {
           </div>
         </div>
 
-        {ledger?.type === 'loan' && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <Button
-              block
-              color="primary"
-              onClick={() => navigate(`/ledgers/${id}/loans`)}
-            >
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <Button block fill="outline" onClick={() => navigate(`/ledgers/${id}/members`)}>
+            <UserOutline /> 成员
+          </Button>
+          <Button block fill="outline" onClick={() => navigate(`/ledgers/${id}/categories`)}>
+            <TagOutline /> 分类
+          </Button>
+          {ledger?.type === 'loan' && (
+            <Button block color="primary" onClick={() => navigate(`/ledgers/${id}/loans`)}>
               <PayCircleOutline /> 贷款管理
             </Button>
-            <Button block fill="outline" onClick={() => navigate(`/ledgers/${id}/categories`)}>
-              <TagOutline /> 分类
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
 
         {groups.map(([date, items]) => {
           const dayIncome = items.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);

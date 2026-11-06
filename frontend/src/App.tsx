@@ -12,6 +12,7 @@ import Repayments from './pages/Repayments';
 import Notifications from './pages/Notifications';
 import Stats from './pages/Stats';
 import Settings from './pages/Settings';
+import Members from './pages/Members';
 import TabBar from './components/TabBar';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="ledgers/:id" element={<LedgerDetail />} />
         <Route path="ledgers/:id/record" element={<TransactionForm />} />
         <Route path="ledgers/:id/categories" element={<Categories />} />
+        <Route path="ledgers/:id/members" element={<Members />} />
         <Route path="ledgers/:id/loans" element={<Loans />} />
         <Route path="ledgers/:ledgerId/loans/new" element={<LoanForm />} />
         <Route path="loans/:id" element={<LoanDetail />} />

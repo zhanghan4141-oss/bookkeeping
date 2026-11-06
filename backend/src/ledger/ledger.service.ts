@@ -44,10 +44,16 @@ export class LedgerService {
   async findAll(userId: string) {
     const members = await this.prisma.ledgerMember.findMany({
       where: { userId },
-      include: { ledger: true },
+      include: {
+        ledger: { include: { _count: { select: { members: true } } } },
+      },
       orderBy: { createdAt: 'asc' },
     });
-    return members.map((m) => ({ ...m.ledger, role: m.role }));
+    return members.map((m) => ({
+      ...m.ledger,
+      role: m.role,
+      memberCount: m.ledger._count.members,
+    }));
   }
 
   async findOne(userId: string, ledgerId: string) {

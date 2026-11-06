@@ -6,8 +6,18 @@ export interface Ledger {
   color?: string | null;
   currency: string;
   role?: 'owner' | 'editor' | 'viewer';
+  memberCount?: number;
   updatedAt?: string;
   createdAt?: string;
+}
+
+export interface LedgerMember {
+  id: string;
+  ledgerId: string;
+  userId: string;
+  role: 'owner' | 'editor' | 'viewer';
+  createdAt: string;
+  user: { id: string; email: string; nickname: string; avatarUrl: string | null };
 }
 
 export interface Category {

@@ -182,6 +182,11 @@ export default function Ledgers() {
                 extra={isSelected ? <span style={{ color: '#1677ff', fontSize: 13 }}>当前</span> : undefined}
               >
                 {l.name}
+                {(l.memberCount ?? 1) > 1 && (
+                  <span style={{ marginLeft: 6, fontSize: 12, color: '#999' }}>
+                    👥 {l.memberCount}
+                  </span>
+                )}
               </List.Item>
             );
           })}
