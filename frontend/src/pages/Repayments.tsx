@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DatePicker, NavBar } from 'antd-mobile';
 import { repaymentApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
-import { useLedgerSelectionStore } from '../stores/ledgerSelection';
+import { useRepaymentLedgerSelection } from '../stores/repaymentLedgerSelection';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
 import type { Ledger } from '../types';
 
 export default function Repayments() {
-  const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
+  const selectedIds = useRepaymentLedgerSelection((s) => s.selectedIds);
+  const toggle = useRepaymentLedgerSelection((s) => s.toggle);
   const [showPicker, setShowPicker] = useState(false);
   // 截止日期（默认未来 30 天）
   const [endDate, setEndDate] = useState(() => {
@@ -21,24 +22,6 @@ export default function Repayments() {
     queryKey: ['ledgers'],
     queryFn: async () => (await ledgerApi.list()).data as Ledger[],
   });
-
-  // 若没有选中任何账本，默认选中最近编辑的账本
-  const latestLedger = useMemo(() => {
-    if (ledgers.length === 0) return null;
-    return [...ledgers].sort((a, b) => {
-      const ta = a.updatedAt ?? a.createdAt ?? '';
-      const tb = b.updatedAt ?? b.createdAt ?? '';
-      return tb.localeCompare(ta);
-    })[0];
-  }, [ledgers]);
-
-  const selectOne = useLedgerSelectionStore((s) => s.selectOne);
-
-  useEffect(() => {
-    if (selectedIds.length === 0 && latestLedger) {
-      selectOne(latestLedger.id);
-    }
-  }, [latestLedger, selectedIds.length, selectOne]);
 
   // 截止日期 → 天数
   const days = useMemo(() => {
@@ -103,7 +86,7 @@ export default function Repayments() {
               <span style={{ fontSize: 13, color: '#666' }}>+{selectedLedgers.length - 3}</span>
             )}
             {selectedLedgers.length === 0 && (
-              <span className="text-secondary" style={{ fontSize: 13 }}>点击选择</span>
+              <span className="text-secondary" style={{ fontSize: 13 }}>全部账本</span>
             )}
           </div>
           <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
@@ -219,6 +202,8 @@ export default function Repayments() {
         visible={showPicker}
         onClose={() => setShowPicker(false)}
         ledgers={ledgers}
+        selectedIds={selectedIds}
+        onToggle={toggle}
       />
     </div>
   );

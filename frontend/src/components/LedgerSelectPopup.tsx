@@ -1,21 +1,26 @@
 import { useMemo } from 'react';
 import { Checkbox, Popup } from 'antd-mobile';
-import { useLedgerSelectionStore } from '../stores/ledgerSelection';
 import type { Ledger } from '../types';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   ledgers: Ledger[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
 }
 
 /**
  * 账本多选弹窗：用于还款/统计页面选择参与统计的账本。
+ * 选中状态由调用方传入（还款页和统计页各用自己的 store）。
  */
-export default function LedgerSelectPopup({ visible, onClose, ledgers }: Props) {
-  const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
-  const toggle = useLedgerSelectionStore((s) => s.toggle);
-
+export default function LedgerSelectPopup({
+  visible,
+  onClose,
+  ledgers,
+  selectedIds,
+  onToggle,
+}: Props) {
   // 选中的排前面
   const sorted = useMemo(() => {
     return [...ledgers].sort((a, b) => {
@@ -47,7 +52,7 @@ export default function LedgerSelectPopup({ visible, onClose, ledgers }: Props) 
                 padding: '10px 4px',
                 borderBottom: '1px solid #f5f5f5',
               }}
-              onClick={() => toggle(l.id)}
+              onClick={() => onToggle(l.id)}
             >
               <span style={{ fontSize: 14 }}>{l.name}</span>
               <Checkbox checked={selectedIds.includes(l.id)} />
@@ -61,3 +66,4 @@ export default function LedgerSelectPopup({ visible, onClose, ledgers }: Props) 
     </Popup>
   );
 }
+

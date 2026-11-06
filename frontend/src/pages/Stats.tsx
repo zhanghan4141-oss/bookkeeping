@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, DatePicker, NavBar, Popup } from 'antd-mobile';
 import { LeftOutline, RightOutline } from 'antd-mobile-icons';
@@ -50,6 +50,7 @@ export default function Stats() {
   const [isCustom, setIsCustom] = useState(false);
   const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
   const selectOne = useLedgerSelectionStore((s) => s.selectOne);
+  const toggle = useLedgerSelectionStore((s) => s.toggle);
 
   // 统计日期范围（默认当前公历月）
   const [range, setRange] = useState(() => monthRangeOf(new Date(), 'solar'));
@@ -69,10 +70,14 @@ export default function Stats() {
     })[0];
   }, [ledgers]);
 
+  // 仅首次（无持久化选择时）默认选中最近编辑的账本；之后允许空选（空选=统计全部账本）
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (selectedIds.length === 0 && latestLedger) {
+    if (initializedRef.current || !latestLedger) return;
+    if (selectedIds.length === 0) {
       selectOne(latestLedger.id);
     }
+    initializedRef.current = true;
   }, [latestLedger, selectedIds.length, selectOne]);
 
   const { data: summary } = useQuery({
@@ -252,7 +257,7 @@ export default function Stats() {
               <span style={{ fontSize: 13, color: '#666' }}>+{selectedLedgers.length - 3}</span>
             )}
             {selectedLedgers.length === 0 && (
-              <span className="text-secondary" style={{ fontSize: 13 }}>点击选择</span>
+              <span className="text-secondary" style={{ fontSize: 13 }}>全部账本</span>
             )}
           </div>
           <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
@@ -331,6 +336,8 @@ export default function Stats() {
         visible={showLedgerPicker}
         onClose={() => setShowLedgerPicker(false)}
         ledgers={ledgers}
+        selectedIds={selectedIds}
+        onToggle={toggle}
       />
     </div>
   );
