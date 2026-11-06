@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, DatePicker, Form, Input, NavBar, Picker, TextArea, Toast } from 'antd-mobile';
+import { Button, DatePicker, Input, NavBar, Picker, TextArea, Toast } from 'antd-mobile';
 import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -17,6 +17,11 @@ function formatDateTime(d: Date): string {
   const min = String(d.getMinutes()).padStart(2, '0');
   return `${y}-${m}-${day} ${h}:${min}`;
 }
+
+// 统一字段布局：label 在左、输入框在右，同一行；顶部对齐，label 行高与输入框一致，文字对齐
+const fieldStyle = { display: 'flex', alignItems: 'flex-start', marginBottom: 16 } as const;
+const labelStyle = { width: 72, fontSize: 13, color: '#666', flexShrink: 0, lineHeight: '25.5px' } as const;
+const inputWrapStyle = { flex: 1 } as const;
 
 export default function TransactionForm() {
   const { id = '' } = useParams();
@@ -41,6 +46,8 @@ export default function TransactionForm() {
     setDraft((d) => ({ ...d, type: t }));
   const setCategoryId = (id: string) => setDraft((d) => ({ ...d, categoryId: id }));
   const setOccurredAt = (v: Date) => setDraft((d) => ({ ...d, occurredAt: v.toISOString() }));
+  const setAmount = (v: string) => setDraft((d) => ({ ...d, amount: v }));
+  const setNote = (v: string) => setDraft((d) => ({ ...d, note: v }));
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ['categories', id],
@@ -66,11 +73,13 @@ export default function TransactionForm() {
     }
   }, [typeCategories, type, categoryId, categoriesLoading]);
 
-  const onFinish = async (values: {
-    amount: number;
-    note?: string;
-  }) => {
+  const handleSubmit = async () => {
+    const amount = Number(draft.amount);
     try {
+      if (!amount || amount <= 0) {
+        Toast.show({ content: '请输入金额' });
+        return;
+      }
       if (type !== 'transfer' && !categoryId) {
         Toast.show({ content: '请选择类别' });
         return;
@@ -78,9 +87,9 @@ export default function TransactionForm() {
       await transactionApi.create({
         ledgerId: id,
         type,
-        amount: Number(values.amount),
+        amount,
         categoryId: type === 'transfer' ? undefined : categoryId,
-        note: values.note,
+        note: draft.note || undefined,
         occurredAt: occurredAt.toISOString(),
       });
       // 失效流水查询 + 统计，让账本详情页立即刷新
@@ -106,7 +115,7 @@ export default function TransactionForm() {
           ].map((t) => (
             <div
               key={t.key}
-              onClick={() => setType(t.key as any)}
+              onClick={() => setType(t.key as 'expense' | 'income' | 'transfer')}
               style={{
                 flex: 1,
                 textAlign: 'center',
@@ -122,28 +131,27 @@ export default function TransactionForm() {
           ))}
         </div>
 
-        <Form
-          layout="vertical"
-          onFinish={onFinish}
-          initialValues={{ amount: draft.amount, note: draft.note }}
-          onValuesChange={(_changed, all) =>
-            setDraft((d) => ({ ...d, amount: all.amount, note: all.note }))
-          }
-          footer={
-            <Button block type="submit" color="primary" size="large">
-              保存
-            </Button>
-          }
-        >
-          <Form.Item name="amount" label="金额" rules={[{ required: true, message: '请输入金额' }]}>
-            <Input type="number" placeholder="0.00" style={{ fontSize: 32, fontWeight: 700 }} />
-          </Form.Item>
+        <div style={fieldStyle}>
+          <div style={labelStyle}>
+            金额 <span style={{ color: '#ff4d4f' }}>*</span>
+          </div>
+          <div style={inputWrapStyle}>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={draft.amount}
+              onChange={setAmount}
+              style={{ fontSize: 28, fontWeight: 700 }}
+            />
+          </div>
+        </div>
 
-          {type !== 'transfer' && (
-            <div style={{ marginBottom: 24 }}>
-              <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>
-                类别 <span style={{ color: '#ff4d4f' }}>*</span>
-              </div>
+        {type !== 'transfer' && (
+          <div style={fieldStyle}>
+            <div style={labelStyle}>
+              类别 <span style={{ color: '#ff4d4f' }}>*</span>
+            </div>
+            <div style={inputWrapStyle}>
               <Picker
                 columns={[typeCategories.map((c) => ({ label: c.name, value: c.id }))]}
                 value={categoryId ? [categoryId] : []}
@@ -160,14 +168,12 @@ export default function TransactionForm() {
                 )}
               </Picker>
             </div>
-          )}
+          </div>
+        )}
 
-          <Form.Item name="note" label="备注">
-            <TextArea placeholder="备注（可选）" rows={2} />
-          </Form.Item>
-
-          <div style={{ marginBottom: 24 }}>
-            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>日期时间</div>
+        <div style={fieldStyle}>
+          <div style={labelStyle}>日期时间</div>
+          <div style={inputWrapStyle}>
             <DatePicker
               precision="minute"
               value={occurredAt}
@@ -180,7 +186,23 @@ export default function TransactionForm() {
               )}
             </DatePicker>
           </div>
-        </Form>
+        </div>
+
+        <div style={fieldStyle}>
+          <div style={labelStyle}>备注</div>
+          <div style={inputWrapStyle}>
+            <TextArea
+              placeholder="备注（可选）"
+              autoSize={{ minRows: 1, maxRows: 8 }}
+              value={draft.note}
+              onChange={setNote}
+            />
+          </div>
+        </div>
+
+        <Button block color="primary" size="large" onClick={handleSubmit}>
+          保存
+        </Button>
       </div>
     </div>
   );
