@@ -139,7 +139,7 @@ export default function Repayments() {
             }}
           >
             <div className="text-secondary" style={{ fontSize: 13 }}>待还款</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#ff4d4f' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#fa8c16' }}>
               ¥{(data?.totalAmount ?? 0).toFixed(2)}
             </div>
           </div>
@@ -153,7 +153,7 @@ export default function Repayments() {
             }}
           >
             <div className="text-secondary" style={{ fontSize: 13 }}>待支出</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#ff4d4f' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#1677ff' }}>
               ¥{(pendingExpense?.totalAmount ?? 0).toFixed(2)}
             </div>
           </div>
@@ -165,11 +165,11 @@ export default function Repayments() {
           <div key={d.date} style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span style={{ fontWeight: 600 }}>{d.date}</span>
-              <span style={{ fontWeight: 700, color: '#ff4d4f' }}>¥{d.total.toFixed(2)}</span>
+              <span style={{ fontWeight: 700, color: '#fa8c16' }}>¥{d.total.toFixed(2)}</span>
             </div>
             {d.items.map((it: any) => (
               <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '4px 0' }}>
-                {it.loanName} 第{it.periodNo}期 · 剩余 <span style={{ color: '#ff4d4f' }}>¥{it.remain.toFixed(2)}</span>
+                {it.loanName} 第{it.periodNo}期 · 剩余 <span style={{ color: '#fa8c16' }}>¥{it.remain.toFixed(2)}</span>
                 <span style={{ marginLeft: 6, color: it.status === 'overdue' ? '#ff4d4f' : '#999' }}>
                   {it.status === 'overdue' ? '逾期' : it.status === 'partial' ? '部分还' : '待还'}
                 </span>
@@ -187,11 +187,11 @@ export default function Repayments() {
           <div key={d.date} style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span style={{ fontWeight: 600 }}>{d.date}</span>
-              <span style={{ fontWeight: 700, color: '#ff4d4f' }}>¥{d.total.toFixed(2)}</span>
+              <span style={{ fontWeight: 700, color: '#1677ff' }}>¥{d.total.toFixed(2)}</span>
             </div>
             {d.items.map((it: any) => (
               <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '4px 0' }}>
-                {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#ff4d4f' }}>¥{it.amount.toFixed(2)}</span>
+                {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#1677ff' }}>¥{it.amount.toFixed(2)}</span>
                 {it.note && <span style={{ marginLeft: 6, color: '#999' }}>（{it.note}）</span>}
               </div>
             ))}
