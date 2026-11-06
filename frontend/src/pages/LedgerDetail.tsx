@@ -11,6 +11,7 @@ import {
   NavBar,
   Picker,
   Popup,
+  SearchBar,
   SwipeAction,
   Toast,
 } from 'antd-mobile';
@@ -51,6 +52,7 @@ export default function LedgerDetail() {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [keyword, setKeyword] = useState('');
   const [editing, setEditing] = useState<Transaction | null>(null);
   // 展开的日期集合（默认展开最近一天，其余折叠）
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
@@ -66,6 +68,7 @@ export default function LedgerDetail() {
     queryKey: ['ledger', id],
     queryFn: async () => (await ledgerApi.get(id)).data,
   });
+  const isViewer = ledger?.role === 'viewer';
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', id],
@@ -73,8 +76,12 @@ export default function LedgerDetail() {
   });
 
   const { data: transactions = [] } = useQuery({
-    queryKey: ['transactions', id, month],
-    queryFn: async () => (await transactionApi.list(id, { month })).data as Transaction[],
+    queryKey: ['transactions', id, month, keyword],
+    queryFn: async () => {
+      const params: Record<string, string> = { month };
+      if (keyword) params.keyword = keyword;
+      return (await transactionApi.list(id, params)).data as Transaction[];
+    },
   });
 
   const groups = useMemo(() => groupByDate(transactions), [transactions]);
@@ -255,7 +262,9 @@ export default function LedgerDetail() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button size="mini" fill="outline" onClick={handleExport}>导出</Button>
-              <Button size="mini" fill="outline" onClick={() => fileRef.current?.click()}>导入</Button>
+              {!isViewer && (
+                <Button size="mini" fill="outline" onClick={() => fileRef.current?.click()}>导入</Button>
+              )}
               <input
                 ref={fileRef}
                 type="file"
@@ -265,6 +274,15 @@ export default function LedgerDetail() {
               />
             </div>
           </div>
+          <div style={{ marginBottom: 12 }}>
+            <SearchBar
+              placeholder="搜索备注或类别"
+              value={keyword}
+              onChange={setKeyword}
+              onClear={() => setKeyword('')}
+            />
+          </div>
+
           <div style={{ display: 'flex', gap: 24 }}>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>收入</div>
@@ -358,14 +376,14 @@ export default function LedgerDetail() {
                         )}
                       </span>
                     }
-                    onClick={() => !isLoanTx && openEdit(t)}
+                    onClick={() => !isLoanTx && !isViewer && openEdit(t)}
                   >
                     {t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}
                   </List.Item>
                 );
 
-                // 贷款流水只读，不可左滑操作
-                if (isLoanTx) return content;
+                // 贷款流水只读，不可左滑操作；viewer 也只读
+                if (isLoanTx || isViewer) return content;
 
                 return (
                   <SwipeAction
@@ -399,15 +417,17 @@ export default function LedgerDetail() {
         )}
       </div>
 
-      <FloatingBubble
-        style={{
-          '--initial-position-bottom': '90px',
-          '--initial-position-right': '20px',
-        }}
-        onClick={() => navigate(`/ledgers/${id}/record`)}
-      >
-        <AddOutline fontSize={24} />
-      </FloatingBubble>
+      {!isViewer && (
+        <FloatingBubble
+          style={{
+            '--initial-position-bottom': '90px',
+            '--initial-position-right': '20px',
+          }}
+          onClick={() => navigate(`/ledgers/${id}/record`)}
+        >
+          <AddOutline fontSize={24} />
+        </FloatingBubble>
+      )}
 
       {/* 编辑流水弹窗 */}
       <Popup

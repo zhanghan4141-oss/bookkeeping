@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, DatePicker, Dialog, Input, List, NavBar, Popup, Toast } from 'antd-mobile';
 import { loanApi } from '../api/loan';
+import { ledgerApi } from '../api/ledger';
 import { invalidateFinancialData } from '../lib/invalidate';
-import type { Loan, LoanRepayment } from '../types';
+import type { Ledger, Loan, LoanRepayment } from '../types';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: '待还', color: '#1677ff' },
@@ -31,6 +32,13 @@ export default function LoanDetail() {
     queryKey: ['loan', id],
     queryFn: async () => (await loanApi.get(id)).data as Loan,
   });
+
+  const { data: ledger } = useQuery({
+    queryKey: ['ledger', loan?.ledgerId],
+    queryFn: async () => (await ledgerApi.get(loan!.ledgerId)).data as Ledger,
+    enabled: !!loan?.ledgerId,
+  });
+  const isViewer = ledger?.role === 'viewer';
 
   const handlePay = async () => {
     if (!paying) return;
@@ -203,17 +211,23 @@ export default function LoanDetail() {
             )}
           </div>
           <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button size="mini" color="primary" onClick={() => setShowPrepay(true)}>提前还款</Button>
-            <Button size="mini" fill="outline" onClick={() => navigate(`/loans/${id}/edit`)}>编辑贷款信息</Button>
+            {!isViewer && (
+              <>
+                <Button size="mini" color="primary" onClick={() => setShowPrepay(true)}>提前还款</Button>
+                <Button size="mini" fill="outline" onClick={() => navigate(`/loans/${id}/edit`)}>编辑贷款信息</Button>
+              </>
+            )}
             <Button size="mini" fill="outline" onClick={() => { window.open(`/api/loans/${id}/export`, '_blank'); }}>导出计划</Button>
-            <Button size="mini" fill="outline" color="danger" onClick={handleDeleteLoan}>删除</Button>
+            {!isViewer && (
+              <Button size="mini" fill="outline" color="danger" onClick={handleDeleteLoan}>删除</Button>
+            )}
           </div>
         </div>
 
         {/* 还款计划标题 + 编辑计划按钮（仅自定义） */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontWeight: 600 }}>还款计划</span>
-          {isCustom && !editingPlan && (
+          {isCustom && !editingPlan && !isViewer && (
             <Button size="mini" color="primary" fill="outline" onClick={startEditPlan}>编辑计划</Button>
           )}
         </div>
@@ -308,7 +322,7 @@ export default function LoanDetail() {
                   }
                 >
                   第 {r.periodNo} 期
-                  {r.status !== 'paid' && r.status !== 'overdue' && (
+                  {!isViewer && r.status !== 'paid' && r.status !== 'overdue' && (
                     <Button
                       size="mini"
                       color="primary"
@@ -319,7 +333,7 @@ export default function LoanDetail() {
                       还款
                     </Button>
                   )}
-                  {(r.status === 'paid' || r.status === 'partial') && (
+                  {!isViewer && (r.status === 'paid' || r.status === 'partial') && (
                     <Button size="mini" fill="none" style={{ marginLeft: 8 }} onClick={(e) => { e.stopPropagation(); handleUndo(r); }}>
                       撤销
                     </Button>

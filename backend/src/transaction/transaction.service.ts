@@ -22,7 +22,12 @@ export class TransactionService {
     }
     if (query.categoryId) where.categoryId = query.categoryId;
     if (query.type) where.type = query.type;
-    if (query.keyword) where.note = { contains: query.keyword };
+    if (query.keyword) {
+      where.OR = [
+        { note: { contains: query.keyword } },
+        { category: { name: { contains: query.keyword } } },
+      ];
+    }
 
     const transactions = await this.prisma.transaction.findMany({
       where,

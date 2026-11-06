@@ -4,8 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Dialog, Form, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
 import { DeleteOutline } from 'antd-mobile-icons';
 import { categoryApi } from '../api/category';
+import { ledgerApi } from '../api/ledger';
 import { invalidateFinancialData } from '../lib/invalidate';
-import type { Category } from '../types';
+import type { Category, Ledger } from '../types';
 
 export default function Categories() {
   const { id = '' } = useParams();
@@ -17,6 +18,12 @@ export default function Categories() {
     queryKey: ['categories', id],
     queryFn: async () => (await categoryApi.list(id)).data as Category[],
   });
+
+  const { data: ledger } = useQuery({
+    queryKey: ['ledger', id],
+    queryFn: async () => (await ledgerApi.get(id)).data as Ledger,
+  });
+  const isViewer = ledger?.role === 'viewer';
 
   const handleAdd = async (values: { name: string; type: string[]; color?: string }) => {
     try {
@@ -61,9 +68,11 @@ export default function Categories() {
       <div style={{ padding: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
           <span style={{ fontWeight: 600 }}>支出分类</span>
-          <Button size="mini" color="primary" fill="outline" onClick={() => setShowAdd(true)}>
-            添加
-          </Button>
+          {!isViewer && (
+            <Button size="mini" color="primary" fill="outline" onClick={() => setShowAdd(true)}>
+              添加
+            </Button>
+          )}
         </div>
         <List style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
           {expense.map((c) => (
@@ -71,9 +80,11 @@ export default function Categories() {
               key={c.id}
               prefix={<span style={{ color: c.color || '#ff4d4f', fontSize: 20, marginRight: 8 }}>●</span>}
               extra={
-                <Button size="mini" fill="none" onClick={() => handleRemove(c)}>
-                  <DeleteOutline color="#999" />
-                </Button>
+                !isViewer ? (
+                  <Button size="mini" fill="none" onClick={() => handleRemove(c)}>
+                    <DeleteOutline color="#999" />
+                  </Button>
+                ) : undefined
               }
             >
               {c.name}
@@ -88,9 +99,11 @@ export default function Categories() {
               key={c.id}
               prefix={<span style={{ color: c.color || '#52c41a', fontSize: 20, marginRight: 8 }}>●</span>}
               extra={
-                <Button size="mini" fill="none" onClick={() => handleRemove(c)}>
-                  <DeleteOutline color="#999" />
-                </Button>
+                !isViewer ? (
+                  <Button size="mini" fill="none" onClick={() => handleRemove(c)}>
+                    <DeleteOutline color="#999" />
+                  </Button>
+                ) : undefined
               }
             >
               {c.name}
