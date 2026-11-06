@@ -93,6 +93,16 @@ export default function Settings() {
           </List>
         )}
 
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>通用</div>
+        <List style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+          <List.Item
+            onClick={() => navigate('/settings/ledgers')}
+            extra={<span style={{ color: '#999', fontSize: 13 }}>›</span>}
+          >
+            账本管理
+          </List.Item>
+        </List>
+
         <Button block color="danger" fill="outline" onClick={handleLogout}>
           退出登录
         </Button>

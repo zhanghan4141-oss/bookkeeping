@@ -13,6 +13,7 @@ import Notifications from './pages/Notifications';
 import Stats from './pages/Stats';
 import Settings from './pages/Settings';
 import Members from './pages/Members';
+import LedgerManage from './pages/LedgerManage';
 import TabBar from './components/TabBar';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="notifications" element={<Notifications />} />
         <Route path="stats" element={<Stats />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="settings/ledgers" element={<LedgerManage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
