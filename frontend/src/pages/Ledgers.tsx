@@ -46,6 +46,30 @@ export default function Ledgers() {
     queryFn: async () => (await repaymentApi.upcoming(7)).data,
   });
 
+  // 顶卡：本月总收支（固定按月，与下方周期切换无关）
+  const { data: monthSummaries = [] } = useQuery({
+    queryKey: ['ledger-summaries', 'month'],
+    queryFn: async () => (await statApi.ledgerSummaries('month')).data as LedgerSummary[],
+  });
+
+  const monthTotal = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    for (const s of monthSummaries) {
+      income += s.income;
+      expense += s.expense;
+    }
+    return {
+      income: Math.round(income * 100) / 100,
+      expense: Math.round(expense * 100) / 100,
+      surplus: Math.round((income - expense) * 100) / 100,
+    };
+  }, [monthSummaries]);
+
+  // 最近一笔待还（未来 7 天内）
+  const nearestDay = upcoming?.daily?.[0];
+  const nearestRepayment = nearestDay?.items?.[0];
+
   // 选中的账本排最上方
   const sortedLedgers = useMemo(() => {
     return [...ledgers].sort((a, b) => {
@@ -89,16 +113,23 @@ export default function Ledgers() {
           }}
         >
           <div style={{ fontSize: 14, opacity: 0.9 }}>你好，{user?.nickname}</div>
-          {upcoming?.totalAmount > 0 ? (
-            <div style={{ marginTop: 8, fontSize: 15 }}>
-              未来 7 天待还款{' '}
-              <span style={{ fontWeight: 700, fontSize: 20 }}>
-                ¥{upcoming.totalAmount.toFixed(2)}
-              </span>
+          <div style={{ marginTop: 10, display: 'flex', gap: 20 }}>
+            <div>
+              <div style={{ fontSize: 12, opacity: 0.85 }}>本月支出</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>¥{monthTotal.expense.toFixed(2)}</div>
             </div>
-          ) : (
-            <div style={{ marginTop: 8, fontSize: 15, opacity: 0.9 }}>
-              未来 7 天暂无待还款
+            <div>
+              <div style={{ fontSize: 12, opacity: 0.85 }}>本月收入</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>¥{monthTotal.income.toFixed(2)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, opacity: 0.85 }}>结余</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>¥{monthTotal.surplus.toFixed(2)}</div>
+            </div>
+          </div>
+          {nearestRepayment && nearestDay && (
+            <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9 }}>
+              最近待还 {nearestRepayment.loanName} ¥{nearestRepayment.remain.toFixed(2)}（{nearestDay.date.slice(5)}）
             </div>
           )}
         </div>
