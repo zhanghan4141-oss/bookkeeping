@@ -132,26 +132,30 @@ export default function Repayments() {
           <div
             style={{
               flex: 1,
-              background: 'linear-gradient(135deg, #722ed1, #b37feb)',
+              background: '#fff',
               borderRadius: 12,
-              color: '#fff',
               padding: '16px',
+              textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 13, opacity: 0.9 }}>待还款</div>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>¥{(data?.totalAmount ?? 0).toFixed(2)}</div>
+            <div className="text-secondary" style={{ fontSize: 13 }}>待还款</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#ff4d4f' }}>
+              ¥{(data?.totalAmount ?? 0).toFixed(2)}
+            </div>
           </div>
           <div
             style={{
               flex: 1,
-              background: 'linear-gradient(135deg, #1677ff, #69b1ff)',
+              background: '#fff',
               borderRadius: 12,
-              color: '#fff',
               padding: '16px',
+              textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 13, opacity: 0.9 }}>待支出</div>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>¥{(pendingExpense?.totalAmount ?? 0).toFixed(2)}</div>
+            <div className="text-secondary" style={{ fontSize: 13 }}>待支出</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#ff4d4f' }}>
+              ¥{(pendingExpense?.totalAmount ?? 0).toFixed(2)}
+            </div>
           </div>
         </div>
 
@@ -165,7 +169,7 @@ export default function Repayments() {
             </div>
             {d.items.map((it: any) => (
               <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '4px 0' }}>
-                {it.loanName} 第{it.periodNo}期 · 剩余 ¥{it.remain.toFixed(2)}
+                {it.loanName} 第{it.periodNo}期 · 剩余 <span style={{ color: '#ff4d4f' }}>¥{it.remain.toFixed(2)}</span>
                 <span style={{ marginLeft: 6, color: it.status === 'overdue' ? '#ff4d4f' : '#999' }}>
                   {it.status === 'overdue' ? '逾期' : it.status === 'partial' ? '部分还' : '待还'}
                 </span>
@@ -183,11 +187,11 @@ export default function Repayments() {
           <div key={d.date} style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span style={{ fontWeight: 600 }}>{d.date}</span>
-              <span style={{ fontWeight: 700, color: '#1677ff' }}>¥{d.total.toFixed(2)}</span>
+              <span style={{ fontWeight: 700, color: '#ff4d4f' }}>¥{d.total.toFixed(2)}</span>
             </div>
             {d.items.map((it: any) => (
               <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '4px 0' }}>
-                {it.categoryIcon || '💸'} {it.categoryName} · ¥{it.amount.toFixed(2)}
+                {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#ff4d4f' }}>¥{it.amount.toFixed(2)}</span>
                 {it.note && <span style={{ marginLeft: 6, color: '#999' }}>（{it.note}）</span>}
               </div>
             ))}

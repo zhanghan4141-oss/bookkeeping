@@ -105,30 +105,41 @@ export default function Ledgers() {
       <div style={{ padding: '16px' }}>
         <div
           style={{
-            background: 'linear-gradient(135deg, #1677ff, #69b1ff)',
+            background: '#fff',
             borderRadius: 12,
-            color: '#fff',
             padding: '16px 20px',
             marginBottom: 16,
           }}
         >
-          <div style={{ fontSize: 14, opacity: 0.9 }}>你好，{user?.nickname}</div>
+          <div style={{ fontSize: 14, color: '#666' }}>你好，{user?.nickname}</div>
           <div style={{ marginTop: 10, display: 'flex', gap: 20 }}>
             <div>
-              <div style={{ fontSize: 12, opacity: 0.85 }}>本月支出</div>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>¥{monthTotal.expense.toFixed(2)}</div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>本月支出</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#ff4d4f' }}>
+                ¥{monthTotal.expense.toFixed(2)}
+              </div>
             </div>
             <div>
-              <div style={{ fontSize: 12, opacity: 0.85 }}>本月收入</div>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>¥{monthTotal.income.toFixed(2)}</div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>本月收入</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#52c41a' }}>
+                ¥{monthTotal.income.toFixed(2)}
+              </div>
             </div>
             <div>
-              <div style={{ fontSize: 12, opacity: 0.85 }}>结余</div>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>¥{monthTotal.surplus.toFixed(2)}</div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>结余</div>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: monthTotal.surplus >= 0 ? '#1677ff' : '#ff4d4f',
+                }}
+              >
+                ¥{monthTotal.surplus.toFixed(2)}
+              </div>
             </div>
           </div>
           {nearestRepayment && nearestDay && (
-            <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9 }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
               最近待还 {nearestRepayment.loanName} ¥{nearestRepayment.remain.toFixed(2)}（{nearestDay.date.slice(5)}）
             </div>
           )}
