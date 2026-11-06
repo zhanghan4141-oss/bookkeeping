@@ -18,3 +18,6 @@ Thumbs.db
 .idea/
 *.iml
 .vscode/
+
+# Playwright MCP 调试临时文件
+.playwright-mcp/

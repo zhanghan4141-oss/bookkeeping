@@ -45,6 +45,30 @@ export class ImportExportController {
     res.send(buffer);
   }
 
+  @Get('export/all')
+  async exportAll(
+    @CurrentUser() user: AuthUser,
+    @Query('ledgerIds') ledgerIds: string,
+    @Query('format') format: string,
+    @Res() res: Response,
+  ) {
+    const ids = ledgerIds
+      ? ledgerIds.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+    const fmt = format === 'json' ? 'json' : 'excel';
+    const { buffer, filename, contentType } = await this.service.exportAll(
+      user.id,
+      ids,
+      fmt,
+    );
+    res.setHeader('Content-Type', contentType);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    );
+    res.send(buffer);
+  }
+
   @Post('ledgers/:ledgerId/transactions/import')
   @UseInterceptors(FileInterceptor('file'))
   async importTransactions(

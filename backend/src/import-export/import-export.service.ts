@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import * as ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { generateRepaymentPlan } from '../loan/loan-calculator.js';
@@ -51,6 +51,136 @@ export class ImportExportService {
 
     const buffer = (await workbook.xlsx.writeBuffer()) as unknown as Buffer;
     return { buffer, filename: `${ledger?.name ?? '流水'}_${month}.xlsx` };
+  }
+
+  /** 导出指定账本的数据（备份）：excel=流水表格，json=完整结构化数据 */
+  async exportAll(
+    userId: string,
+    ledgerIds: string[],
+    format: 'excel' | 'json',
+  ): Promise<{ buffer: Buffer; filename: string; contentType: string }> {
+    const members = await this.prisma.ledgerMember.findMany({
+      where: {
+        userId,
+        ledgerId: ledgerIds.length ? { in: ledgerIds } : undefined,
+      },
+      include: {
+        ledger: {
+          include: {
+            categories: true,
+            loans: { include: { repayments: { orderBy: { periodNo: 'asc' } } } },
+          },
+        },
+      },
+    });
+
+    const accessibleIds = members.map((m) => m.ledgerId);
+    const ledgerById = new Map(members.map((m) => [m.ledgerId, m.ledger]));
+
+    const transactions = await this.prisma.transaction.findMany({
+      where: { ledgerId: { in: accessibleIds } },
+      include: {
+        category: { select: { name: true } },
+        user: { select: { nickname: true } },
+      },
+      orderBy: [{ ledgerId: 'asc' }, { occurredAt: 'asc' }],
+    });
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    if (format === 'json') {
+      const data = members.map((m) => {
+        const ledger = m.ledger;
+        return {
+          ledger: {
+            name: ledger.name,
+            type: ledger.type,
+            icon: ledger.icon,
+            color: ledger.color,
+            currency: ledger.currency,
+          },
+          categories: ledger.categories.map((c) => ({
+            name: c.name,
+            type: c.type,
+            icon: c.icon,
+            color: c.color,
+            sortOrder: c.sortOrder,
+            isBuiltin: c.isBuiltin,
+          })),
+          loans: ledger.loans.map((l) => ({
+            name: l.name,
+            direction: l.direction,
+            principal: Number(l.principal),
+            annualRate: Number(l.annualRate),
+            startDate: l.startDate.toISOString().slice(0, 10),
+            termMonths: l.termMonths,
+            repaymentDay: l.repaymentDay,
+            repaymentMethod: l.repaymentMethod,
+            status: l.status,
+            note: l.note,
+            repayments: l.repayments.map((r) => ({
+              periodNo: r.periodNo,
+              kind: r.kind,
+              dueDate: r.dueDate.toISOString().slice(0, 10),
+              principalAmount: Number(r.principalAmount),
+              interestAmount: Number(r.interestAmount),
+              totalAmount: Number(r.totalAmount),
+              paidAmount: Number(r.paidAmount),
+              status: r.status,
+              paidDate: r.paidDate ? r.paidDate.toISOString().slice(0, 10) : null,
+              note: r.note,
+            })),
+          })),
+          transactions: transactions
+            .filter((t) => t.ledgerId === ledger.id)
+            .map((t) => ({
+              type: t.type,
+              amount: Number(t.amount),
+              categoryName: t.category?.name ?? '',
+              note: t.note,
+              occurredAt: t.occurredAt.toISOString(),
+              userName: t.user.nickname,
+            })),
+        };
+      });
+
+      const buffer = Buffer.from(JSON.stringify(data, null, 2), 'utf-8');
+      return {
+        buffer,
+        filename: `记账本备份_${dateStr}.json`,
+        contentType: 'application/json',
+      };
+    }
+
+    // excel：流水表格
+    const columns = ['账本', ...TRANSACTION_COLUMNS];
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('全部流水');
+    sheet.columns = columns.map((header) => ({
+      header,
+      key: header,
+      width: header === '备注' ? 30 : 15,
+    }));
+
+    for (const tx of transactions) {
+      sheet.addRow({
+        账本: ledgerById.get(tx.ledgerId)?.name ?? '',
+        日期: tx.occurredAt.toISOString().slice(0, 10),
+        类型: tx.type === 'expense' ? '支出' : tx.type === 'income' ? '收入' : '转账',
+        类别: tx.category?.name ?? '',
+        金额: Number(tx.amount),
+        备注: tx.note ?? '',
+        记录人: tx.user.nickname,
+      });
+    }
+
+    const buffer = (await workbook.xlsx.writeBuffer()) as unknown as Buffer;
+    return {
+      buffer,
+      filename: `记账本流水_${dateStr}.xlsx`,
+      contentType:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    };
   }
 
   /** 导入流水：解析 .xlsx，返回成功/失败明细 */
