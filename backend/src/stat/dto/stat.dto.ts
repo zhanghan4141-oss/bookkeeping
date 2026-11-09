@@ -28,6 +28,6 @@ export class SummaryQueryDto {
 
 export class LedgerSummaryQueryDto {
   @IsOptional()
-  @IsIn(['month', 'year', 'all'])
-  period?: 'month' | 'year' | 'all';
+  @IsIn(['day', 'month', 'year', 'all'])
+  period?: 'day' | 'month' | 'year' | 'all';
 }

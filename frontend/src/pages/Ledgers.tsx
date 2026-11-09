@@ -4,11 +4,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Form, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
 import { AddCircleOutline } from 'antd-mobile-icons';
 import { ledgerApi } from '../api/ledger';
-import { repaymentApi, statApi } from '../api/misc';
+import { statApi } from '../api/misc';
 import { invalidateFinancialData } from '../lib/invalidate';
-import { useAuthStore } from '../stores/auth';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
-import type { Ledger, LedgerSummary } from '../types';
+import type { Ledger, LedgerSummary, StatOverview } from '../types';
 
 const LEDGER_TYPE_ICON: Record<string, string> = {
   daily: '📒',
@@ -16,12 +15,18 @@ const LEDGER_TYPE_ICON: Record<string, string> = {
   custom: '📁',
 };
 
+const OVERVIEW_BUCKETS = [
+  { key: 'day', label: '当日' },
+  { key: 'month', label: '当月' },
+  { key: 'year', label: '当年' },
+  { key: 'all', label: '所有' },
+] as const;
+
 export default function Ledgers() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const user = useAuthStore((s) => s.user);
   const [showCreate, setShowCreate] = useState(false);
-  const [period, setPeriod] = useState<'month' | 'year' | 'all'>('month');
+  const [period, setPeriod] = useState<'day' | 'month' | 'year' | 'all'>('day');
   const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
   const selectOne = useLedgerSelectionStore((s) => s.selectOne);
 
@@ -41,34 +46,11 @@ export default function Ledgers() {
     return m;
   }, [summaries]);
 
-  const { data: upcoming } = useQuery({
-    queryKey: ['repayments', 'upcoming', 7],
-    queryFn: async () => (await repaymentApi.upcoming(7)).data,
+  // 顶部矩阵：当日/当月/当年/所有 四维度的所有账本合计
+  const { data: overview } = useQuery({
+    queryKey: ['stats', 'overview'],
+    queryFn: async () => (await statApi.overview()).data as StatOverview,
   });
-
-  // 顶卡：本月总收支（固定按月，与下方周期切换无关）
-  const { data: monthSummaries = [] } = useQuery({
-    queryKey: ['ledger-summaries', 'month'],
-    queryFn: async () => (await statApi.ledgerSummaries('month')).data as LedgerSummary[],
-  });
-
-  const monthTotal = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-    for (const s of monthSummaries) {
-      income += s.income;
-      expense += s.expense;
-    }
-    return {
-      income: Math.round(income * 100) / 100,
-      expense: Math.round(expense * 100) / 100,
-      surplus: Math.round((income - expense) * 100) / 100,
-    };
-  }, [monthSummaries]);
-
-  // 最近一笔待还（未来 7 天内）
-  const nearestDay = upcoming?.daily?.[0];
-  const nearestRepayment = nearestDay?.items?.[0];
 
   // 选中的账本排最上方
   const sortedLedgers = useMemo(() => {
@@ -111,38 +93,49 @@ export default function Ledgers() {
             marginBottom: 16,
           }}
         >
-          <div style={{ fontSize: 14, color: '#666' }}>你好，{user?.nickname}</div>
-          <div style={{ marginTop: 10, display: 'flex', gap: 20 }}>
-            <div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>本月支出</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#ff4d4f' }}>
-                ¥{monthTotal.expense.toFixed(2)}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '44px repeat(4, 1fr)',
+              alignItems: 'center',
+              rowGap: 8,
+            }}
+          >
+            {/* 表头 */}
+            <div />
+            {OVERVIEW_BUCKETS.map((b) => (
+              <div key={b.key} className="text-secondary" style={{ fontSize: 12, textAlign: 'center' }}>
+                {b.label}
               </div>
-            </div>
-            <div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>本月收入</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#52c41a' }}>
-                ¥{monthTotal.income.toFixed(2)}
+            ))}
+
+            {/* 收 */}
+            <div className="text-secondary" style={{ fontSize: 12 }}>收</div>
+            {OVERVIEW_BUCKETS.map((b) => (
+              <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: '#52c41a', textAlign: 'center' }}>
+                ¥{(overview?.[b.key]?.income ?? 0).toFixed(2)}
               </div>
-            </div>
-            <div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>结余</div>
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: monthTotal.surplus >= 0 ? '#1677ff' : '#ff4d4f',
-                }}
-              >
-                ¥{monthTotal.surplus.toFixed(2)}
+            ))}
+
+            {/* 支 */}
+            <div className="text-secondary" style={{ fontSize: 12 }}>支</div>
+            {OVERVIEW_BUCKETS.map((b) => (
+              <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: '#ff4d4f', textAlign: 'center' }}>
+                ¥{(overview?.[b.key]?.expense ?? 0).toFixed(2)}
               </div>
-            </div>
+            ))}
+
+            {/* 余 */}
+            <div className="text-secondary" style={{ fontSize: 12 }}>余</div>
+            {OVERVIEW_BUCKETS.map((b) => {
+              const s = overview?.[b.key]?.surplus ?? 0;
+              return (
+                <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: s >= 0 ? '#1677ff' : '#ff4d4f', textAlign: 'center' }}>
+                  ¥{s.toFixed(2)}
+                </div>
+              );
+            })}
           </div>
-          {nearestRepayment && nearestDay && (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
-              最近待还 {nearestRepayment.loanName} ¥{nearestRepayment.remain.toFixed(2)}（{nearestDay.date.slice(5)}）
-            </div>
-          )}
         </div>
 
         <div
@@ -165,14 +158,10 @@ export default function Ledgers() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          {[
-            { key: 'month', label: '当月' },
-            { key: 'year', label: '当年' },
-            { key: 'all', label: '所有' },
-          ].map((t) => (
+          {OVERVIEW_BUCKETS.map((t) => (
             <div
               key={t.key}
-              onClick={() => setPeriod(t.key as 'month' | 'year' | 'all')}
+              onClick={() => setPeriod(t.key)}
               style={{
                 flex: 1,
                 textAlign: 'center',

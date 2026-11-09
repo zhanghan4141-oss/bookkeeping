@@ -41,6 +41,12 @@ export class StatController {
     @CurrentUser() user: AuthUser,
     @Query() query: LedgerSummaryQueryDto,
   ) {
-    return this.statService.ledgerSummaries(user.id, query.period ?? 'month');
+    return this.statService.ledgerSummaries(user.id, query.period ?? 'day');
+  }
+
+  /** 账本页顶部矩阵：当日/当月/当年/所有 四维度所有账本合计 */
+  @Get('stats/overview')
+  overview(@CurrentUser() user: AuthUser) {
+    return this.statService.overview(user.id);
   }
 }

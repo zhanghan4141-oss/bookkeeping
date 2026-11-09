@@ -116,3 +116,16 @@ export interface LedgerSummary {
   expense: number;
   surplus: number;
 }
+
+export interface StatBucket {
+  income: number;
+  expense: number;
+  surplus: number;
+}
+
+export interface StatOverview {
+  day: StatBucket;
+  month: StatBucket;
+  year: StatBucket;
+  all: StatBucket;
+}

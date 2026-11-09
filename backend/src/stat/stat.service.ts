@@ -33,7 +33,7 @@ export class StatService {
 
   /**
    * 统计：收入、支出、盈余、类别分布、趋势。
-   * 口径：现金流视角，只统计「已发生」的流水（occurredAt <= 当前时间）。
+   * 口径：现金流视角，只统计「已支出」的流水（occurredAt < 明天 00:00，即今天整天及之前）。
    * 贷款相关流水（放款收入、还款本金、还款利息）已随贷款创建/还款写入流水，直接按流水统计。
    * @param date 可选，指定统计周期：period=month 时为 YYYY-MM，period=year 时为 YYYY；缺省统计全部
    */
@@ -46,12 +46,16 @@ export class StatService {
       return this.emptyResult('month', calendar);
     }
 
-    const now = new Date();
+    // 已支出口径：今天整天（< 明天 00:00）都算已支出，
+    // 与还款页「待支出」的 gte: tomorrow（明天 00:00 起）左闭右开无缝对齐
+    const tomorrow = new Date();
+    tomorrow.setHours(0, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
     // 日期范围过滤 + 确定趋势粒度
     const where: Prisma.TransactionWhereInput = {
       ledgerId: { in: accessible },
-      occurredAt: { lte: now },
+      occurredAt: { lt: tomorrow },
     };
 
     let period: Period = query.period ?? 'month';
@@ -61,7 +65,7 @@ export class StatService {
       const start = new Date(`${query.startDate}T00:00:00`);
       const end = new Date(`${query.endDate}T00:00:00`);
       end.setDate(end.getDate() + 1);
-      where.occurredAt = { gte: start, lt: end, lte: now };
+      where.occurredAt = { gte: start, lt: end < tomorrow ? end : tomorrow };
       period = determineGranularity(query.startDate, query.endDate, calendar);
     } else if (query.date && calendar === 'solar') {
       // 旧逻辑：按月/按年 + 参考日期
@@ -69,15 +73,15 @@ export class StatService {
         const start = new Date(`${query.date}-01T00:00:00`);
         const end = new Date(start);
         end.setMonth(end.getMonth() + 1);
-        where.occurredAt = { gte: start, lt: end, lte: now };
+        where.occurredAt = { gte: start, lt: end < tomorrow ? end : tomorrow };
       } else if (period === 'year' && /^\d{4}$/.test(query.date)) {
         const start = new Date(`${query.date}-01-01T00:00:00`);
         const end = new Date(`${Number(query.date) + 1}-01-01T00:00:00`);
-        where.occurredAt = { gte: start, lt: end, lte: now };
+        where.occurredAt = { gte: start, lt: end < tomorrow ? end : tomorrow };
       }
     }
 
-    // 流水（只统计已发生的）
+    // 流水（只统计已支出的：今天整天及之前）
     const transactions = await this.prisma.transaction.findMany({
       where,
       include: {
@@ -171,22 +175,31 @@ export class StatService {
   /** 每个账本的收支结余汇总（账本列表用），支持当月/当年/所有 */
   async ledgerSummaries(
     userId: string,
-    period: 'month' | 'year' | 'all',
+    period: 'day' | 'month' | 'year' | 'all',
   ) {
+    // 已支出口径：今天整天及之前（与 summary 一致）
+    const tomorrow = new Date();
+    tomorrow.setHours(0, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
     const now = new Date();
     const where: Prisma.TransactionWhereInput = {
-      occurredAt: { lte: now },
+      occurredAt: { lt: tomorrow },
     };
 
-    if (period === 'month') {
+    if (period === 'day') {
+      where.occurredAt = {
+        gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        lt: tomorrow,
+      };
+    } else if (period === 'month') {
       where.occurredAt = {
         gte: new Date(now.getFullYear(), now.getMonth(), 1),
-        lte: now,
+        lt: tomorrow,
       };
     } else if (period === 'year') {
       where.occurredAt = {
         gte: new Date(now.getFullYear(), 0, 1),
-        lte: now,
+        lt: tomorrow,
       };
     }
 
@@ -219,6 +232,36 @@ export class StatService {
         surplus: round(e.income - e.expense),
       };
     });
+  }
+
+  /** 账本页顶部矩阵：当日/当月/当年/所有 四个维度的所有账本合计 */
+  async overview(userId: string): Promise<
+    Record<'day' | 'month' | 'year' | 'all', { income: number; expense: number; surplus: number }>
+  > {
+    const round = (n: number) => Math.round(n * 100) / 100;
+    const periods = ['day', 'month', 'year', 'all'] as const;
+    const result = {
+      day: { income: 0, expense: 0, surplus: 0 },
+      month: { income: 0, expense: 0, surplus: 0 },
+      year: { income: 0, expense: 0, surplus: 0 },
+      all: { income: 0, expense: 0, surplus: 0 },
+    };
+
+    for (const period of periods) {
+      const list = await this.ledgerSummaries(userId, period);
+      let income = 0;
+      let expense = 0;
+      for (const s of list) {
+        income += s.income;
+        expense += s.expense;
+      }
+      result[period] = {
+        income: round(income),
+        expense: round(expense),
+        surplus: round(income - expense),
+      };
+    }
+    return result;
   }
 
   private emptyResult(period: Period, calendar: Calendar) {

@@ -26,4 +26,5 @@ export const statApi = {
     api.get('/stats/summary', { params }),
   ledgerSummaries: (period: string) =>
     api.get('/stats/ledgers', { params: { period } }),
+  overview: () => api.get('/stats/overview'),
 };
