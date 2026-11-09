@@ -384,11 +384,9 @@ export default function LedgerDetail() {
           <Button block fill="outline" onClick={() => navigate(`/ledgers/${id}/categories`)}>
             <TagOutline /> 分类
           </Button>
-          {ledger?.type === 'loan' && (
-            <Button block color="primary" onClick={() => navigate(`/ledgers/${id}/loans`)}>
-              <PayCircleOutline /> 贷款管理
-            </Button>
-          )}
+          <Button block color="primary" onClick={() => navigate(`/ledgers/${id}/loans`)}>
+            <PayCircleOutline /> 贷款管理
+          </Button>
         </div>
 
         {groups.map(([date, items]) => {

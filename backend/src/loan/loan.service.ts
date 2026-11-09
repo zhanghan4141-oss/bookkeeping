@@ -249,10 +249,11 @@ export class LoanService {
           },
         });
         // 3. 提前结清流水（本金支出）
-        const principalCategory = await this.findCategory(
+        const principalCategory = await this.findOrCreateCategory(
           tx,
           loan.ledgerId,
           '还款本金',
+          'expense',
         );
         if (principalCategory) {
           await tx.transaction.create({
@@ -363,10 +364,11 @@ export class LoanService {
       );
 
       // 5. 提前还款本身也记一笔流水（本金支出）
-      const principalCategory = await this.findCategory(
+      const principalCategory = await this.findOrCreateCategory(
         tx,
         loan.ledgerId,
         '还款本金',
+        'expense',
       );
       if (principalCategory) {
         await tx.transaction.create({
@@ -422,9 +424,9 @@ export class LoanService {
     tx?: Prisma.TransactionClient,
   ) {
     const db = tx ?? this.prisma;
-    const incomeCategory = await this.findCategory(db, ledgerId, '放款收款');
-    const principalCategory = await this.findCategory(db, ledgerId, '还款本金');
-    const interestCategory = await this.findCategory(db, ledgerId, '还款利息');
+    const incomeCategory = await this.findOrCreateCategory(db, ledgerId, '放款收款', 'income');
+    const principalCategory = await this.findOrCreateCategory(db, ledgerId, '还款本金', 'expense');
+    const interestCategory = await this.findOrCreateCategory(db, ledgerId, '还款利息', 'expense');
 
     const transactions: Prisma.TransactionCreateManyInput[] = [];
 
@@ -491,12 +493,18 @@ export class LoanService {
     }
   }
 
-  private async findCategory(
+  /** 查找贷款相关类别，不存在则自动创建（普通账本添加贷款时也会补建） */
+  private async findOrCreateCategory(
     db: Prisma.TransactionClient | PrismaService,
     ledgerId: string,
     name: string,
+    type: 'income' | 'expense',
   ) {
-    return db.category.findFirst({ where: { ledgerId, name } });
+    const existing = await db.category.findFirst({ where: { ledgerId, name } });
+    if (existing) return existing;
+    return db.category.create({
+      data: { ledgerId, name, type, isBuiltin: true, sortOrder: 99 },
+    });
   }
 
   /** 校验同一账本内贷款名称唯一 */
