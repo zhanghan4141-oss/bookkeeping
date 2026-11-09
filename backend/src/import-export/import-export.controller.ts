@@ -45,6 +45,25 @@ export class ImportExportController {
     res.send(buffer);
   }
 
+  @Get('ledgers/:ledgerId/transactions/import-template')
+  async exportTransactionTemplate(
+    @CurrentUser() user: AuthUser,
+    @Param('ledgerId') ledgerId: string,
+    @Res() res: Response,
+  ) {
+    await this.access.assertMember(ledgerId, user.id);
+    const { buffer, filename } = await this.service.exportTransactionTemplate();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    );
+    res.send(buffer);
+  }
+
   @Get('export/all')
   async exportAll(
     @CurrentUser() user: AuthUser,

@@ -19,6 +19,7 @@ import { AddOutline, LeftOutline, PayCircleOutline, RightOutline, TagOutline, Us
 import { ledgerApi } from '../api/ledger';
 import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
+import api from '../api/client';
 import { invalidateFinancialData } from '../lib/invalidate';
 import type { Category, Transaction } from '../types';
 
@@ -53,6 +54,11 @@ export default function LedgerDetail() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [keyword, setKeyword] = useState('');
+  const [showImport, setShowImport] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    successCount: number;
+    errors: { row: number; message: string }[];
+  } | null>(null);
   const [editing, setEditing] = useState<Transaction | null>(null);
   // 展开的日期集合（默认展开最近一天，其余折叠）
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
@@ -127,13 +133,59 @@ export default function LedgerDetail() {
   }, [transactions]);
 
   const handleExport = async () => {
-    window.open(`/api/ledgers/${id}/transactions/export?month=${month}`, '_blank');
+    try {
+      const res = await api.get(`/ledgers/${id}/transactions/export`, {
+        params: { month },
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `流水_${month}.xlsx`;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '导出失败' });
+    }
   };
 
   // 刷新流水 + 相关统计
   const refreshAll = () => invalidateFinancialData(queryClient);
 
-  const handleImport = async (file: File) => {
+  const downloadTemplate = async () => {
+    try {
+      const res = await api.get(`/ledgers/${id}/transactions/import-template`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '流水导入模板.xlsx';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '模板下载失败' });
+    }
+  };
+
+  const openImport = () => {
+    setImportResult(null);
+    setShowImport(true);
+  };
+
+  const handleImportFile = async (file: File) => {
     const form = new FormData();
     form.append('file', file);
     try {
@@ -143,12 +195,10 @@ export default function LedgerDetail() {
         body: form,
       });
       const data = await res.json();
-      if (data.errors?.length) {
-        Toast.show({ content: `导入 ${data.successCount} 条，${data.errors.length} 条失败` });
-      } else {
-        Toast.show({ content: `成功导入 ${data.successCount} 条` });
+      setImportResult(data);
+      if (!data.errors?.length) {
+        refreshAll();
       }
-      refreshAll();
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '导入失败' });
     }
@@ -263,15 +313,8 @@ export default function LedgerDetail() {
             <div style={{ display: 'flex', gap: 8 }}>
               <Button size="mini" fill="outline" onClick={handleExport}>导出</Button>
               {!isViewer && (
-                <Button size="mini" fill="outline" onClick={() => fileRef.current?.click()}>导入</Button>
+                <Button size="mini" fill="outline" onClick={openImport}>导入</Button>
               )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".xlsx"
-                style={{ display: 'none' }}
-                onChange={(e) => e.target.files?.[0] && handleImport(e.target.files[0])}
-              />
             </div>
           </div>
           <div style={{ marginBottom: 12 }}>
@@ -521,6 +564,50 @@ export default function LedgerDetail() {
           </div>
 
           <Button block color="primary" onClick={saveEdit}>保存</Button>
+        </div>
+      </Popup>
+
+      {/* 导入流水弹窗 */}
+      <Popup
+        visible={showImport}
+        onMaskClick={() => setShowImport(false)}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Button size="mini" fill="outline" onClick={downloadTemplate}>下载模板</Button>
+            <span style={{ fontWeight: 600, fontSize: 16 }}>导入流水</span>
+            <span onClick={() => setShowImport(false)} style={{ fontSize: 22, color: '#999', cursor: 'pointer', lineHeight: 1 }}>×</span>
+          </div>
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx"
+            style={{ display: 'none' }}
+            onChange={(e) => e.target.files?.[0] && handleImportFile(e.target.files[0])}
+          />
+          <Button block color="primary" onClick={() => fileRef.current?.click()}>
+            选择 Excel 文件上传
+          </Button>
+
+          {importResult && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+                成功 {importResult.successCount} 笔
+                {importResult.errors.length > 0 ? `，失败 ${importResult.errors.length} 笔` : ''}
+              </div>
+              {importResult.errors.length > 0 && (
+                <div style={{ maxHeight: '40vh', overflowY: 'auto' }}>
+                  {importResult.errors.map((e, i) => (
+                    <div key={i} style={{ fontSize: 13, color: '#ff4d4f', padding: '4px 0', borderBottom: '1px solid #f5f5f5' }}>
+                      第 {e.row} 行：{e.message}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Popup>
     </div>

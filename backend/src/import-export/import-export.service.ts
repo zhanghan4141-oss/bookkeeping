@@ -6,6 +6,12 @@ import { generateRepaymentPlan } from '../loan/loan-calculator.js';
 
 const TRANSACTION_COLUMNS = ['日期', '类型', '类别', '金额', '备注', '记录人'];
 
+/** 本地时间格式化：YYYY-MM-DD HH:mm（精确到分钟，与前端记账一致） */
+function formatDateTime(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 @Injectable()
 export class ImportExportService {
   constructor(private readonly prisma: PrismaService) {}
@@ -36,11 +42,12 @@ export class ImportExportService {
       header,
       key: header,
       width: header === '备注' ? 30 : 15,
+      style: header === '金额' ? { numFmt: '0.00' } : undefined,
     }));
 
     for (const tx of transactions) {
       sheet.addRow({
-        日期: tx.occurredAt.toISOString().slice(0, 10),
+        日期: formatDateTime(tx.occurredAt),
         类型: tx.type === 'expense' ? '支出' : tx.type === 'income' ? '收入' : '转账',
         类别: tx.category?.name ?? '',
         金额: Number(tx.amount),
@@ -110,7 +117,7 @@ export class ImportExportService {
           loans: ledger.loans.map((l) => ({
             name: l.name,
             direction: l.direction,
-            principal: Number(l.principal),
+            principal: l.principal.toFixed(2),
             annualRate: Number(l.annualRate),
             startDate: l.startDate.toISOString().slice(0, 10),
             termMonths: l.termMonths,
@@ -122,10 +129,10 @@ export class ImportExportService {
               periodNo: r.periodNo,
               kind: r.kind,
               dueDate: r.dueDate.toISOString().slice(0, 10),
-              principalAmount: Number(r.principalAmount),
-              interestAmount: Number(r.interestAmount),
-              totalAmount: Number(r.totalAmount),
-              paidAmount: Number(r.paidAmount),
+              principalAmount: r.principalAmount.toFixed(2),
+              interestAmount: r.interestAmount.toFixed(2),
+              totalAmount: r.totalAmount.toFixed(2),
+              paidAmount: r.paidAmount.toFixed(2),
               status: r.status,
               paidDate: r.paidDate ? r.paidDate.toISOString().slice(0, 10) : null,
               note: r.note,
@@ -135,7 +142,7 @@ export class ImportExportService {
             .filter((t) => t.ledgerId === ledger.id)
             .map((t) => ({
               type: t.type,
-              amount: Number(t.amount),
+              amount: t.amount.toFixed(2),
               categoryName: t.category?.name ?? '',
               note: t.note,
               occurredAt: t.occurredAt.toISOString(),
@@ -160,12 +167,13 @@ export class ImportExportService {
       header,
       key: header,
       width: header === '备注' ? 30 : 15,
+      style: header === '金额' ? { numFmt: '0.00' } : undefined,
     }));
 
     for (const tx of transactions) {
       sheet.addRow({
         账本: ledgerById.get(tx.ledgerId)?.name ?? '',
-        日期: tx.occurredAt.toISOString().slice(0, 10),
+        日期: formatDateTime(tx.occurredAt),
         类型: tx.type === 'expense' ? '支出' : tx.type === 'income' ? '收入' : '转账',
         类别: tx.category?.name ?? '',
         金额: Number(tx.amount),
@@ -181,6 +189,37 @@ export class ImportExportService {
       contentType:
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     };
+  }
+
+  /** 导出流水导入模板（表头 + 一行示例） */
+  async exportTransactionTemplate(): Promise<{ buffer: Buffer; filename: string }> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('流水导入模板');
+    sheet.columns = TRANSACTION_COLUMNS.map((header) => ({
+      header,
+      key: header,
+      width: header === '备注' ? 30 : 15,
+      style: header === '金额' ? { numFmt: '0.00' } : undefined,
+    }));
+
+    // 必填列表头用红色文字
+    const requiredColumns = ['日期', '类型', '类别', '金额'];
+    TRANSACTION_COLUMNS.forEach((header, idx) => {
+      if (requiredColumns.includes(header)) {
+        sheet.getCell(1, idx + 1).font = { color: { argb: 'FFFF0000' } };
+      }
+    });
+
+    sheet.addRow({
+      日期: '2026-01-01 12:00',
+      类型: '支出',
+      类别: '餐饮',
+      金额: 12,
+      备注: '示例备注',
+      记录人: '（忽略）',
+    });
+    const buffer = (await workbook.xlsx.writeBuffer()) as unknown as Buffer;
+    return { buffer, filename: '流水导入模板.xlsx' };
   }
 
   /** 导入流水：解析 .xlsx，返回成功/失败明细 */
@@ -210,8 +249,8 @@ export class ImportExportService {
       const amount = Number(row.getCell(4).value);
       const note = String(row.getCell(5).value ?? '').trim();
 
-      if (!dateVal || !typeStr || !amount) {
-        errors.push({ row: rowNumber, message: '日期/类型/金额不能为空' });
+      if (!dateVal || !typeStr || !categoryName || !amount) {
+        errors.push({ row: rowNumber, message: '日期/类型/类别/金额不能为空' });
         return;
       }
       const typeMap: Record<string, string> = { 支出: 'expense', 收入: 'income', 转账: 'transfer' };
@@ -220,8 +259,8 @@ export class ImportExportService {
         errors.push({ row: rowNumber, message: `类型「${typeStr}」无效（应为 支出/收入/转账）` });
         return;
       }
-      const category = categoryName ? categoryByName.get(categoryName) : undefined;
-      if (categoryName && !category) {
+      const category = categoryByName.get(categoryName);
+      if (!category) {
         errors.push({ row: rowNumber, message: `类别「${categoryName}」不存在，请先在账本中创建` });
         return;
       }
@@ -230,7 +269,7 @@ export class ImportExportService {
         errors.push({ row: rowNumber, message: `日期「${dateVal}」格式无效` });
         return;
       }
-      rows.push({ ledgerId, userId, type, categoryId: category?.id ?? null, amount: new Prisma.Decimal(amount), note, occurredAt });
+      rows.push({ ledgerId, userId, type, categoryId: category.id, amount: new Prisma.Decimal(amount), note, occurredAt });
     });
 
     if (rows.length > 0) {
@@ -254,9 +293,9 @@ export class ImportExportService {
     sheet.columns = [
       { header: '期数', key: 'periodNo', width: 10 },
       { header: '到期日', key: 'dueDate', width: 15 },
-      { header: '本金', key: 'principal', width: 15 },
-      { header: '利息', key: 'interest', width: 15 },
-      { header: '合计', key: 'total', width: 15 },
+      { header: '本金', key: 'principal', width: 15, style: { numFmt: '0.00' } },
+      { header: '利息', key: 'interest', width: 15, style: { numFmt: '0.00' } },
+      { header: '合计', key: 'total', width: 15, style: { numFmt: '0.00' } },
     ];
     for (const r of loan.repayments) {
       sheet.addRow({

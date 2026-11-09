@@ -74,8 +74,11 @@ export default function Settings() {
       const a = document.createElement('a');
       a.href = url;
       // 用英文文件名，避免中文导致移动端下载时后缀丢失
-      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      a.download = `bookkeeping_${dateStr}.${ext}`;
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const p = (n: number) => String(n).padStart(2, '0');
+      const timeStr = `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
+      a.download = `bookkeeping_${dateStr}_${timeStr}.${ext}`;
       a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
