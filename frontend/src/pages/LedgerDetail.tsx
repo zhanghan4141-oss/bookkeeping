@@ -123,13 +123,28 @@ export default function LedgerDetail() {
   };
 
   const monthTotal = useMemo(() => {
+    const tomorrow = new Date();
+    tomorrow.setHours(0, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
     let income = 0;
     let expense = 0;
+    let pendingExpense = 0;
     for (const t of transactions) {
-      if (t.type === 'income') income += Number(t.amount);
-      else if (t.type === 'expense') expense += Number(t.amount);
+      const occurred = new Date(t.occurredAt);
+      if (t.type === 'income') {
+        if (occurred < tomorrow) income += Number(t.amount);
+      } else if (t.type === 'expense') {
+        if (occurred < tomorrow) expense += Number(t.amount);
+        else pendingExpense += Number(t.amount);
+      }
     }
-    return { income, expense };
+    return {
+      income,
+      expense,
+      surplus: income - expense,
+      pendingExpense,
+      pendingSurplus: income - expense - pendingExpense,
+    };
   }, [transactions]);
 
   const handleExport = async () => {
@@ -326,23 +341,37 @@ export default function LedgerDetail() {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: 24 }}>
-            <div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>收入</div>
-              <div className="amount-income" style={{ fontSize: 18, fontWeight: 600 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: 36 }}>
+              <div className="text-secondary" style={{ fontSize: 11 }}>收入</div>
+              <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#52c41a' }}>
                 ¥{fmt(monthTotal.income)}
               </div>
             </div>
-            <div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>支出</div>
-              <div className="amount-expense" style={{ fontSize: 18, fontWeight: 600 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: 36 }}>
+              <div className="text-secondary" style={{ fontSize: 11 }}>支出</div>
+              <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#ff4d4f' }}>
                 ¥{fmt(monthTotal.expense)}
               </div>
             </div>
-            <div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>结余</div>
-              <div style={{ fontSize: 18, fontWeight: 600 }}>
-                ¥{fmt(monthTotal.income - monthTotal.expense)}
+            <div style={{ display: 'flex', flexDirection: 'column', height: 36 }}>
+              <div className="text-secondary" style={{ fontSize: 11 }}>结余</div>
+              <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#1677ff' }}>
+                ¥{fmt(monthTotal.surplus)}
+              </div>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 20 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', height: 36, opacity: 0.45 }}>
+                <div className="text-secondary" style={{ fontSize: 10 }}>待支出</div>
+                <div style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: '#ff4d4f' }}>
+                  ¥{fmt(monthTotal.pendingExpense)}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', height: 36, opacity: 0.45 }}>
+                <div className="text-secondary" style={{ fontSize: 10 }}>待结余</div>
+                <div style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: '#1677ff' }}>
+                  ¥{fmt(monthTotal.pendingSurplus)}
+                </div>
               </div>
             </div>
           </div>

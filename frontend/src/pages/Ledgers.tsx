@@ -130,7 +130,7 @@ export default function Ledgers() {
             {OVERVIEW_BUCKETS.map((b) => {
               const s = overview?.[b.key]?.surplus ?? 0;
               return (
-                <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: s >= 0 ? '#1677ff' : '#ff4d4f', textAlign: 'center' }}>
+                <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: '#1677ff', textAlign: 'center' }}>
                   ¥{s.toFixed(2)}
                 </div>
               );
@@ -198,7 +198,7 @@ export default function Ledgers() {
                       收 <span style={{ color: '#52c41a' }}>¥{(s?.income ?? 0).toFixed(2)}</span>
                       {'  '}支 <span style={{ color: '#ff4d4f' }}>¥{(s?.expense ?? 0).toFixed(2)}</span>
                       {'  '}结余{' '}
-                      <span style={{ color: (s?.surplus ?? 0) >= 0 ? '#1677ff' : '#ff4d4f' }}>
+                      <span style={{ color: '#1677ff' }}>
                         ¥{(s?.surplus ?? 0).toFixed(2)}
                       </span>
                     </div>

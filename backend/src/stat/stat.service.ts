@@ -33,7 +33,7 @@ export class StatService {
 
   /**
    * 统计：收入、支出、盈余、类别分布、趋势。
-   * 口径：现金流视角，只统计「已支出」的流水（occurredAt < 明天 00:00，即今天整天及之前）。
+   * 口径：全景收支，统计区间内的所有流水（含未来待支出与待还款）。
    * 贷款相关流水（放款收入、还款本金、还款利息）已随贷款创建/还款写入流水，直接按流水统计。
    * @param date 可选，指定统计周期：period=month 时为 YYYY-MM，period=year 时为 YYYY；缺省统计全部
    */
@@ -46,16 +46,10 @@ export class StatService {
       return this.emptyResult('month', calendar);
     }
 
-    // 已支出口径：今天整天（< 明天 00:00）都算已支出，
-    // 与还款页「待支出」的 gte: tomorrow（明天 00:00 起）左闭右开无缝对齐
-    const tomorrow = new Date();
-    tomorrow.setHours(0, 0, 0, 0);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
     // 日期范围过滤 + 确定趋势粒度
+    // 全景口径：默认不设时间上限，统计区间内所有流水（含未来待支出/待还款）
     const where: Prisma.TransactionWhereInput = {
       ledgerId: { in: accessible },
-      occurredAt: { lt: tomorrow },
     };
 
     let period: Period = query.period ?? 'month';
@@ -65,7 +59,7 @@ export class StatService {
       const start = new Date(`${query.startDate}T00:00:00`);
       const end = new Date(`${query.endDate}T00:00:00`);
       end.setDate(end.getDate() + 1);
-      where.occurredAt = { gte: start, lt: end < tomorrow ? end : tomorrow };
+      where.occurredAt = { gte: start, lt: end };
       period = determineGranularity(query.startDate, query.endDate, calendar);
     } else if (query.date && calendar === 'solar') {
       // 旧逻辑：按月/按年 + 参考日期
@@ -73,15 +67,15 @@ export class StatService {
         const start = new Date(`${query.date}-01T00:00:00`);
         const end = new Date(start);
         end.setMonth(end.getMonth() + 1);
-        where.occurredAt = { gte: start, lt: end < tomorrow ? end : tomorrow };
+        where.occurredAt = { gte: start, lt: end };
       } else if (period === 'year' && /^\d{4}$/.test(query.date)) {
         const start = new Date(`${query.date}-01-01T00:00:00`);
         const end = new Date(`${Number(query.date) + 1}-01-01T00:00:00`);
-        where.occurredAt = { gte: start, lt: end < tomorrow ? end : tomorrow };
+        where.occurredAt = { gte: start, lt: end };
       }
     }
 
-    // 流水（只统计已支出的：今天整天及之前）
+    // 流水（含未来待支出/待还款）
     const transactions = await this.prisma.transaction.findMany({
       where,
       include: {
@@ -172,16 +166,16 @@ export class StatService {
     return members.map((m) => m.ledgerId);
   }
 
-  /** 每个账本的收支结余汇总（账本列表用），支持当月/当年/所有 */
+  /** 每个账本的收支结余汇总（账本列表用），支持当日/当月/当年/所有（仅已发生，不含未来） */
   async ledgerSummaries(
     userId: string,
     period: 'day' | 'month' | 'year' | 'all',
   ) {
-    // 已支出口径：今天整天及之前（与 summary 一致）
+    const now = new Date();
+    // 已发生口径：仅统计今天整天及之前（不含未来）
     const tomorrow = new Date();
     tomorrow.setHours(0, 0, 0, 0);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const now = new Date();
     const where: Prisma.TransactionWhereInput = {
       occurredAt: { lt: tomorrow },
     };
@@ -202,6 +196,7 @@ export class StatService {
         lt: tomorrow,
       };
     }
+    // all：仅 lt: tomorrow（今天及之前）
 
     const members = await this.prisma.ledgerMember.findMany({
       where: { userId },
