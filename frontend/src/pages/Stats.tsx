@@ -22,6 +22,13 @@ function parseDate(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/** 简化横轴标签：按天只显示日，按月只显示月，按年只显示年 */
+function shortAxisKey(key: string, period: 'day' | 'month' | 'year'): string {
+  if (period === 'day') return key.split('-').pop() ?? key;
+  if (period === 'month') return key.split('-')[1] ?? key;
+  return key;
+}
+
 /** 当前历法下，某日期所在「月」的公历区间；offset 用于平移（-1 上一个月，+1 下一个月） */
 function monthRangeOf(
   date: Date,
@@ -181,7 +188,7 @@ export default function Stats() {
       tooltip: { trigger: 'axis' as const },
       legend: { bottom: 0 },
       grid: { left: 40, right: 16, top: 28, bottom: 40 },
-      xAxis: { type: 'category' as const, data: trend.map((t) => t.key) },
+      xAxis: { type: 'category' as const, data: trend.map((t) => shortAxisKey(t.key, summary?.period ?? 'month')) },
       yAxis: { type: 'value' as const },
       series: [
         { name: '收入', type: 'bar' as const, data: trend.map((t) => t.income), itemStyle: { color: '#52c41a' }, label: moneyLabel },
