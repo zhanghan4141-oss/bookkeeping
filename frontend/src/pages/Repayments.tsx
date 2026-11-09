@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DatePicker, NavBar } from 'antd-mobile';
 import { repaymentApi } from '../api/misc';
@@ -45,6 +45,38 @@ export default function Repayments() {
   );
 
   const pendingExpense = data?.pendingExpense;
+
+  // 折叠展示：默认展开最近一天，其余折叠（待还款 / 待支出各自独立）
+  const [expandedRepay, setExpandedRepay] = useState<Set<string>>(new Set());
+  const [expandedExpense, setExpandedExpense] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const first = data?.daily?.[0]?.date;
+    if (first) setExpandedRepay(new Set([first]));
+  }, [data?.daily?.[0]?.date]);
+
+  useEffect(() => {
+    const first = pendingExpense?.daily?.[0]?.date;
+    if (first) setExpandedExpense(new Set([first]));
+  }, [pendingExpense?.daily?.[0]?.date]);
+
+  const toggleRepay = (date: string) => {
+    setExpandedRepay((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  };
+
+  const toggleExpense = (date: string) => {
+    setExpandedExpense((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  };
 
   return (
     <div className="page">
@@ -139,7 +171,7 @@ export default function Repayments() {
             }}
           >
             <div className="text-secondary" style={{ fontSize: 13 }}>待还款</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#fa8c16' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#1677ff' }}>
               ¥{(data?.totalAmount ?? 0).toFixed(2)}
             </div>
           </div>
@@ -161,42 +193,83 @@ export default function Repayments() {
 
         {/* 待还款列表 */}
         <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8 }}>待还款</div>
-        {data?.daily?.map((d: any) => (
-          <div key={d.date} style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontWeight: 600 }}>{d.date}</span>
-              <span style={{ fontWeight: 700, color: '#fa8c16' }}>¥{d.total.toFixed(2)}</span>
-            </div>
-            {d.items.map((it: any) => (
-              <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '4px 0' }}>
-                {it.loanName} 第{it.periodNo}期 · 剩余 <span style={{ color: '#fa8c16' }}>¥{it.remain.toFixed(2)}</span>
-                <span style={{ marginLeft: 6, color: it.status === 'overdue' ? '#ff4d4f' : '#999' }}>
-                  {it.status === 'overdue' ? '逾期' : it.status === 'partial' ? '部分还' : '待还'}
+        {data?.daily?.map((d: any) => {
+          const isExpanded = expandedRepay.has(d.date);
+          return (
+            <div key={d.date} style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
+              <div
+                onClick={() => toggleRepay(d.date)}
+                style={{
+                  padding: '10px 12px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  borderBottom: isExpanded ? '1px solid #f5f5f5' : 'none',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#bbb', fontSize: 12, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>
+                    ▶
+                  </span>
+                  <span style={{ fontWeight: 600 }}>{d.date}</span>
+                  <span style={{ fontSize: 12, color: '#999' }}>{d.items.length} 笔</span>
                 </span>
+                <span style={{ fontWeight: 700, color: '#1677ff' }}>¥{d.total.toFixed(2)}</span>
               </div>
-            ))}
-          </div>
-        ))}
+              {isExpanded && d.items.map((it: any) => (
+                <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa' }}>
+                  {it.loanName} 第{it.periodNo}期 · 剩余{' '}
+                  <span style={{ color: '#ff4d4f' }}>¥{it.remainingPrincipal.toFixed(2)}</span>
+                  /{it.remainingPeriods}期 未还、本期待还{' '}
+                  <span style={{ color: '#52c41a' }}>¥{it.totalAmount.toFixed(2)}</span>
+                  <span style={{ marginLeft: 6, color: it.status === 'overdue' ? '#ff4d4f' : '#999' }}>
+                    {it.status === 'overdue' ? '逾期' : it.status === 'partial' ? '部分还' : '待还'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })}
         {!data?.daily?.length && (
           <div style={{ textAlign: 'center', padding: 16, color: '#999', marginBottom: 16 }}>未来 30 天暂无待还款</div>
         )}
 
         {/* 待支出列表 */}
         <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, marginTop: 16 }}>待支出</div>
-        {pendingExpense?.daily?.map((d: any) => (
-          <div key={d.date} style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontWeight: 600 }}>{d.date}</span>
-              <span style={{ fontWeight: 700, color: '#1677ff' }}>¥{d.total.toFixed(2)}</span>
-            </div>
-            {d.items.map((it: any) => (
-              <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '4px 0' }}>
-                {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#1677ff' }}>¥{it.amount.toFixed(2)}</span>
-                {it.note && <span style={{ marginLeft: 6, color: '#999' }}>（{it.note}）</span>}
+        {pendingExpense?.daily?.map((d: any) => {
+          const isExpanded = expandedExpense.has(d.date);
+          return (
+            <div key={d.date} style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
+              <div
+                onClick={() => toggleExpense(d.date)}
+                style={{
+                  padding: '10px 12px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  borderBottom: isExpanded ? '1px solid #f5f5f5' : 'none',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#bbb', fontSize: 12, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>
+                    ▶
+                  </span>
+                  <span style={{ fontWeight: 600 }}>{d.date}</span>
+                  <span style={{ fontSize: 12, color: '#999' }}>{d.items.length} 笔</span>
+                </span>
+                <span style={{ fontWeight: 700, color: '#1677ff' }}>¥{d.total.toFixed(2)}</span>
               </div>
-            ))}
-          </div>
-        ))}
+              {isExpanded && d.items.map((it: any) => (
+                <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa' }}>
+                  {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#52c41a' }}>¥{it.amount.toFixed(2)}</span>
+                  {it.note && <span style={{ marginLeft: 6, color: '#999' }}>（{it.note}）</span>}
+                </div>
+              ))}
+            </div>
+          );
+        })}
         {!pendingExpense?.daily?.length && (
           <div style={{ textAlign: 'center', padding: 16, color: '#999' }}>未来 30 天暂无待支出</div>
         )}

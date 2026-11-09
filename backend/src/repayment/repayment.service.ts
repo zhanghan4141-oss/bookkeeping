@@ -46,11 +46,33 @@ export class RepaymentService {
       orderBy: { dueDate: 'asc' },
     });
 
+    // 计算每个贷款的剩余未还本金与剩余未还期数（按期还款、未还清部分）
+    const loanIds = [...new Set(repayments.map((r) => r.loanId))];
+    const remainingByLoan = new Map<string, { principal: number; periods: number }>();
+    if (loanIds.length > 0) {
+      const outstanding = await this.prisma.loanRepayment.findMany({
+        where: {
+          loanId: { in: loanIds },
+          kind: 'period',
+          status: { in: ['pending', 'partial'] },
+        },
+        select: { loanId: true, principalAmount: true, totalAmount: true, paidAmount: true },
+      });
+      for (const r of outstanding) {
+        const entry = remainingByLoan.get(r.loanId) ?? { principal: 0, periods: 0 };
+        const ratio = Number(r.paidAmount) / Math.max(Number(r.totalAmount), 1);
+        entry.principal += Number(r.principalAmount) * (1 - ratio);
+        entry.periods += 1;
+        remainingByLoan.set(r.loanId, entry);
+      }
+    }
+
     // 按日期分组汇总
     const byDate = new Map<string, { date: string; total: number; items: any[] }>();
     for (const r of repayments) {
       const key = (r.dueDate as Date).toISOString().slice(0, 10);
       const remain = Number(r.totalAmount) - Number(r.paidAmount);
+      const remaining = remainingByLoan.get(r.loanId) ?? { principal: 0, periods: 0 };
       if (!byDate.has(key)) {
         byDate.set(key, { date: key, total: 0, items: [] });
       }
@@ -63,6 +85,9 @@ export class RepaymentService {
         direction: r.loan.direction,
         periodNo: r.periodNo,
         remain: Math.round(remain * 100) / 100,
+        totalAmount: Math.round(Number(r.totalAmount) * 100) / 100,
+        remainingPrincipal: Math.round(remaining.principal * 100) / 100,
+        remainingPeriods: remaining.periods,
         status: r.status,
       });
     }
