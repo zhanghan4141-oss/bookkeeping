@@ -29,6 +29,59 @@ function shortAxisKey(key: string, period: 'day' | 'month' | 'year'): string {
   return key;
 }
 
+/** 快捷区间：当年 / 当月 / 四个季度，跟随当前历法（公历/农历） */
+function quickRange(
+  key: 'year' | 'month' | 'q1' | 'q2' | 'q3' | 'q4',
+  calendar: 'solar' | 'lunar',
+): { start: string; end: string } {
+  const now = new Date();
+
+  if (calendar === 'lunar') {
+    const lunar = Solar.fromDate(now).getLunar();
+    const ly = lunar.getYear();
+    const lm = lunar.getMonth(); // 负数=闰月
+    const monthRange = (year: number, month: number) => {
+      const start = Lunar.fromYmd(year, month, 1).getSolar().toYmd();
+      const end = Lunar.fromYmd(year, month, LunarMonth.fromYm(year, month).getDayCount()).getSolar().toYmd();
+      return { start, end };
+    };
+    const quarter = (fromMonth: number, toMonth: number) => {
+      const start = Lunar.fromYmd(ly, fromMonth, 1).getSolar().toYmd();
+      const end = Lunar.fromYmd(ly, toMonth, LunarMonth.fromYm(ly, toMonth).getDayCount()).getSolar().toYmd();
+      return { start, end };
+    };
+    if (key === 'year') {
+      const start = Lunar.fromYmd(ly, 1, 1).getSolar().toYmd();
+      const end = Lunar.fromYmd(ly, 12, LunarMonth.fromYm(ly, 12).getDayCount()).getSolar().toYmd();
+      return { start, end };
+    }
+    if (key === 'month') return monthRange(ly, lm);
+    if (key === 'q1') return quarter(1, 3);
+    if (key === 'q2') return quarter(4, 6);
+    if (key === 'q3') return quarter(7, 9);
+    return quarter(10, 12);
+  }
+
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const monthRange = (year: number, month: number) => {
+    const start = fmtDate(new Date(year, month - 1, 1));
+    const end = fmtDate(new Date(year, month, 0));
+    return { start, end };
+  };
+  const quarter = (fromMonth: number, toMonth: number) => {
+    const start = fmtDate(new Date(y, fromMonth - 1, 1));
+    const end = fmtDate(new Date(y, toMonth, 0));
+    return { start, end };
+  };
+  if (key === 'year') return { start: `${y}-01-01`, end: `${y}-12-31` };
+  if (key === 'month') return monthRange(y, m);
+  if (key === 'q1') return quarter(1, 3);
+  if (key === 'q2') return quarter(4, 6);
+  if (key === 'q3') return quarter(7, 9);
+  return quarter(10, 12);
+}
+
 /** 当前历法下，某日期所在「月」的公历区间；offset 用于平移（-1 上一个月，+1 下一个月） */
 function monthRangeOf(
   date: Date,
@@ -143,6 +196,13 @@ export default function Stats() {
       setIsCustom(true);
     }
     setShowRangePicker(false);
+  };
+
+  // 快捷区间按钮：只填入起止日期，用户点「确定」后生效
+  const applyQuickRange = (key: 'year' | 'month' | 'q1' | 'q2' | 'q3' | 'q4') => {
+    const r = quickRange(key, calendar);
+    setTempStart(r.start);
+    setTempEnd(r.end);
   };
 
   // 选中的账本对象
@@ -308,6 +368,22 @@ export default function Stats() {
       >
         <div style={{ padding: 24 }}>
           <h3 style={{ marginBottom: 16 }}>设置统计区间</h3>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {([
+              { key: 'year', label: '当年' },
+              { key: 'month', label: '当月' },
+              { key: 'q1', label: 'Q1' },
+              { key: 'q2', label: 'Q2' },
+              { key: 'q3', label: 'Q3' },
+              { key: 'q4', label: 'Q4' },
+            ] as const).map((b) => (
+              <Button key={b.key} size="mini" fill="outline" onClick={() => applyQuickRange(b.key)}>
+                {b.label}
+              </Button>
+            ))}
+          </div>
+
           <div style={{ marginBottom: 16 }}>
             <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>起始日期</div>
             <DatePicker
