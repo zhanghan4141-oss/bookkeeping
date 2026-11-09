@@ -7,6 +7,7 @@ import { ledgerApi } from '../api/ledger';
 import { statApi } from '../api/misc';
 import { invalidateFinancialData } from '../lib/invalidate';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
+import { useLedgerPeriodStore } from '../stores/ledgerPeriod';
 import type { Ledger, LedgerSummary, StatOverview } from '../types';
 
 const LEDGER_TYPE_ICON: Record<string, string> = {
@@ -26,7 +27,8 @@ export default function Ledgers() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [period, setPeriod] = useState<'day' | 'month' | 'year' | 'all'>('day');
+  const period = useLedgerPeriodStore((s) => s.period);
+  const setPeriod = useLedgerPeriodStore((s) => s.setPeriod);
   const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
   const selectOne = useLedgerSelectionStore((s) => s.selectOne);
 

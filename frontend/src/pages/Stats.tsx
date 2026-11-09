@@ -170,15 +170,22 @@ export default function Stats() {
 
   const trendOption = useMemo(() => {
     const trend = summary?.trend ?? [];
+    const moneyLabel = {
+      show: true,
+      position: 'top' as const,
+      fontSize: 9,
+      color: '#999',
+      formatter: (p: any) => (p.value ? `¥${Number(p.value).toFixed(2)}` : ''),
+    };
     return {
       tooltip: { trigger: 'axis' as const },
       legend: { bottom: 0 },
-      grid: { left: 40, right: 16, top: 16, bottom: 40 },
+      grid: { left: 40, right: 16, top: 28, bottom: 40 },
       xAxis: { type: 'category' as const, data: trend.map((t) => t.key) },
       yAxis: { type: 'value' as const },
       series: [
-        { name: '收入', type: 'bar' as const, data: trend.map((t) => t.income), itemStyle: { color: '#52c41a' } },
-        { name: '支出', type: 'bar' as const, data: trend.map((t) => t.expense), itemStyle: { color: '#ff4d4f' } },
+        { name: '收入', type: 'bar' as const, data: trend.map((t) => t.income), itemStyle: { color: '#52c41a' }, label: moneyLabel },
+        { name: '支出', type: 'bar' as const, data: trend.map((t) => t.expense), itemStyle: { color: '#ff4d4f' }, label: moneyLabel },
       ],
     };
   }, [summary]);
