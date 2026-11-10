@@ -259,6 +259,33 @@ export class StatService {
     return result;
   }
 
+  /** 某类别在区间内的流水明细（统计页类别列表点开用） */
+  async categoryTransactions(
+    userId: string,
+    categoryId: string,
+    startDate: string,
+    endDate: string,
+    ledgerIds: string[],
+  ) {
+    const accessible = await this.filterAccessible(userId, ledgerIds);
+    if (accessible.length === 0) return [];
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    end.setDate(end.getDate() + 1);
+    return this.prisma.transaction.findMany({
+      where: {
+        categoryId,
+        ledgerId: { in: accessible },
+        occurredAt: { gte: start, lt: end },
+      },
+      include: {
+        category: { select: { id: true, name: true, icon: true, color: true, type: true } },
+        ledger: { select: { id: true, name: true } },
+      },
+      orderBy: { occurredAt: 'desc' },
+    });
+  }
+
   private emptyResult(period: Period, calendar: Calendar) {
     return {
       period,

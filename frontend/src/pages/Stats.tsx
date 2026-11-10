@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, DatePicker, NavBar, Popup } from 'antd-mobile';
+import { Button, DatePicker, NavBar, Popup, SearchBar } from 'antd-mobile';
 import { LeftOutline, RightOutline } from 'antd-mobile-icons';
 import { Lunar, LunarMonth, Solar } from 'lunar-javascript';
 import { statApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
 import Chart from '../components/Chart';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
+import TransactionDayList from '../components/TransactionDayList';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
-import type { Ledger, StatSummary } from '../types';
+import type { Ledger, StatSummary, Transaction } from '../types';
 
 function fmtDate(d: Date): string {
   const y = d.getFullYear();
@@ -82,6 +83,42 @@ function quickRange(
   return quarter(10, 12);
 }
 
+/** 类别列表（统计页饼图下方）：一行一个类别，可点击查看流水 */
+function CategoryList({
+  title,
+  color,
+  cats,
+  total,
+  onOpen,
+}: {
+  title: string;
+  color: string;
+  cats: { categoryId: string; name: string; type: string; icon: string | null; amount: number }[];
+  total: number;
+  onOpen: (c: { categoryId: string; name: string; type: string; icon: string | null }) => void;
+}) {
+  if (cats.length === 0) return null;
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, padding: 8, marginTop: 12 }}>
+      <div style={{ fontWeight: 600, fontSize: 14, padding: '4px 8px', color }}>{title}</div>
+      {cats.map((c) => (
+        <div
+          key={c.categoryId}
+          onClick={() => onOpen(c)}
+          style={{ display: 'flex', alignItems: 'center', padding: '12px 8px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer' }}
+        >
+          <span style={{ fontSize: 20, marginRight: 8 }}>{c.icon || '💸'}</span>
+          <span style={{ flex: 1, fontSize: 15 }}>{c.name}</span>
+          <span style={{ fontSize: 13, color }}>¥{c.amount.toFixed(2)}</span>
+          <span style={{ fontSize: 13, color: '#999', marginLeft: 6 }}>
+            {total > 0 ? ((c.amount / total) * 100).toFixed(1) : '0.0'}%
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** 当前历法下，某日期所在「月」的公历区间；offset 用于平移（-1 上一个月，+1 下一个月） */
 function monthRangeOf(
   date: Date,
@@ -152,6 +189,55 @@ export default function Stats() {
       return (await statApi.summary(params)).data as StatSummary;
     },
   });
+
+  // 点开的类别（弹窗用）
+  const [showCategoryTx, setShowCategoryTx] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<{
+    categoryId: string;
+    name: string;
+    type: string;
+    icon: string | null;
+  } | null>(null);
+
+  const { data: categoryTxList = [] } = useQuery({
+    queryKey: ['stats', 'category-transactions', activeCategory?.categoryId, range.start, range.end, selectedIds],
+    queryFn: async () => {
+      if (!activeCategory) return [];
+      const params: Record<string, string> = {
+        categoryId: activeCategory.categoryId,
+        startDate: range.start,
+        endDate: range.end,
+      };
+      if (selectedIds.length) params.ledgerIds = selectedIds.join(',');
+      return (await statApi.categoryTransactions(params)).data as Transaction[];
+    },
+    enabled: !!activeCategory,
+  });
+
+  const [categoryKeyword, setCategoryKeyword] = useState('');
+
+  const filteredCategoryTx = useMemo(() => {
+    const kw = categoryKeyword.trim();
+    if (!kw) return categoryTxList;
+    const isNum = /^\d+(\.\d+)?$/.test(kw);
+    const num = isNum ? Number(kw) : null;
+    return categoryTxList.filter((t) => {
+      if (t.note?.includes(kw)) return true;
+      if (t.category?.name?.includes(kw)) return true;
+      if (num !== null && Number(t.amount) === num) return true;
+      return false;
+    });
+  }, [categoryTxList, categoryKeyword]);
+
+  const categoryTotal = useMemo(
+    () => filteredCategoryTx.reduce((s, t) => s + Number(t.amount), 0),
+    [filteredCategoryTx],
+  );
+
+  const openCategory = (c: { categoryId: string; name: string; type: string; icon: string | null }) => {
+    setActiveCategory(c);
+    setShowCategoryTx(true);
+  };
 
   // 左右箭头：按月导航（自定义区间则整体平移）
   const shift = (delta: number) => {
@@ -358,6 +444,21 @@ export default function Stats() {
         <div style={{ background: '#fff', borderRadius: 12, padding: 8 }}>
           <Chart option={pieOption} height={280} />
         </div>
+
+        <CategoryList
+          title="收入类别"
+          color="#52c41a"
+          cats={(summary?.byCategory ?? []).filter((c) => c.type === 'income')}
+          total={summary?.totalIncome ?? 0}
+          onOpen={openCategory}
+        />
+        <CategoryList
+          title="支出类别"
+          color="#ff4d4f"
+          cats={(summary?.byCategory ?? []).filter((c) => c.type === 'expense')}
+          total={summary?.totalExpense ?? 0}
+          onOpen={openCategory}
+        />
       </div>
 
       {/* 自定义日期范围弹窗 */}
@@ -429,6 +530,52 @@ export default function Stats() {
         selectedIds={selectedIds}
         onToggle={toggle}
       />
+
+      {/* 类别流水弹窗 */}
+      <Popup
+        visible={showCategoryTx}
+        onMaskClick={() => setShowCategoryTx(false)}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 16, maxHeight: '75vh', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontWeight: 600, fontSize: 16 }}>
+              {activeCategory?.icon} {activeCategory?.name} 流水
+            </span>
+            <span onClick={() => setShowCategoryTx(false)} style={{ fontSize: 22, color: '#999', cursor: 'pointer', lineHeight: 1 }}>
+              ×
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <div style={{ flex: 1, background: '#f5f6f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+              <div className="text-secondary" style={{ fontSize: 11 }}>合计</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: activeCategory?.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
+                ¥{categoryTotal.toFixed(2)}
+              </div>
+            </div>
+            <div style={{ flex: 1, background: '#f5f6f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+              <div className="text-secondary" style={{ fontSize: 11 }}>笔数</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#333' }}>{filteredCategoryTx.length} 笔</div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            <SearchBar
+              placeholder="搜索备注、类别或金额"
+              value={categoryKeyword}
+              onChange={setCategoryKeyword}
+              onClear={() => setCategoryKeyword('')}
+            />
+          </div>
+
+          <TransactionDayList
+            transactions={filteredCategoryTx}
+            showLedgerName={selectedIds.length !== 1}
+            emptyText="该类别暂无流水"
+          />
+        </div>
+      </Popup>
     </div>
   );
 }

@@ -49,4 +49,25 @@ export class StatController {
   overview(@CurrentUser() user: AuthUser) {
     return this.statService.overview(user.id);
   }
+
+  /** 某类别在区间内的流水明细 */
+  @Get('stats/category-transactions')
+  categoryTransactions(
+    @CurrentUser() user: AuthUser,
+    @Query('categoryId') categoryId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('ledgerIds') ledgerIds: string,
+  ) {
+    const ids = ledgerIds
+      ? ledgerIds.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+    return this.statService.categoryTransactions(
+      user.id,
+      categoryId,
+      startDate,
+      endDate,
+      ids,
+    );
+  }
 }

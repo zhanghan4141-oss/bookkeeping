@@ -23,10 +23,16 @@ export class TransactionService {
     if (query.categoryId) where.categoryId = query.categoryId;
     if (query.type) where.type = query.type;
     if (query.keyword) {
-      where.OR = [
-        { note: { contains: query.keyword } },
-        { category: { name: { contains: query.keyword } } },
+      const kw = query.keyword.trim();
+      const or: Prisma.TransactionWhereInput[] = [
+        { note: { contains: kw } },
+        { category: { name: { contains: kw } } },
       ];
+      // 金额搜索：关键词是数字时精确匹配金额
+      if (/^\d+(\.\d+)?$/.test(kw)) {
+        or.push({ amount: { equals: new Prisma.Decimal(kw) } });
+      }
+      where.OR = or;
     }
 
     const transactions = await this.prisma.transaction.findMany({
