@@ -7,7 +7,6 @@ import {
   Dialog,
   FloatingBubble,
   Input,
-  List,
   NavBar,
   Picker,
   Popup,
@@ -416,40 +415,46 @@ export default function LedgerDetail() {
                   <span style={{ fontSize: 12, color: '#999' }}>{items.length} 笔</span>
                 </span>
                 <span>
-                  {dayExpense > 0 && <span style={{ color: '#ff4d4f' }}>支 ¥{fmt(dayExpense)} </span>}
-                  {dayIncome > 0 && <span style={{ color: '#52c41a' }}>收 ¥{fmt(dayIncome)}</span>}
+                  {dayExpense > 0 && <span style={{ color: '#999' }}>支 ¥{fmt(dayExpense)} </span>}
+                  {dayIncome > 0 && <span style={{ color: '#999' }}>收 ¥{fmt(dayIncome)}</span>}
                 </span>
               </div>
               {isExpanded && items.map((t) => {
                 const isLoanTx = !!t.loanId;
                 const content = (
-                  <List.Item
+                  <div
                     key={t.id}
-                    prefix={
-                      <span style={{ fontSize: 22, marginRight: 10 }}>
-                        {t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}
-                      </span>
-                    }
-                    extra={
-                      <span className={t.type === 'income' ? 'amount-income' : 'amount-expense'}>
-                        {t.type === 'income' ? '+' : '-'}¥{fmt(t.amount)}
-                      </span>
-                    }
-                    description={
-                      <span>
+                    onClick={() => !isLoanTx && !isViewer && openEdit(t)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      borderBottom: '1px solid #fafafa',
+                      background: '#fff',
+                      cursor: isLoanTx || isViewer ? 'default' : 'pointer',
+                    }}
+                  >
+                    <span style={{ fontSize: 22, marginRight: 10 }}>
+                      {t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 15 }}>
+                        {t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                         {formatDateTime(new Date(t.occurredAt))}
                         {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
                         {isLoanTx && (
-                          <span style={{ marginLeft: 6, color: '#1677ff', fontSize: 12 }}>
+                          <span style={{ marginLeft: 6, color: '#1677ff' }}>
                             〔{t.loan?.name ?? '贷款'}〕
                           </span>
                         )}
-                      </span>
-                    }
-                    onClick={() => !isLoanTx && !isViewer && openEdit(t)}
-                  >
-                    {t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}
-                  </List.Item>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
+                      {t.type === 'income' ? '+' : '-'}¥{fmt(t.amount)}
+                    </span>
+                  </div>
                 );
 
                 // 贷款流水只读，不可左滑操作；viewer 也只读
