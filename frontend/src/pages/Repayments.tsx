@@ -215,13 +215,13 @@ export default function Repayments() {
                   <span style={{ fontWeight: 600 }}>{d.date}</span>
                   <span style={{ fontSize: 12, color: '#999' }}>{d.items.length} 笔</span>
                 </span>
-                <span style={{ fontWeight: 700, color: '#1677ff' }}>¥{d.total.toFixed(2)}</span>
+                <span style={{ fontWeight: 700, color: '#999' }}>¥{d.total.toFixed(2)}</span>
               </div>
               {isExpanded && d.items.map((it: any) => (
                 <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa' }}>
-                  {it.loanName} 第{it.periodNo}期 · 剩余{' '}
+                  <span style={{ color: '#1677ff' }}>{it.loanName}</span> 第{it.periodNo}期 · 剩余{' '}
                   <span style={{ color: '#ff4d4f' }}>¥{it.remainingPrincipal.toFixed(2)}</span>
-                  /{it.remainingPeriods}期 未还、本期待还{' '}
+                  /{it.remainingPeriods}期、本期{' '}
                   <span style={{ color: '#52c41a' }}>¥{it.totalAmount.toFixed(2)}</span>
                   <span style={{ marginLeft: 6, color: it.status === 'overdue' ? '#ff4d4f' : '#999' }}>
                     {it.status === 'overdue' ? '逾期' : it.status === 'partial' ? '部分还' : '待还'}
@@ -259,7 +259,7 @@ export default function Repayments() {
                   <span style={{ fontWeight: 600 }}>{d.date}</span>
                   <span style={{ fontSize: 12, color: '#999' }}>{d.items.length} 笔</span>
                 </span>
-                <span style={{ fontWeight: 700, color: '#1677ff' }}>¥{d.total.toFixed(2)}</span>
+                <span style={{ fontWeight: 700, color: '#999' }}>¥{d.total.toFixed(2)}</span>
               </div>
               {isExpanded && d.items.map((it: any) => (
                 <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa' }}>

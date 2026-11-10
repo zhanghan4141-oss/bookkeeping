@@ -98,11 +98,11 @@ export class RepaymentService {
     }));
     result.sort((a, b) => a.date.localeCompare(b.date));
 
-    // ===== 待支出（普通账本中的未来支出流水）=====
+    // ===== 待支出（非贷款手动记账的未来支出流水；贷款流水计入待还款，避免重复）=====
     const expenses = await this.prisma.transaction.findMany({
       where: {
         ledgerId: { in: targetLedgerIds },
-        ledger: { type: { not: 'loan' } },
+        loanId: null,
         type: 'expense',
         occurredAt: { gte: tomorrow, lte: end },
       },

@@ -616,8 +616,14 @@ export class LoanService {
     for (const r of loan.repayments) {
       if (r.kind !== 'period' || r.status === 'paid') continue;
       const ratio = Number(r.paidAmount) / Math.max(Number(r.totalAmount), 1);
-      remainingPrincipal += Number(r.principalAmount) * (1 - ratio);
-      remainingInterest += Number(r.interestAmount) * (1 - ratio);
+      const remaining = 1 - ratio;
+      if (Number(r.principalAmount) === 0 && Number(r.interestAmount) === 0) {
+        // 自定义方式不区分本金利息：未还总额计入剩余本金，利息按 0
+        remainingPrincipal += Number(r.totalAmount) * remaining;
+      } else {
+        remainingPrincipal += Number(r.principalAmount) * remaining;
+        remainingInterest += Number(r.interestAmount) * remaining;
+      }
     }
 
     return {

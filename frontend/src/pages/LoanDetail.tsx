@@ -164,6 +164,8 @@ export default function LoanDetail() {
   if (!loan) return null;
 
   const isCustom = loan.repaymentMethod === 'custom';
+  const remainingPrincipal = Number(loan.remainingPrincipal ?? 0);
+  const remainingInterest = Number(loan.remainingInterest ?? 0);
 
   return (
     <div className="page">
@@ -173,42 +175,48 @@ export default function LoanDetail() {
 
       <div style={{ padding: 16 }}>
         <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', rowGap: 12, marginBottom: 12 }}>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>本金</div>
               <div style={{ fontSize: 20, fontWeight: 700 }}>¥{Number(loan.principal).toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>年利率</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{loan.annualRate}%</div>
-            </div>
-            <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>期数</div>
               <div style={{ fontSize: 20, fontWeight: 700 }}>{loan.termMonths} 期</div>
             </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>剩余未还本金</div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>年利率</div>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{loan.annualRate}%</div>
+            </div>
+
+            <div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>
+                {isCustom ? '剩余未还本息' : '剩余未还本金'}
+              </div>
               <div style={{ fontSize: 18, fontWeight: 700, color: '#1677ff' }}>
-                ¥{(loan.remainingPrincipal ?? 0).toFixed(2)}
+                ¥{(isCustom ? remainingPrincipal + remainingInterest : remainingPrincipal).toFixed(2)}
               </div>
             </div>
             <div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>剩余未还利息</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#faad14' }}>
-                ¥{(loan.remainingInterest ?? 0).toFixed(2)}
+              {!isCustom && (
+                <>
+                  <div className="text-secondary" style={{ fontSize: 12 }}>剩余未还利息</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#faad14' }}>
+                    ¥{remainingInterest.toFixed(2)}
+                  </div>
+                </>
+              )}
+            </div>
+            <div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>实际年利率</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#1677ff' }}>
+                {loan.actualAnnualRate != null ? `${loan.actualAnnualRate}%` : '—'}
               </div>
             </div>
           </div>
           <div className="text-secondary" style={{ fontSize: 13 }}>
             {loan.direction === 'lend' ? '我借入（应还）' : '我借出（应收）'} · 每月 {loan.repaymentDay} 号还款 ·{' '}
             {loan.repaymentMethod === 'equal_installment' ? '等额本息' : loan.repaymentMethod === 'equal_principal' ? '等额本金' : loan.repaymentMethod === 'interest_first' ? '先息后本' : '自定义'}
-            {loan.actualAnnualRate !== null && loan.actualAnnualRate !== undefined && (
-              <span style={{ marginLeft: 8, color: '#1677ff', fontWeight: 600 }}>
-                实际年利率 {loan.actualAnnualRate}%
-              </span>
-            )}
           </div>
           <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {!isViewer && (
