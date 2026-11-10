@@ -171,7 +171,7 @@ export default function Repayments() {
             }}
           >
             <div className="text-secondary" style={{ fontSize: 13 }}>待还款</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#1677ff' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#52c41a' }}>
               ¥{(data?.totalAmount ?? 0).toFixed(2)}
             </div>
           </div>
@@ -185,7 +185,7 @@ export default function Repayments() {
             }}
           >
             <div className="text-secondary" style={{ fontSize: 13 }}>待支出</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#1677ff' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#52c41a' }}>
               ¥{(pendingExpense?.totalAmount ?? 0).toFixed(2)}
             </div>
           </div>
