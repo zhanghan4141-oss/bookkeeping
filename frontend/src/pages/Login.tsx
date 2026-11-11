@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { authApi } from '../api/auth';
 import { useAuthStore } from '../stores/auth';
 
-const APK_URL = 'https://bookkeeping.zhangyuning.xyz/app-update/latest.apk';
+const APK_URL = 'https://bookkeeping.zhangyuning.xyz/app-update/bookkeeping-latest.apk';
 
 export default function Login() {
   const navigate = useNavigate();

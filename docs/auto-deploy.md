@@ -16,7 +16,7 @@ git push master
 | Workflow | 触发 | 作用 |
 |---|---|---|
 | `deploy.yml` | push `master` | 构建镜像推 ACR + 服务器拉镜像部署 |
-| `release-apk.yml` | push tag `v*` | 构建 APK + 写 latest.apk 回 master（回写会再触发 deploy.yml） |
+| `release-apk.yml` | push tag `v*` | 构建 APK + 写 bookkeeping-latest.apk 回 master（回写会再触发 deploy.yml） |
 | `generate-keystore.yml` | 手动（workflow_dispatch） | 生成 keystore |
 
 发 App 新版本的完整时序（先 push master 部署、再 push tag 出 APK、APK 写回后再部署）见 [app.md](app.md) 的「发版流程与触发关系」。

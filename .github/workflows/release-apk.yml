@@ -2,7 +2,7 @@ name: Release APK
 
 # 构建 Android APK（tag vX.Y.Z 触发）
 # 发版步骤：bump frontend/android/app/build.gradle 的 versionName/versionCode → commit+push → 打 tag vX.Y.Z 并 push。
-# CI 构建后：发布 Release 资产（兜底）→ 提交 app-update/latest.apk 入仓（主分发）→ 写 app-update/manifest.json → 提交回 main。
+# CI 构建后：发布 Release 资产（兜底）→ 提交 app-update/bookkeeping-latest.apk 入仓（主分发）→ 写 app-update/manifest.json → 提交回 main。
 on:
   push:
     tags:
@@ -99,7 +99,7 @@ jobs:
             SRC=android/app/build/outputs/apk/debug/app-debug.apk
           fi
           cp "$SRC" "${{ steps.ver.outputs.apk }}"
-          cp "$SRC" public/app-update/latest.apk
+          cp "$SRC" public/app-update/bookkeeping-latest.apk
 
       - name: 发布 GitHub Release
         uses: softprops/action-gh-release@v2
@@ -129,13 +129,13 @@ jobs:
           NOTE="$(git tag -l --format='%(contents:subject)' "$TAG" 2>/dev/null | head -1)"
           if [ -z "$NOTE" ]; then NOTE="更新至 v${VERSION}"; fi
           export NOTE
-          node -e 'const fs=require("fs");const m={version:process.env.VERSION,note:process.env.NOTE,apkUrl:"/app-update/latest.apk",fallbackUrl:process.env.FALLBACK,apkSize:Number(process.env.SIZE),publishedAt:new Date().toISOString()};fs.writeFileSync("frontend/public/app-update/manifest.json",JSON.stringify(m,null,2)+"\n");'
+          node -e 'const fs=require("fs");const m={version:process.env.VERSION,note:process.env.NOTE,apkUrl:"/app-update/bookkeeping-latest.apk",fallbackUrl:process.env.FALLBACK,apkSize:Number(process.env.SIZE),publishedAt:new Date().toISOString()};fs.writeFileSync("frontend/public/app-update/manifest.json",JSON.stringify(m,null,2)+"\n");'
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/public/app-update/manifest.json frontend/public/app-update/latest.apk
+          git add frontend/public/app-update/manifest.json frontend/public/app-update/bookkeeping-latest.apk
           if git diff --cached --quiet; then
             echo "无变化，跳过提交"
           else
-            git commit -m "chore(release): 发布 v${VERSION}（更新 manifest 与 app-update/latest.apk）"
+            git commit -m "chore(release): 发布 v${VERSION}（更新 manifest 与 app-update/bookkeeping-latest.apk）"
             git push origin HEAD:master || echo "::warning::推送 master 失败（可能受保护或并发提交），请手动同步"
           fi

@@ -25,21 +25,21 @@ push tag 触发 `.github/workflows/release-apk.yml`，CI 自动：
 - 装 Node 24 + JDK 21 + Android SDK 36
 - `vite build` → `cap sync android` → `assembleRelease`
 - 用 keystore 签名（GitHub Secrets `RELEASE_KEYSTORE_B64` + `RELEASE_KEYSTORE_PASSWORD`）
-- 发布 GitHub Release 资产 + 写 `frontend/public/app-update/manifest.json` + `latest.apk` 入仓
+- 发布 GitHub Release 资产 + 写 `frontend/public/app-update/manifest.json` + `bookkeeping-latest.apk` 入仓
 
 ## 发版流程与触发关系
 
 改 App 相关代码发布新版本，会依次触发两次 workflow（顺序如下）：
 
 ```
-① git push origin master    → deploy.yml（部署网页端/服务端，latest.apk 仍是旧版）
-② git push origin vX.Y.Z    → release-apk.yml（构建 APK + 写 latest.apk/manifest 回 master）
+① git push origin master    → deploy.yml（部署网页端/服务端，bookkeeping-latest.apk 仍是旧版）
+② git push origin vX.Y.Z    → release-apk.yml（构建 APK + 写 bookkeeping-latest.apk/manifest 回 master）
 ③ ②写回 master 的 push      → deploy.yml 再次触发（frontend 镜像带上新 APK 上服务器）
 ```
 
 - **deploy.yml**：由 push master 触发（日常改网页/后端代码也是这一步触发部署，无需打 tag）。
 - **release-apk.yml**：由 push tag `v*` 触发，只出 APK。
-- **新 APK 上服务器的依赖**：`latest.apk` 由 release-apk.yml 生成并写回 master，deploy.yml 构建 frontend 镜像时把它打进镜像（`vite build` 复制 `public/app-update/` 到 dist），所以新 APK 靠 ②③ 两步自动上服务器；① 是打 tag 前 push master 顺带触发的部署（多一次，无妨）。
+- **新 APK 上服务器的依赖**：`bookkeeping-latest.apk` 由 release-apk.yml 生成并写回 master，deploy.yml 构建 frontend 镜像时把它打进镜像（`vite build` 复制 `public/app-update/` 到 dist），所以新 APK 靠 ②③ 两步自动上服务器；① 是打 tag 前 push master 顺带触发的部署（多一次，无妨）。
 
 日常只改网页/后端功能：只需 `git push origin master`，不需要 bump 版本、不打 tag。
 
@@ -51,7 +51,7 @@ push tag 触发 `.github/workflows/release-apk.yml`，CI 自动：
 ## 应用内更新
 
 - App 启动拉 `/app-update/manifest.json`（见 `frontend/src/lib/appUpdate.ts`），版本高于本机则弹窗提示下载。
-- APK 分发：服务器 `/app-update/latest.apk`（部署时由 vite build 从 `public/app-update/` 复制到 dist），兜底 GitHub Release。
+- APK 分发：服务器 `/app-update/bookkeeping-latest.apk`（部署时由 vite build 从 `public/app-update/` 复制到 dist），兜底 GitHub Release。
 
 ## iOS（PWA）
 

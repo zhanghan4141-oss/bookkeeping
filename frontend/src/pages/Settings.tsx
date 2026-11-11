@@ -101,7 +101,7 @@ export default function Settings() {
             style={{ fontSize: 14, color: '#1677ff', cursor: 'pointer' }}
             onClick={() => {
               const a = document.createElement('a');
-              a.href = 'https://bookkeeping.zhangyuning.xyz/app-update/latest.apk';
+              a.href = 'https://bookkeeping.zhangyuning.xyz/app-update/bookkeeping-latest.apk';
               a.rel = 'noopener';
               document.body.appendChild(a);
               a.click();
