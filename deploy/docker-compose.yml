@@ -14,7 +14,7 @@ services:
       - internal
 
   backend:
-    image: registry.cn-hangzhou.aliyuncs.com/zhangyuning-bookkeeping/bookkeeping-backend:latest
+    image: crpi-g3wn4otglvq1me5n.cn-hangzhou.personal.cr.aliyuncs.com/zhangyuning-bookkeeping/bookkeeping-backend:latest
     restart: unless-stopped
     environment:
       DATABASE_URL: mysql://bookkeeping:${MYSQL_PASSWORD}@db:3306/bookkeeping
@@ -38,7 +38,7 @@ services:
   # 前端：容器内 nginx 托管 dist + 反代 /api 到 backend。
   # 只暴露 8081 给宿主机 nginx 反代，不占 80/443（已被现有服务占用）。
   frontend:
-    image: registry.cn-hangzhou.aliyuncs.com/zhangyuning-bookkeeping/bookkeeping-frontend:latest
+    image: crpi-g3wn4otglvq1me5n.cn-hangzhou.personal.cr.aliyuncs.com/zhangyuning-bookkeeping/bookkeeping-frontend:latest
     restart: unless-stopped
     ports:
       - "8081:80"
