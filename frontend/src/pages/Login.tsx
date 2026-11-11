@@ -1,14 +1,40 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Form, Input, Toast } from 'antd-mobile';
+import { Capacitor } from '@capacitor/core';
 import { authApi } from '../api/auth';
 import { useAuthStore } from '../stores/auth';
+
+const APK_URL = 'https://bookkeeping.zhangyuning.xyz/app-update/latest.apk';
 
 export default function Login() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    // iOS 检测（用于「添加到主屏幕」引导）
+    const ua = navigator.userAgent;
+    setIsIOS(/iPhone|iPad|iPod/i.test(ua));
+
+    // Android Chrome 等的 PWA 安装提示（beforeinstallprompt）
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const installPwa = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+  };
 
   const onFinish = async (values: { email: string; password: string; nickname?: string }) => {
     setLoading(true);
@@ -79,6 +105,27 @@ export default function Login() {
           {isRegister ? '已有账号？去登录' : '没有账号？去注册'}
         </a>
       </div>
+
+      {/* 下载 App / PWA 入口（App 内不显示） */}
+      {!Capacitor.isNativePlatform() && (
+        <div style={{ marginTop: 28, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
+          <Button block fill="outline" onClick={() => { window.open(APK_URL, '_blank'); }}>
+            下载 Android App
+          </Button>
+          {deferredPrompt && (
+            <div style={{ marginTop: 12 }}>
+              <Button block fill="none" onClick={installPwa}>
+                安装到桌面（PWA）
+              </Button>
+            </div>
+          )}
+          {isIOS && (
+            <div className="text-secondary" style={{ fontSize: 12, textAlign: 'center', marginTop: 12 }}>
+              iOS 添加到主屏幕：Safari 点「分享」→「添加到主屏幕」
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
