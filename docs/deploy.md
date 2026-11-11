@@ -16,24 +16,12 @@
 
 ## 前置条件
 
-- 阿里云 ECS，Ubuntu 22.04，已安装 Docker + Docker Compose v2 + **docker-buildx-plugin**
-- **内存 ≥ 2GB，并建议配置 2GB swap**（`docker compose build` 会并发跑两个 `npm install`，内存峰值高，低内存易 OOM 卡死）
+- 阿里云 ECS，Ubuntu 22.04，已安装 Docker + Docker Compose v2
 - 域名 `bookkeeping.zhangyuning.xyz` 的 A 记录指向服务器公网 IP（与 www 同 IP）
 - 安全组放行 80、443
+- 阿里云 ACR（容器镜像服务）已开通，创建命名空间 + 访问凭证（见下方「阿里云 ACR 配置」）
 
-### 检查/添加 swap（低内存服务器必做）
-
-```bash
-free -m   # 看 Swap 行是否为 0，若为 0 则执行下面命令添加 2GB swap
-
-sudo fallocate -l 2G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-```
-
-> 阿里云轻量服务器常见 1.6GB 内存，跑 MySQL 容器后只剩约 590MB，构建必卡。加 swap 后构建虽慢但不会崩。
+> 💡 镜像由 **GitHub Actions 构建并推送到阿里云 ACR**，服务器只负责 `pull + up`，**不再本地 `docker build`**，因此低内存服务器也不会 OOM，无需配置 swap。
 
 ---
 
@@ -110,6 +98,27 @@ sudo docker tag swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/nginx
 
 ---
 
+## 阿里云 ACR 配置（镜像托管仓库）
+
+镜像由 GitHub Actions 构建并推送到阿里云 ACR，服务器从 ACR 拉取（国内快）。一次性配置：
+
+1. 阿里云控制台开通「容器镜像服务 ACR」（个人版免费）。
+2. 创建命名空间（如 `zhangyuning-bookkeeping`）。
+3. 在「访问凭证」里设置一个固定密码。
+4. 记录以下信息，配置到 GitHub Secrets：
+
+| Secret | 值 |
+|---|---|
+| `ACR_USERNAME` | ACR 用户名（如 `aliyun5201127351`） |
+| `ACR_PASSWORD` | ACR 访问凭证密码 |
+
+Registry 地址（个人版实例公网地址，形如）：
+`crpi-<实例ID>.cn-hangzhou.personal.cr.aliyuncs.com`
+
+镜像仓库（`bookkeeping-backend` / `bookkeeping-frontend`）无需手动创建，CI 首次 push 会自动创建。
+
+---
+
 ## 一、上传代码
 
 ```bash
@@ -168,31 +177,28 @@ vim .env
 
 ---
 
-## 三、启动 Docker 服务
+## 三、启动 Docker 服务（拉镜像，不构建）
 
-### 低内存服务器：顺序构建（推荐）
+> 镜像已由 GitHub Actions 构建并推送到阿里云 ACR，服务器只需登录 ACR 后拉取，不再本地构建。
 
-`docker compose up -d --build` 会**并发构建 backend + frontend**，两个 `npm install`/`npm run build` 同时跑，内存峰值翻倍，1.6GB 服务器容易 OOM 卡死。
+### 1. 登录阿里云 ACR
 
-**顺序构建（先 backend 再 frontend，内存峰值减半）：**
+```bash
+docker login crpi-g3wn4otglvq1me5n.cn-hangzhou.personal.cr.aliyuncs.com \
+  -u <ACR 用户名> -p <ACR 访问凭证密码>
+```
+
+> 自动部署（GitHub Actions）会通过 Secrets `ACR_USERNAME` / `ACR_PASSWORD` 自动登录，无需手动执行此步。这里仅用于首次手动验证。
+
+### 2. 拉取并启动
 
 ```bash
 cd /home/admin/bookkeeping/deploy
-docker compose build backend
-docker compose build frontend
+docker compose pull
 docker compose up -d
 ```
 
-### 高内存服务器：一键构建
-
-内存 ≥ 4GB 可直接：
-
-```bash
-cd /home/admin/bookkeeping/deploy
-docker compose up -d --build
-```
-
-> 首次构建约需 3-5 分钟（取决于网络）。MySQL 初始化约需 10-20 秒，backend 在此期间可能短暂 Restarting，属正常现象。
+> 首次拉取约 1-2 分钟（取决于网络，阿里云 ACR 国内快）。MySQL 初始化约需 10-20 秒，backend 在此期间可能短暂 Restarting，属正常现象。
 
 ### 验证启动状态
 
@@ -307,13 +313,13 @@ curl -sI http://127.0.0.1:8081 | head -5
 
 ## 六、更新
 
+推送代码到 `master` 后，GitHub Actions 自动构建镜像推 ACR 并部署到服务器。手动更新（备用）：
+
 ```bash
 cd /home/admin/bookkeeping
 git pull
 cd deploy
-# 低内存服务器用顺序构建，避免 OOM
-docker compose build backend
-docker compose build frontend
+docker compose pull
 docker compose up -d
 ```
 
@@ -332,52 +338,22 @@ docker compose exec db mysqldump -u bookkeeping -p bookkeeping > backup.sql
 
 ## 八、故障排查与重建
 
-### 构建卡死排查（重点）
+### db 容器 Restarting（MySQL 版本不兼容）
 
-构建卡在 `npm install` 不动，是低内存国内服务器最常见的故障。按以下顺序排查：
+db 日志若出现 `Cannot boot server version ... on data directory built by version ... Downgrade is not supported`，说明数据卷由更高版本 MySQL 创建，当前镜像版本降级不支持。
 
-**1. 看是不是卡住（而非慢）**
+解决：`docker-compose.yml` 里 db 的 `image` 必须与数据目录版本一致（本项目固定为 `mysql:8.4`，因为数据目录由 8.4.9 创建）。
 
-```bash
-ps aux --sort=-%mem | head -15
-```
+### ACR 登录失败（unauthorized）
 
-- 若看到多个 `npm install` 进程处于 `D` 状态（不可中断睡眠），说明构建卡死且**任务堆积**（连续 push 触发多次构建）
-- 堆积会耗尽内存，导致后续一切变慢/卡住
+部署日志若出现 `unauthorized: authentication required`，检查：
 
-**2. 终止卡死的构建进程**
+1. GitHub Secrets `ACR_USERNAME` / `ACR_PASSWORD` 是否正确——用户名是 ACR「访问凭证」页面的用户名，**不是阿里云账号 UID**。
+2. ACR「访问凭证」里是否设置了固定密码，且与 `ACR_PASSWORD` 一致。
 
-```bash
-sudo kill -9 <卡住的 PID>
-# 例：sudo kill -9 8612 8621 8661
-```
+### 拉镜像卡死
 
-> `D` 状态进程 kill 后可能不会立即消失（在等 I/O），可等待或最后重启。
-
-**3. 检查内存（最常被忽视的根因）**
-
-```bash
-free -m
-```
-
-- `available` 低于 600MB 时，构建极易 OOM 卡死 → **加 swap**（见前置条件）
-- 检查是否有**多余的 MySQL 实例**（`ps aux | grep mysqld`）。项目用 Docker 里的 MySQL，若还有系统 apt 装的 `/usr/sbin/mysqld` 且无其他服务依赖，可停掉释放约 350MB：
-  ```bash
-  sudo systemctl disable --now mysql
-  ```
-
-**4. 检查 npm 源连通性（在服务器上，勿用 HEAD 请求）**
-
-```bash
-curl -s -o /dev/null -w "npmmirror: HTTP %{http_code} 耗时 %{time_total}s\n" --max-time 10 https://registry.npmmirror.com/react
-```
-
-- `HTTP 200` 且几秒内返回 → 源正常，卡住是内存/audit 问题
-- `HTTP 000` 或超时 → 源不通，换源（Dockerfile 里 `registry.npmmirror.com`）
-
-**5. 确认 Dockerfile 是最新版**
-
-上述坑（node 版本、npm 镜像、audit 跳过）都已通过 Dockerfile 修复，确认服务器代码已 `git pull` 到最新。
+若 `docker compose pull` 卡住不动，多半是网络问题。本项目用阿里云 ACR（国内），应能正常拉取；若仍卡，检查服务器 `/etc/docker/daemon.json` 的镜像加速配置。
 
 ### 完全重建（数据会丢失！）
 当遇到无法修复的容器异常时（如 MySQL 初始化失败、backend 持续 Restarting），可清除所有数据和容器重新开始：

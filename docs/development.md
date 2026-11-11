@@ -54,4 +54,18 @@ frontend/
     stores/               Zustand
     pages/                各页面
     components/           通用组件
+  android/                Capacitor 生成的 Android 工程
+  public/app-update/      App 更新清单与 APK 分发
+  capacitor.config.ts     Capacitor 配置
+
+.github/workflows/
+  deploy.yml              部署（构建镜像推 ACR + 服务器拉镜像）
+  release-apk.yml         打包 APK（tag 触发）
+  generate-keystore.yml   生成 keystore（手动触发）
+
+## Android App 打包
+
+App 通过 Capacitor 打包（GitHub Actions 构建，本机无需 JDK/SDK）。详见 [app.md](app.md)。
+
+简要流程：bump `frontend/android/app/build.gradle` 版本 → 打 tag `vX.Y.Z` push → CI 自动出 APK。
 ```
