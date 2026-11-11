@@ -11,6 +11,16 @@ git push master
   → ② deploy：SSH 服务器 → docker login ACR → git pull → docker compose pull → up -d
 ```
 
+## 两个 workflow 的触发关系
+
+| Workflow | 触发 | 作用 |
+|---|---|---|
+| `deploy.yml` | push `master` | 构建镜像推 ACR + 服务器拉镜像部署 |
+| `release-apk.yml` | push tag `v*` | 构建 APK + 写 latest.apk 回 master（回写会再触发 deploy.yml） |
+| `generate-keystore.yml` | 手动（workflow_dispatch） | 生成 keystore |
+
+发 App 新版本的完整时序（先 push master 部署、再 push tag 出 APK、APK 写回后再部署）见 [app.md](app.md) 的「发版流程与触发关系」。
+
 ## 一次性配置（GitHub Secrets）
 
 | Secret | 说明 |
@@ -45,5 +55,5 @@ docker compose up -d
 ## 常见问题
 
 - **ACR 登录失败（unauthorized）**：确认 `ACR_USERNAME`（访问凭证用户名，非阿里云账号 UID）和 `ACR_PASSWORD`（访问凭证密码）正确。
-- **db Restarting（MySQL 版本不兼容）**：db 镜像需为 `mysql:8.4`（数据目录由 8.4.9 创建，8.0 降级不支持）。
+- **db Restarting（MySQL 版本不兼容）**：db 镜像固定为 `mysql:8.4`（托管在 ACR）。若数据卷由旧版本 MySQL 创建导致不兼容，需 `docker compose down -v` 重建数据卷（会清空数据库数据）。
 - **git pull 冲突**：服务器代码目录有本地改动时，`git stash` 或 `git checkout -- .` 后再拉。
