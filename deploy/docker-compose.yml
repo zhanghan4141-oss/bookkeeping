@@ -1,6 +1,6 @@
 services:
   db:
-    image: mysql:8.4
+    image: crpi-g3wn4otglvq1me5n.cn-hangzhou.personal.cr.aliyuncs.com/zhangyuning-bookkeeping/mysql:8.4
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}

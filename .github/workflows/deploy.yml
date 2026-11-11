@@ -23,6 +23,12 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
+      - name: 同步 mysql:8.4 到 ACR
+        run: |
+          docker pull mysql:8.4
+          docker tag mysql:8.4 crpi-g3wn4otglvq1me5n.cn-hangzhou.personal.cr.aliyuncs.com/zhangyuning-bookkeeping/mysql:8.4
+          docker push crpi-g3wn4otglvq1me5n.cn-hangzhou.personal.cr.aliyuncs.com/zhangyuning-bookkeeping/mysql:8.4
+
       - name: 构建并推送 backend 镜像
         uses: docker/build-push-action@v6
         with:

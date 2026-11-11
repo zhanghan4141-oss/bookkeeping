@@ -93,7 +93,18 @@ export default function Settings() {
 
   return (
     <div className="page">
-      <NavBar back={null} style={{ background: '#fff' }}>
+      <NavBar
+        back={null}
+        style={{ background: '#fff' }}
+        right={
+          <span
+            style={{ fontSize: 14, color: '#1677ff', cursor: 'pointer' }}
+            onClick={() => window.open('https://bookkeeping.zhangyuning.xyz/app-update/latest.apk', '_blank')}
+          >
+            下载 App
+          </span>
+        }
+      >
         我的
       </NavBar>
 
