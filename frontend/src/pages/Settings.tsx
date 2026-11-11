@@ -99,7 +99,14 @@ export default function Settings() {
         right={
           <span
             style={{ fontSize: 14, color: '#1677ff', cursor: 'pointer' }}
-            onClick={() => window.open('https://bookkeeping.zhangyuning.xyz/app-update/latest.apk', '_blank')}
+            onClick={() => {
+              const a = document.createElement('a');
+              a.href = 'https://bookkeeping.zhangyuning.xyz/app-update/latest.apk';
+              a.rel = 'noopener';
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+            }}
           >
             下载 App
           </span>

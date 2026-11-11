@@ -36,6 +36,15 @@ export default function Login() {
     setDeferredPrompt(null);
   };
 
+  const downloadApp = () => {
+    const a = document.createElement('a');
+    a.href = APK_URL;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
   const onFinish = async (values: { email: string; password: string; nickname?: string }) => {
     setLoading(true);
     try {
@@ -109,7 +118,7 @@ export default function Login() {
       {/* 下载 App / PWA 入口（App 内不显示） */}
       {!Capacitor.isNativePlatform() && (
         <div style={{ marginTop: 28, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
-          <Button block fill="outline" onClick={() => { window.open(APK_URL, '_blank'); }}>
+          <Button block fill="outline" onClick={downloadApp}>
             下载 Android App
           </Button>
           {deferredPrompt && (
