@@ -137,5 +137,5 @@ jobs:
             echo "无变化，跳过提交"
           else
             git commit -m "chore(release): 发布 v${VERSION}（更新 manifest 与 app-update/latest.apk）"
-            git push origin HEAD:main || echo "::warning::推送 main 失败（可能受保护或并发提交），请手动同步"
+            git push origin HEAD:master || echo "::warning::推送 master 失败（可能受保护或并发提交），请手动同步"
           fi
