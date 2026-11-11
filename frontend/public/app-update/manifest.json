@@ -1,8 +1,8 @@
 {
-  "version": "0.0.0",
-  "note": "",
+  "version": "1.0.0",
+  "note": "首个 Android 版本",
   "apkUrl": "/app-update/latest.apk",
-  "fallbackUrl": "",
-  "apkSize": 0,
-  "publishedAt": ""
+  "fallbackUrl": "https://github.com/zhanghan4141-oss/bookkeeping/releases/download/v1.0.0/bookkeeping-1.0.0.apk",
+  "apkSize": 4049786,
+  "publishedAt": "2026-11-11T09:41:02.366Z"
 }
