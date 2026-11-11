@@ -1,8 +1,27 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/auth';
 
+// Capacitor App 内 origin 是 https://localhost，API 必须走绝对地址；
+// 网页端走相对路径 /api（Vite 代理 / nginx 反代）。
+declare global {
+  interface Window {
+    Capacitor?: { isNativePlatform?: () => boolean };
+    APP_SERVER_ORIGIN?: string;
+  }
+}
+
+const IS_APP = !!(
+  window.Capacitor &&
+  window.Capacitor.isNativePlatform &&
+  window.Capacitor.isNativePlatform()
+);
+const SERVER_ORIGIN = IS_APP
+  ? window.APP_SERVER_ORIGIN || 'https://bookkeeping.zhangyuning.xyz'
+  : '';
+const BASE_URL = `${SERVER_ORIGIN}/api`;
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: BASE_URL,
   timeout: 15000,
 });
 
@@ -25,7 +44,7 @@ api.interceptors.response.use(
     if (status === 401 && !original?._retry && store.refreshToken) {
       original._retry = true;
       try {
-        const res = await axios.post('/api/auth/refresh', {
+        const res = await axios.post(`${BASE_URL}/auth/refresh`, {
           refreshToken: store.refreshToken,
         });
         const { accessToken, refreshToken, user } = res.data;

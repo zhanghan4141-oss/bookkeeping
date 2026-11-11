@@ -1,5 +1,9 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { useAuthStore } from './stores/auth';
+import { checkAppUpdate } from './lib/appUpdate';
 import Login from './pages/Login';
 import Ledgers from './pages/Ledgers';
 import LedgerDetail from './pages/LedgerDetail';
@@ -26,6 +30,30 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Android 返回键：栈里有上一页则后退，首页/登录页则退出 App
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const handler = CapacitorApp.addListener('backButton', () => {
+      const path = location.pathname;
+      if (path === '/ledgers' || path === '/login') {
+        CapacitorApp.exitApp();
+      } else {
+        navigate(-1);
+      }
+    });
+    return () => {
+      handler.then((h) => h.remove());
+    };
+  }, [location.pathname, navigate]);
+
+  // 启动时检查 App 更新（网页端自动跳过）
+  useEffect(() => {
+    checkAppUpdate();
+  }, []);
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

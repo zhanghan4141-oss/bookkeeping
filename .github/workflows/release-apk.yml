@@ -1,0 +1,141 @@
+name: Release APK
+
+# 构建 Android APK（tag vX.Y.Z 触发）
+# 发版步骤：bump frontend/android/app/build.gradle 的 versionName/versionCode → commit+push → 打 tag vX.Y.Z 并 push。
+# CI 构建后：发布 Release 资产（兜底）→ 提交 app-update/latest.apk 入仓（主分发）→ 写 app-update/manifest.json → 提交回 main。
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 解析版本号
+        id: ver
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          if [ -z "$VERSION" ] || [ "$VERSION" = "$TAG" ]; then
+            echo "::error::标签 ${TAG} 不是合法的 vX.Y.Z 形式"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "apk=bookkeeping-${VERSION}.apk" >> "$GITHUB_OUTPUT"
+
+      - name: 校验 build.gradle 版本一致
+        shell: bash
+        run: |
+          GV=$(grep -oP 'versionName\s+"\K[^"]+' frontend/android/app/build.gradle)
+          if [ "$GV" != "${{ steps.ver.outputs.version }}" ]; then
+            echo "::error::build.gradle versionName=${GV} 与标签版本 ${{ steps.ver.outputs.version }} 不一致，请先 bump 版本号"
+            exit 1
+          fi
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 安装 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: 安装 Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+
+      - name: 安装依赖并构建前端
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: 同步 Web 资源到 android
+        working-directory: frontend
+        run: npx cap sync android
+
+      - name: 解码 release keystore（若已配置）
+        working-directory: frontend
+        env:
+          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_B64" ]; then
+            echo "$RELEASE_KEYSTORE_B64" | base64 -d > android/release.keystore
+          fi
+
+      - name: 构建 APK（有 keystore 出 release，否则 debug）
+        working-directory: frontend/android
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          if [ -f release.keystore ]; then
+            ./gradlew assembleRelease --no-daemon
+          else
+            ./gradlew assembleDebug --no-daemon
+          fi
+
+      - name: 命名 APK
+        working-directory: frontend
+        run: |
+          mkdir -p public/app-update
+          if [ -f android/release.keystore ]; then
+            SRC=android/app/build/outputs/apk/release/app-release.apk
+          else
+            SRC=android/app/build/outputs/apk/debug/app-debug.apk
+          fi
+          cp "$SRC" "${{ steps.ver.outputs.apk }}"
+          cp "$SRC" public/app-update/latest.apk
+
+      - name: 发布 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "记账本 v${{ steps.ver.outputs.version }}"
+          body: "构建自 GitHub Actions（tag ${{ github.ref_name }}）"
+          files: frontend/${{ steps.ver.outputs.apk }}
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 写 manifest 并提交回仓库
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          APK: ${{ steps.ver.outputs.apk }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          SIZE=$(stat -c%s "frontend/$APK")
+          FALLBACK="https://github.com/${REPO}/releases/download/${TAG}/${APK}"
+          export VERSION APK FALLBACK SIZE
+          # checkout 会把 tag 重写成指向 commit 的轻量 ref、丢失注释，这里重新拉取 annotated tag 取注释
+          git fetch origin "+refs/tags/${TAG}:refs/tags/${TAG}" 2>/dev/null || true
+          NOTE="$(git tag -l --format='%(contents:subject)' "$TAG" 2>/dev/null | head -1)"
+          if [ -z "$NOTE" ]; then NOTE="更新至 v${VERSION}"; fi
+          export NOTE
+          node -e 'const fs=require("fs");const m={version:process.env.VERSION,note:process.env.NOTE,apkUrl:"/app-update/latest.apk",fallbackUrl:process.env.FALLBACK,apkSize:Number(process.env.SIZE),publishedAt:new Date().toISOString()};fs.writeFileSync("frontend/public/app-update/manifest.json",JSON.stringify(m,null,2)+"\n");'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/public/app-update/manifest.json frontend/public/app-update/latest.apk
+          if git diff --cached --quiet; then
+            echo "无变化，跳过提交"
+          else
+            git commit -m "chore(release): 发布 v${VERSION}（更新 manifest 与 app-update/latest.apk）"
+            git push origin HEAD:main || echo "::warning::推送 main 失败（可能受保护或并发提交），请手动同步"
+          fi
