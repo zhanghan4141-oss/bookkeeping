@@ -5,7 +5,7 @@ import { Button, DatePicker, Dialog, Input, List, NavBar, Popup, Toast } from 'a
 import { loanApi } from '../api/loan';
 import { ledgerApi } from '../api/ledger';
 import { invalidateFinancialData } from '../lib/invalidate';
-import { formatMoney } from '../lib/format';
+import { formatDate, formatMoney } from '../lib/format';
 import type { Ledger, Loan, LoanRepayment } from '../types';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -24,7 +24,7 @@ export default function LoanDetail() {
   // 提前还款状态
   const [showPrepay, setShowPrepay] = useState(false);
   const [prepayAmount, setPrepayAmount] = useState('');
-  const [prepayDate, setPrepayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [prepayDate, setPrepayDate] = useState(() => formatDate(new Date()));
   // 编辑还款计划状态
   const [editingPlan, setEditingPlan] = useState(false);
   const [editPeriods, setEditPeriods] = useState<{ dueDate: string; totalAmount: string }[]>([]);
@@ -256,7 +256,7 @@ export default function LoanDetail() {
                     <DatePicker
                       value={p.dueDate ? new Date(p.dueDate) : new Date()}
                       onConfirm={(v) => {
-                        const date = v.toISOString().slice(0, 10);
+                        const date = formatDate(v);
                         setEditPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, dueDate: date } : x)));
                       }}
                     >
@@ -388,11 +388,11 @@ export default function LoanDetail() {
             <DatePicker
               precision="day"
               value={new Date(prepayDate)}
-              onConfirm={(v) => v && setPrepayDate(v.toISOString().slice(0, 10))}
+              onConfirm={(v) => v && setPrepayDate(formatDate(v))}
             >
               {(value, actions) => (
                 <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
-                  {value ? value.toISOString().slice(0, 10) : '选择日期'}
+                  {value ? formatDate(value) : '选择日期'}
                 </div>
               )}
             </DatePicker>

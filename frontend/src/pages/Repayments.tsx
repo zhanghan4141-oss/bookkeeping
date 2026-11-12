@@ -6,7 +6,7 @@ import { ledgerApi } from '../api/ledger';
 import { useRepaymentLedgerSelection } from '../stores/repaymentLedgerSelection';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
 import type { Ledger } from '../types';
-import { formatMoney } from '../lib/format';
+import { formatDate, formatMoney } from '../lib/format';
 
 export default function Repayments() {
   const selectedIds = useRepaymentLedgerSelection((s) => s.selectedIds);
@@ -16,7 +16,7 @@ export default function Repayments() {
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 30);
-    return d.toISOString().slice(0, 10);
+    return formatDate(d);
   });
 
   const { data: ledgers = [] } = useQuery({
@@ -141,7 +141,7 @@ export default function Repayments() {
           <DatePicker
             value={new Date(endDate)}
             min={new Date()}
-            onConfirm={(v) => setEndDate(v.toISOString().slice(0, 10))}
+            onConfirm={(v) => setEndDate(formatDate(v))}
           >
             {(value, actions) => (
               <div
@@ -154,7 +154,7 @@ export default function Repayments() {
                   fontSize: 13,
                 }}
               >
-                {value ? value.toISOString().slice(0, 10) : '选择日期'}（约 {days} 天）
+                {value ? formatDate(value) : '选择日期'}（约 {days} 天）
               </div>
             )}
           </DatePicker>

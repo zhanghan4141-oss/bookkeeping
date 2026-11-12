@@ -5,6 +5,7 @@ import { Button, Checkbox, Input, List, NavBar, Popup, Stepper, Switch, Toast } 
 import api from '../api/client';
 import { ledgerApi } from '../api/ledger';
 import { settingsApi } from '../api/misc';
+import { formatDate } from '../lib/format';
 import { useAuthStore } from '../stores/auth';
 import type { Ledger, ReminderSetting } from '../types';
 
@@ -75,7 +76,7 @@ export default function Settings() {
       a.href = url;
       // 用英文文件名，避免中文导致移动端下载时后缀丢失
       const now = new Date();
-      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const dateStr = formatDate(now).replace(/-/g, '');
       const p = (n: number) => String(n).padStart(2, '0');
       const timeStr = `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
       a.download = `bookkeeping_${dateStr}_${timeStr}.${ext}`;

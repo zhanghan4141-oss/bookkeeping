@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, DatePicker, Input, NavBar, Picker, Toast } from 'antd-mobile';
 import { loanApi } from '../api/loan';
 import { invalidateFinancialData } from '../lib/invalidate';
-import { formatMoney } from '../lib/format';
+import { formatDate, formatMoney } from '../lib/format';
 import type { Loan } from '../types';
 
 const METHODS = [
@@ -84,7 +84,7 @@ export default function LoanForm() {
     termMonths: '',
     repaymentDay: '1',
     method: 'equal_installment',
-    startDate: new Date().toISOString().slice(0, 10),
+    startDate: formatDate(new Date()),
     note: '',
   });
 
@@ -268,11 +268,11 @@ export default function LoanForm() {
           <div style={labelStyle}>开始日期<span style={{ color: '#ff4d4f' }}>*</span></div>
           <DatePicker
             value={new Date(form.startDate)}
-            onConfirm={(v) => v && set('startDate', v.toISOString().slice(0, 10))}
+            onConfirm={(v) => v && set('startDate', formatDate(v))}
           >
             {(value, actions) => (
               <div onClick={() => !isEditNonCustom && actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px', opacity: isEditNonCustom ? 0.6 : 1 }}>
-                {value ? value.toISOString().slice(0, 10) : '选择日期'}
+                {value ? formatDate(value) : '选择日期'}
               </div>
             )}
           </DatePicker>
