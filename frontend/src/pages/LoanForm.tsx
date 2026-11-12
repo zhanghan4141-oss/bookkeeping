@@ -138,15 +138,17 @@ export default function LoanForm() {
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
-  // 编辑模式下，自定义贷款不能改成其他类型
-  const isCustomLocked = isEdit && form.method === 'custom';
-  const methodOptions = useMemo(
-    () =>
-      isCustomLocked
-        ? METHODS.filter((m) => m.value === 'custom')
-        : METHODS,
-    [isCustomLocked],
-  );
+  const isCustom = form.method === 'custom';
+  // 编辑非自定义贷款：基础信息只读，还款方式只能保持当前或切到自定义
+  const isEditNonCustom = isEdit && !isCustom;
+
+  const methodOptions = useMemo(() => {
+    if (isEdit && isCustom) return METHODS.filter((m) => m.value === 'custom');
+    if (isEdit && !isCustom) {
+      return METHODS.filter((m) => m.value === form.method || m.value === 'custom');
+    }
+    return METHODS;
+  }, [isEdit, isCustom, form.method]);
 
   const plan = useMemo(() => {
     const principal = Number(form.principal);
@@ -158,7 +160,6 @@ export default function LoanForm() {
     return calcPlan({ principal, annualRate, termMonths, method });
   }, [form.principal, form.annualRate, form.termMonths, form.method]);
 
-  const isCustom = form.method === 'custom';
   const totalRepay = plan?.reduce((s, p) => s + p.total, 0) ?? 0;
   const totalInterest = plan?.reduce((s, p) => s + p.interest, 0) ?? 0;
 
@@ -188,14 +189,18 @@ export default function LoanForm() {
     try {
       const payload: Record<string, unknown> = {
         name: form.name,
-        principal: Number(form.principal),
-        annualRate: Number(form.annualRate),
-        startDate: form.startDate,
-        termMonths: Number(form.termMonths),
-        repaymentDay: Number(form.repaymentDay),
         repaymentMethod: form.method,
         note: form.note || undefined,
       };
+      // 新建或编辑自定义贷款时带基础字段；编辑非自定义（未切到自定义）不带，
+      // 否则后端会因「非自定义基础信息不可改」直接拒绝。
+      if (!isEdit || isCustom) {
+        payload.principal = Number(form.principal);
+        payload.annualRate = Number(form.annualRate);
+        payload.startDate = form.startDate;
+        payload.termMonths = Number(form.termMonths);
+        payload.repaymentDay = Number(form.repaymentDay);
+      }
       // 自定义方式不传 customPeriods，后端会自动按等额本息生成默认计划
       if (isEdit) {
         await loanApi.update(id!, payload);
@@ -231,17 +236,17 @@ export default function LoanForm() {
 
         <div style={fieldWrap}>
           <div style={labelStyle}>本金（元）<span style={{ color: '#ff4d4f' }}>*</span></div>
-          <Input type="number" placeholder="100000" value={form.principal} onChange={(v) => set('principal', v)} />
+          <Input type="number" placeholder="100000" value={form.principal} onChange={(v) => set('principal', v)} disabled={isEditNonCustom} />
         </div>
 
         <div style={fieldWrap}>
           <div style={labelStyle}>年利率（%）<span style={{ color: '#ff4d4f' }}>*</span></div>
-          <Input type="number" placeholder="4.9" value={form.annualRate} onChange={(v) => set('annualRate', v)} />
+          <Input type="number" placeholder="4.9" value={form.annualRate} onChange={(v) => set('annualRate', v)} disabled={isEditNonCustom} />
         </div>
 
         <div style={fieldWrap}>
           <div style={labelStyle}>期数（月）<span style={{ color: '#ff4d4f' }}>*</span></div>
-          <Input type="number" placeholder="12" value={form.termMonths} onChange={(v) => set('termMonths', v)} />
+          <Input type="number" placeholder="12" value={form.termMonths} onChange={(v) => set('termMonths', v)} disabled={isEditNonCustom} />
         </div>
 
         <div style={fieldWrap}>
@@ -252,7 +257,7 @@ export default function LoanForm() {
             onConfirm={(v) => set('repaymentDay', String(v[0]))}
           >
             {(items, actions) => (
-              <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+              <div onClick={() => !isEditNonCustom && actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px', opacity: isEditNonCustom ? 0.6 : 1 }}>
                 {items[0]?.label ?? `${form.repaymentDay} 号`}
               </div>
             )}
@@ -266,7 +271,7 @@ export default function LoanForm() {
             onConfirm={(v) => v && set('startDate', v.toISOString().slice(0, 10))}
           >
             {(value, actions) => (
-              <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+              <div onClick={() => !isEditNonCustom && actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px', opacity: isEditNonCustom ? 0.6 : 1 }}>
                 {value ? value.toISOString().slice(0, 10) : '选择日期'}
               </div>
             )}
@@ -292,7 +297,7 @@ export default function LoanForm() {
           </Picker>
         </div>
 
-        {isCustomLocked && (
+        {isEdit && isCustom && (
           <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
             自定义贷款不支持改为其他还款方式
           </div>

@@ -33,13 +33,13 @@ export class LoanService {
         repaymentDay: dto.repaymentDay,
         method: 'equal_installment',
       });
-      // 转成自定义格式：本金利息归零，总额=等额本息月供
+      // 转成自定义格式：本金利息归零，每期金额初始为 0（用户后续手动逐期填写）
       plan = equalPlan.map((p) => ({
         periodNo: p.periodNo,
         dueDate: p.dueDate,
         principalAmount: 0,
         interestAmount: 0,
-        totalAmount: p.totalAmount,
+        totalAmount: 0,
       }));
     } else {
       plan = generateRepaymentPlan({
@@ -640,7 +640,11 @@ export class LoanService {
     return loan;
   }
 
-  /** 更新贷款：重新生成还款计划。已还清的贷款不允许重算。 */
+  /** 更新贷款。
+   * - 非自定义贷款：只可改名称/备注/方向；改本金/利率/期数/还款日/开始日期不允许；
+   *   还款方式只能「非自定义 → 自定义」（保留已有计划）。
+   * - 自定义贷款：可改本金/利率/开始日期/还款日（记录字段），改期数则截断或新增金额 0 的期。
+   */
   async update(userId: string, id: string, dto: UpdateLoanDto) {
     const existing = await this.prisma.loan.findUnique({
       where: { id },
@@ -648,97 +652,109 @@ export class LoanService {
     });
     if (!existing) throw new NotFoundException('贷款不存在');
 
-    // 名称唯一性校验（同一账本内）
     if (dto.name !== undefined) {
       await this.assertNameUnique(existing.ledgerId, dto.name, id);
     }
 
-    const hasPaid = existing.repayments.some((r) => Number(r.paidAmount) > 0);
-    const paramsChanged =
-      dto.principal !== undefined ||
-      dto.annualRate !== undefined ||
-      dto.startDate !== undefined ||
-      dto.termMonths !== undefined ||
-      dto.repaymentDay !== undefined ||
-      dto.repaymentMethod !== undefined ||
-      dto.customPeriods !== undefined;
-
-    // 自定义贷款不能改为其他类型
-    if (
-      existing.repaymentMethod === 'custom' &&
+    const isCustom = existing.repaymentMethod === 'custom';
+    const methodChanged =
       dto.repaymentMethod !== undefined &&
-      dto.repaymentMethod !== 'custom'
-    ) {
-      throw new BadRequestException('自定义贷款不能改为其他还款方式');
+      dto.repaymentMethod !== existing.repaymentMethod;
+    const targetMethod = dto.repaymentMethod ?? existing.repaymentMethod;
+
+    // 还款方式切换校验
+    if (methodChanged) {
+      if (isCustom) {
+        throw new BadRequestException('自定义贷款不能改为其他还款方式');
+      }
+      if (targetMethod !== 'custom') {
+        throw new BadRequestException('还款方式之间不可互相切换');
+      }
     }
 
-    if (hasPaid && paramsChanged) {
-      throw new BadRequestException('已有还款记录，不能重新计算还款计划');
+    // 非自定义贷款（且不切到自定义）：基础信息不可改
+    if (!isCustom && targetMethod !== 'custom') {
+      const baseChanged =
+        dto.principal !== undefined ||
+        dto.annualRate !== undefined ||
+        dto.startDate !== undefined ||
+        dto.termMonths !== undefined ||
+        dto.repaymentDay !== undefined;
+      if (baseChanged) {
+        throw new BadRequestException(
+          '非自定义贷款不可修改本金/年利率/期数/还款日/开始日期',
+        );
+      }
     }
 
-    // 基础字段更新
     const data: Prisma.LoanUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.direction !== undefined) data.direction = dto.direction;
     if (dto.note !== undefined) data.note = dto.note;
     if (dto.status !== undefined) data.status = dto.status;
-
-    if (paramsChanged) {
-      const principal = dto.principal ?? Number(existing.principal);
-      const annualRate = dto.annualRate ?? Number(existing.annualRate);
-      const startDate = dto.startDate
-        ? new Date(dto.startDate)
-        : existing.startDate;
-      const termMonths = dto.termMonths ?? existing.termMonths;
-      const repaymentDay = dto.repaymentDay ?? existing.repaymentDay;
-      const method = (dto.repaymentMethod ??
-        existing.repaymentMethod) as RepaymentMethod;
-
-      const plan = generateRepaymentPlan({
-        principal,
-        annualRate,
-        startDate,
-        termMonths,
-        repaymentDay,
-        method,
-        customPeriods: this.toCustomPeriodDates(dto.customPeriods),
-      });
-
-      data.principal = new Prisma.Decimal(principal);
-      data.annualRate = new Prisma.Decimal(annualRate);
-      data.startDate = startDate;
-      data.termMonths = termMonths;
-      data.repaymentDay = repaymentDay;
-      data.repaymentMethod = method;
-
-      // 删除旧计划、旧流水，重建
-      await this.prisma.$transaction(async (tx) => {
-        await tx.loanRepayment.deleteMany({ where: { loanId: id } });
-        await tx.transaction.deleteMany({ where: { loanId: id } });
-        await tx.loan.update({ where: { id }, data });
-
-        await tx.loanRepayment.createMany({
-          data: plan.map((p) => ({
-            loanId: id,
-            periodNo: p.periodNo,
-            dueDate: p.dueDate,
-            principalAmount: new Prisma.Decimal(p.principalAmount),
-            interestAmount: new Prisma.Decimal(p.interestAmount),
-            totalAmount: new Prisma.Decimal(p.totalAmount),
-          })),
-        });
-
-        await this.writeLoanTransactions(
-          userId,
-          id,
-          existing.ledgerId,
-          { principal, startDate, plan },
-          tx,
-        );
-      });
-    } else {
-      await this.prisma.loan.update({ where: { id }, data });
+    if (methodChanged && targetMethod === 'custom') {
+      data.repaymentMethod = 'custom';
     }
+
+    // 自定义贷款：改记录字段（本金/利率/开始日期/还款日），不影响还款计划
+    if (isCustom) {
+      if (dto.principal !== undefined) {
+        data.principal = new Prisma.Decimal(dto.principal);
+      }
+      if (dto.annualRate !== undefined) {
+        data.annualRate = new Prisma.Decimal(dto.annualRate);
+      }
+      if (dto.startDate !== undefined) {
+        data.startDate = new Date(dto.startDate);
+      }
+      if (dto.repaymentDay !== undefined) {
+        data.repaymentDay = dto.repaymentDay;
+      }
+    }
+
+    const termChanged =
+      isCustom &&
+      dto.termMonths !== undefined &&
+      dto.termMonths !== existing.termMonths;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.loan.update({ where: { id }, data });
+
+      if (termChanged) {
+        const newTerm = dto.termMonths!;
+        if (newTerm < existing.termMonths) {
+          // 截断多余的期（不改保留期金额）
+          await tx.loanRepayment.deleteMany({
+            where: { loanId: id, periodNo: { gt: newTerm } },
+          });
+        } else if (newTerm > existing.termMonths) {
+          // 新增期：金额 0，日期按还款日递推
+          const plan = generateRepaymentPlan({
+            principal: Number(existing.principal),
+            annualRate: Number(existing.annualRate),
+            startDate: existing.startDate,
+            termMonths: newTerm,
+            repaymentDay: existing.repaymentDay,
+            method: 'equal_installment',
+          });
+          const newPeriods = plan.filter((p) => p.periodNo > existing.termMonths);
+          await tx.loanRepayment.createMany({
+            data: newPeriods.map((p) => ({
+              loanId: id,
+              periodNo: p.periodNo,
+              dueDate: p.dueDate,
+              principalAmount: new Prisma.Decimal(0),
+              interestAmount: new Prisma.Decimal(0),
+              totalAmount: new Prisma.Decimal(0),
+            })),
+          });
+        }
+        await tx.loan.update({
+          where: { id },
+          data: { termMonths: newTerm },
+        });
+      }
+    });
 
     return this.findOne(id);
   }
