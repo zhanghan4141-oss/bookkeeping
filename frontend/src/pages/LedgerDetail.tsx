@@ -64,7 +64,25 @@ export default function LedgerDetail() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [year, setYear] = useState(() => String(new Date().getFullYear()));
-  const [period, setPeriod] = useState<'month' | 'year' | 'all'>('month');
+  const [period, setPeriod] = useState<'month' | 'year' | 'all'>(() => {
+    try {
+      const saved = localStorage.getItem('ledger-detail-period');
+      return saved === 'year' || saved === 'all' ? saved : 'month';
+    } catch {
+      return 'month';
+    }
+  });
+
+  // 右上角循环切换：按月 → 按年 → 所有 → 按月（切换后记住）
+  const cyclePeriod = () => {
+    const next = period === 'month' ? 'year' : period === 'year' ? 'all' : 'month';
+    setPeriod(next);
+    try {
+      localStorage.setItem('ledger-detail-period', next);
+    } catch {
+      // ignore
+    }
+  };
   const [searchField, setSearchField] = useState<'all' | 'category' | 'amount' | 'note'>('all');
   const [keyword, setKeyword] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -378,7 +396,15 @@ export default function LedgerDetail() {
 
   return (
     <div className="page">
-      <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
+      <NavBar
+        onBack={() => navigate(-1)}
+        style={{ background: '#fff' }}
+        right={
+          <span style={{ fontSize: 14, color: '#1677ff' }} onClick={cyclePeriod}>
+            {{ month: '按月', year: '按年', all: '所有' }[period]}
+          </span>
+        }
+      >
         {ledger?.name ?? '账本'}
       </NavBar>
 
@@ -393,47 +419,33 @@ export default function LedgerDetail() {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div onClick={() => shiftTime(-1)} style={{ padding: '2px 6px', cursor: 'pointer' }}>
-                <LeftOutline fontSize={14} />
-              </div>
-              {period === 'month' ? (
-                <input
-                  type="month"
-                  value={month}
-                  onChange={(e) => setMonth(e.target.value)}
-                  style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 110 }}
-                />
-              ) : (
-                <input
-                  type="number"
-                  value={year}
-                  onChange={(e) => setYear(e.target.value)}
-                  style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 80 }}
-                />
+              {period !== 'all' && (
+                <>
+                  <div onClick={() => shiftTime(-1)} style={{ padding: '2px 6px', cursor: 'pointer' }}>
+                    <LeftOutline fontSize={14} />
+                  </div>
+                  {period === 'month' ? (
+                    <input
+                      type="month"
+                      value={month}
+                      onChange={(e) => setMonth(e.target.value)}
+                      style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 110 }}
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      value={year}
+                      onChange={(e) => setYear(e.target.value)}
+                      style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 80 }}
+                    />
+                  )}
+                  <div onClick={() => shiftTime(1)} style={{ padding: '2px 6px', cursor: 'pointer' }}>
+                    <RightOutline fontSize={14} />
+                  </div>
+                </>
               )}
-              <div onClick={() => shiftTime(1)} style={{ padding: '2px 6px', cursor: 'pointer' }}>
-                <RightOutline fontSize={14} />
-              </div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {(['month', 'year', 'all'] as const).map((p) => (
-                  <span
-                    key={p}
-                    onClick={() => setPeriod(p)}
-                    style={{
-                      fontSize: 12,
-                      padding: '2px 6px',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      background: period === p ? '#1677ff' : '#f5f5f5',
-                      color: period === p ? '#fff' : '#666',
-                    }}
-                  >
-                    {{ month: '按月', year: '按年', all: '所有' }[p]}
-                  </span>
-                ))}
-              </div>
               <Button size="mini" fill="outline" onClick={handleExport}>导出</Button>
               {!isViewer && (
                 <Button size="mini" fill="outline" onClick={openImport}>导入</Button>
