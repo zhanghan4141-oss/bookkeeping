@@ -181,6 +181,12 @@ export default function Settings() {
             账本管理
           </List.Item>
           <List.Item
+            onClick={() => navigate('/settings/audit-logs')}
+            extra={<span style={{ color: '#999', fontSize: 13 }}>›</span>}
+          >
+            日志查询
+          </List.Item>
+          <List.Item
             onClick={openExport}
             extra={<span style={{ color: '#999', fontSize: 13 }}>›</span>}
           >

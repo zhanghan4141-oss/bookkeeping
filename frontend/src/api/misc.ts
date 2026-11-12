@@ -30,3 +30,8 @@ export const statApi = {
   categoryTransactions: (params: Record<string, string>) =>
     api.get('/stats/category-transactions', { params }),
 };
+
+export const auditLogApi = {
+  list: (ledgerId: string, params?: Record<string, string>) =>
+    api.get('/audit-logs', { params: { ledgerId, ...params } }),
+};

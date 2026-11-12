@@ -169,3 +169,20 @@ model ReminderSetting {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+// 操作日志（记录修改/删除）
+model AuditLog {
+  id        String   @id @default(cuid())
+  ledgerId  String
+  userId    String
+  action    String   // update | delete
+  entity    String   // 模型名，如 Transaction / Loan / Category
+  entityId  String
+  summary   String   // 人类可读描述
+  before    String?  @db.Text // 改前 / 被删内容的 JSON
+  after     String?  @db.Text // 改后内容的 JSON
+  createdAt DateTime @default(now())
+
+  @@index([ledgerId, createdAt])
+  @@index([entity, entityId])
+}

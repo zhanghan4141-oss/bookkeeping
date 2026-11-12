@@ -130,3 +130,15 @@ export interface StatOverview {
   year: StatBucket;
   all: StatBucket;
 }
+
+export interface AuditLogItem {
+  id: string;
+  userId: string;
+  nickname: string;
+  action: 'update' | 'delete';
+  entity: string;
+  summary: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  createdAt: string;
+}

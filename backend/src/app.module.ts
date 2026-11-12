@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { AccessModule } from './common/access/access.module.js';
+import { AuditLogModule } from './audit-log/audit-log.module.js';
+import { RequestContextInterceptor } from './common/interceptors/request-context.interceptor.js';
 import { MailModule } from './common/mail/mail.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { CategoryModule } from './category/category.module.js';
@@ -38,6 +40,7 @@ import { TransactionModule } from './transaction/transaction.module.js';
     StatModule,
     ImportExportModule,
     TasksModule,
+    AuditLogModule,
   ],
   controllers: [AppController],
   providers: [
@@ -45,6 +48,10 @@ import { TransactionModule } from './transaction/transaction.module.js';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestContextInterceptor,
     },
   ],
 })

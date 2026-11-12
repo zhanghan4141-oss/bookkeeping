@@ -18,6 +18,7 @@ import Stats from './pages/Stats';
 import Settings from './pages/Settings';
 import Members from './pages/Members';
 import LedgerManage from './pages/LedgerManage';
+import AuditLogs from './pages/AuditLogs';
 import TabBar from './components/TabBar';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -80,6 +81,7 @@ export default function App() {
         <Route path="stats" element={<Stats />} />
         <Route path="settings" element={<Settings />} />
         <Route path="settings/ledgers" element={<LedgerManage />} />
+        <Route path="settings/audit-logs" element={<AuditLogs />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
