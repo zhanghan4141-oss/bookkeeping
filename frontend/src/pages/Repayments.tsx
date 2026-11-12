@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DatePicker, NavBar } from 'antd-mobile';
 import { repaymentApi } from '../api/misc';
@@ -13,6 +13,7 @@ export default function Repayments() {
   const deselectedIds = useRepaymentLedgerSelection((s) => s.deselectedIds);
   const toggle = useRepaymentLedgerSelection((s) => s.toggle);
   const [showPicker, setShowPicker] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null);
   // 截止日期（默认未来 30 天）
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
@@ -94,7 +95,7 @@ export default function Repayments() {
   };
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar back={null} style={{ background: '#fff' }}>
         还款计划
       </NavBar>
@@ -296,6 +297,7 @@ export default function Repayments() {
 
       <LedgerSelectPopup
         visible={showPicker}
+        getContainer={() => pageRef.current ?? document.body}
         onClose={() => setShowPicker(false)}
         ledgers={ledgers}
         selectedIds={selectedIds}

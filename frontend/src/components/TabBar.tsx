@@ -1,4 +1,5 @@
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import KeepAlive from './KeepAlive';
 import { TabBar as AntdTabBar } from 'antd-mobile';
 import {
   AppOutline,
@@ -22,7 +23,7 @@ export default function TabBar() {
   return (
     <>
       <div style={{ maxWidth: 520, margin: '0 auto' }}>
-        <Outlet />
+        <KeepAlive />
       </div>
       <div
         style={{
@@ -33,6 +34,7 @@ export default function TabBar() {
           background: '#fff',
           borderTop: '1px solid #eee',
           zIndex: 100,
+          paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
         <div style={{ maxWidth: 520, margin: '0 auto' }}>

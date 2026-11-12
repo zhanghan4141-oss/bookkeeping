@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { Checkbox, Popup } from 'antd-mobile';
 import type { Ledger } from '../types';
+import { TabActiveContext } from './KeepAlive';
 
 interface Props {
   visible: boolean;
@@ -8,6 +9,8 @@ interface Props {
   ledgers: Ledger[];
   selectedIds: string[];
   onToggle: (id: string) => void;
+  /** 弹窗渲染容器（keep-alive 下渲染回页面内，避免 display:none 藏不住 portal） */
+  getContainer?: () => HTMLElement;
 }
 
 /**
@@ -20,6 +23,7 @@ export default function LedgerSelectPopup({
   ledgers,
   selectedIds,
   onToggle,
+  getContainer,
 }: Props) {
   // 打开弹窗时冻结一次顺序（选中置顶）；打开期间勾选不再重排
   const [sortedIds, setSortedIds] = useState<string[]>([]);
@@ -45,10 +49,14 @@ export default function LedgerSelectPopup({
       .filter((l): l is Ledger => !!l);
   }, [ledgers, sortedIds]);
 
+  const isActive = useContext(TabActiveContext);
+
   return (
     <Popup
       visible={visible}
       onMaskClick={onClose}
+      getContainer={getContainer}
+      disableBodyScroll={isActive}
       bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
     >
       <div style={{ padding: 20 }}>

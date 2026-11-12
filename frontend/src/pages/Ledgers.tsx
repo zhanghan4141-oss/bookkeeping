@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useContext, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Form, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
@@ -8,6 +8,7 @@ import { statApi } from '../api/misc';
 import { invalidateFinancialData } from '../lib/invalidate';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
 import { useLedgerPeriodStore } from '../stores/ledgerPeriod';
+import { TabActiveContext } from '../components/KeepAlive';
 import type { Ledger, LedgerSummary, StatOverview } from '../types';
 import { formatMoney } from '../lib/format';
 
@@ -27,6 +28,8 @@ const OVERVIEW_BUCKETS = [
 export default function Ledgers() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const pageRef = useRef<HTMLDivElement>(null);
+  const isActive = useContext(TabActiveContext);
   const [showCreate, setShowCreate] = useState(false);
   const period = useLedgerPeriodStore((s) => s.period);
   const setPeriod = useLedgerPeriodStore((s) => s.setPeriod);
@@ -82,7 +85,7 @@ export default function Ledgers() {
   };
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar back={null} style={{ background: '#fff' }}>
         记账本
       </NavBar>
@@ -227,6 +230,8 @@ export default function Ledgers() {
       <Popup
         visible={showCreate}
         onMaskClick={() => setShowCreate(false)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
         <div style={{ padding: 24 }}>

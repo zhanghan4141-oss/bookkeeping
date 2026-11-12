@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Checkbox, Input, List, NavBar, Popup, Stepper, Switch, Toast } from 'antd-mobile';
@@ -6,12 +6,15 @@ import api from '../api/client';
 import { ledgerApi } from '../api/ledger';
 import { settingsApi } from '../api/misc';
 import { formatDate } from '../lib/format';
+import { TabActiveContext } from '../components/KeepAlive';
 import { useAuthStore } from '../stores/auth';
 import type { Ledger, ReminderSetting } from '../types';
 
 export default function Settings() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const isActive = useContext(TabActiveContext);
   const logout = useAuthStore((s) => s.logout);
   const [showExport, setShowExport] = useState(false);
   const [exportLedgerIds, setExportLedgerIds] = useState<string[]>([]);
@@ -93,7 +96,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar
         back={null}
         style={{ background: '#fff' }}
@@ -205,6 +208,8 @@ export default function Settings() {
       <Popup
         visible={showExport}
         onMaskClick={() => setShowExport(false)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
         <div style={{ padding: 20 }}>

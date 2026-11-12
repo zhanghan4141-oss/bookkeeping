@@ -39,6 +39,12 @@ body {
   padding-bottom: calc(70px + env(safe-area-inset-bottom));
 }
 
+/* 顶部安全区：NavBar 内容避开状态栏/刘海（无刘海设备 env 值为 0，不影响） */
+.adm-nav-bar {
+  height: calc(var(--height) + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+}
+
 .amount-income {
   color: var(--income);
 }
