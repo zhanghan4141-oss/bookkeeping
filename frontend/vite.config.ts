@@ -37,6 +37,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // 主 bundle 已超 2 MiB，提高 precache 上限避免构建失败（默认 2 MiB）
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // 只缓存静态资源，不缓存 /api 数据，避免泄露敏感账本数据
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
