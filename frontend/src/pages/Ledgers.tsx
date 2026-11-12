@@ -9,6 +9,7 @@ import { invalidateFinancialData } from '../lib/invalidate';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
 import { useLedgerPeriodStore } from '../stores/ledgerPeriod';
 import type { Ledger, LedgerSummary, StatOverview } from '../types';
+import { formatMoney } from '../lib/format';
 
 const LEDGER_TYPE_ICON: Record<string, string> = {
   daily: '📒',
@@ -95,12 +96,15 @@ export default function Ledgers() {
             marginBottom: 16,
           }}
         >
+          <div style={{ overflowX: 'auto' }}>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '44px repeat(4, 1fr)',
+              gridTemplateColumns: '44px repeat(4, minmax(88px, 1fr))',
               alignItems: 'center',
               rowGap: 8,
+              columnGap: 8,
+              minWidth: 428,
             }}
           >
             {/* 表头 */}
@@ -115,7 +119,7 @@ export default function Ledgers() {
             <div className="text-secondary" style={{ fontSize: 12 }}>收</div>
             {OVERVIEW_BUCKETS.map((b) => (
               <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: '#52c41a', textAlign: 'center' }}>
-                ¥{(overview?.[b.key]?.income ?? 0).toFixed(2)}
+                ¥{formatMoney(overview?.[b.key]?.income ?? 0)}
               </div>
             ))}
 
@@ -123,7 +127,7 @@ export default function Ledgers() {
             <div className="text-secondary" style={{ fontSize: 12 }}>支</div>
             {OVERVIEW_BUCKETS.map((b) => (
               <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: '#ff4d4f', textAlign: 'center' }}>
-                ¥{(overview?.[b.key]?.expense ?? 0).toFixed(2)}
+                ¥{formatMoney(overview?.[b.key]?.expense ?? 0)}
               </div>
             ))}
 
@@ -133,10 +137,11 @@ export default function Ledgers() {
               const s = overview?.[b.key]?.surplus ?? 0;
               return (
                 <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: '#1677ff', textAlign: 'center' }}>
-                  ¥{s.toFixed(2)}
+                  ¥{formatMoney(s)}
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
 
@@ -197,11 +202,11 @@ export default function Ledgers() {
                       {l.type === 'loan' ? '贷款账本' : l.type === 'daily' ? '日常账本' : '自定义'} · {l.currency}
                     </div>
                     <div style={{ fontSize: 12, marginTop: 2 }}>
-                      收 <span style={{ color: '#52c41a' }}>¥{(s?.income ?? 0).toFixed(2)}</span>
-                      {'  '}支 <span style={{ color: '#ff4d4f' }}>¥{(s?.expense ?? 0).toFixed(2)}</span>
+                      收 <span style={{ color: '#52c41a' }}>¥{formatMoney(s?.income ?? 0)}</span>
+                      {'  '}支 <span style={{ color: '#ff4d4f' }}>¥{formatMoney(s?.expense ?? 0)}</span>
                       {'  '}结余{' '}
                       <span style={{ color: '#1677ff' }}>
-                        ¥{(s?.surplus ?? 0).toFixed(2)}
+                        ¥{formatMoney(s?.surplus ?? 0)}
                       </span>
                     </div>
                   </div>

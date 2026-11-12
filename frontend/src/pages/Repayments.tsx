@@ -6,6 +6,7 @@ import { ledgerApi } from '../api/ledger';
 import { useRepaymentLedgerSelection } from '../stores/repaymentLedgerSelection';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
 import type { Ledger } from '../types';
+import { formatMoney } from '../lib/format';
 
 export default function Repayments() {
   const selectedIds = useRepaymentLedgerSelection((s) => s.selectedIds);
@@ -172,7 +173,7 @@ export default function Repayments() {
           >
             <div className="text-secondary" style={{ fontSize: 13 }}>待还款</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#52c41a' }}>
-              ¥{(data?.totalAmount ?? 0).toFixed(2)}
+              ¥{formatMoney(data?.totalAmount ?? 0)}
             </div>
           </div>
           <div
@@ -186,7 +187,7 @@ export default function Repayments() {
           >
             <div className="text-secondary" style={{ fontSize: 13 }}>待支出</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#52c41a' }}>
-              ¥{(pendingExpense?.totalAmount ?? 0).toFixed(2)}
+              ¥{formatMoney(pendingExpense?.totalAmount ?? 0)}
             </div>
           </div>
         </div>
@@ -215,14 +216,14 @@ export default function Repayments() {
                   <span style={{ fontWeight: 600 }}>{d.date}</span>
                   <span style={{ fontSize: 12, color: '#999' }}>{d.items.length} 笔</span>
                 </span>
-                <span style={{ fontWeight: 700, color: '#999' }}>¥{d.total.toFixed(2)}</span>
+                <span style={{ fontWeight: 700, color: '#999' }}>¥{formatMoney(d.total)}</span>
               </div>
               {isExpanded && d.items.map((it: any) => (
                 <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa' }}>
                   <span style={{ color: '#1677ff' }}>{it.loanName}</span> 第{it.periodNo}期 · 剩余{' '}
-                  <span style={{ color: '#ff4d4f' }}>¥{it.remainingPrincipal.toFixed(2)}</span>
+                  <span style={{ color: '#ff4d4f' }}>¥{formatMoney(it.remainingPrincipal)}</span>
                   /{it.remainingPeriods}期、本期{' '}
-                  <span style={{ color: '#52c41a' }}>¥{it.totalAmount.toFixed(2)}</span>
+                  <span style={{ color: '#52c41a' }}>¥{formatMoney(it.totalAmount)}</span>
                   <span style={{ marginLeft: 6, color: it.status === 'overdue' ? '#ff4d4f' : '#999' }}>
                     {it.status === 'overdue' ? '逾期' : it.status === 'partial' ? '部分还' : '待还'}
                   </span>
@@ -259,11 +260,11 @@ export default function Repayments() {
                   <span style={{ fontWeight: 600 }}>{d.date}</span>
                   <span style={{ fontSize: 12, color: '#999' }}>{d.items.length} 笔</span>
                 </span>
-                <span style={{ fontWeight: 700, color: '#999' }}>¥{d.total.toFixed(2)}</span>
+                <span style={{ fontWeight: 700, color: '#999' }}>¥{formatMoney(d.total)}</span>
               </div>
               {isExpanded && d.items.map((it: any) => (
                 <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa' }}>
-                  {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#52c41a' }}>¥{it.amount.toFixed(2)}</span>
+                  {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#52c41a' }}>¥{formatMoney(it.amount)}</span>
                   {it.note && <span style={{ marginLeft: 6, color: '#999' }}>（{it.note}）</span>}
                 </div>
               ))}

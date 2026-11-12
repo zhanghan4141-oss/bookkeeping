@@ -4,6 +4,7 @@ import { Button, List, NavBar, ProgressBar } from 'antd-mobile';
 import { AddOutline } from 'antd-mobile-icons';
 import { loanApi } from '../api/loan';
 import type { Loan } from '../types';
+import { formatMoney } from '../lib/format';
 
 function progress(loan: Loan) {
   const total = loan.repayments.reduce((s, r) => s + Number(r.totalAmount), 0);
@@ -43,10 +44,10 @@ export default function Loans() {
                 description={
                   <div style={{ marginTop: 4 }}>
                     <div className="text-secondary" style={{ fontSize: 12 }}>
-                      本金 ¥{Number(loan.principal).toFixed(2)} · 年利率 {loan.annualRate}% · {loan.termMonths}期
+                      本金 ¥{formatMoney(Number(loan.principal))} · 年利率 {loan.annualRate}% · {loan.termMonths}期
                     </div>
                     <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
-                      剩余本金 ¥{(loan.remainingPrincipal ?? 0).toFixed(2)} · 剩余利息 ¥{(loan.remainingInterest ?? 0).toFixed(2)}
+                      剩余本金 ¥{formatMoney(loan.remainingPrincipal ?? 0)} · 剩余利息 ¥{formatMoney(loan.remainingInterest ?? 0)}
                     </div>
                     <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
                   </div>

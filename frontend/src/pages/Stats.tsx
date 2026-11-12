@@ -10,6 +10,7 @@ import LedgerSelectPopup from '../components/LedgerSelectPopup';
 import TransactionDayList from '../components/TransactionDayList';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
 import type { Ledger, StatSummary, Transaction } from '../types';
+import { formatMoney } from '../lib/format';
 
 function fmtDate(d: Date): string {
   const y = d.getFullYear();
@@ -109,7 +110,7 @@ function CategoryList({
         >
           <span style={{ fontSize: 20, marginRight: 8 }}>{c.icon || '💸'}</span>
           <span style={{ flex: 1, fontSize: 15 }}>{c.name}</span>
-          <span style={{ fontSize: 13, color }}>¥{c.amount.toFixed(2)}</span>
+          <span style={{ fontSize: 13, color }}>¥{formatMoney(c.amount)}</span>
           <span style={{ fontSize: 13, color: '#999', marginLeft: 6 }}>
             {total > 0 ? ((c.amount / total) * 100).toFixed(1) : '0.0'}%
           </span>
@@ -304,7 +305,7 @@ export default function Stats() {
       tooltip: { trigger: 'item' as const },
       legend: { bottom: 0, type: 'scroll' as const },
       title: {
-        text: `支出构成 ¥${total.toFixed(2)}`,
+        text: `支出构成 ¥${formatMoney(total)}`,
         left: 'center',
         top: 0,
         textStyle: { fontSize: 13, color: '#333' },
@@ -328,7 +329,7 @@ export default function Stats() {
       position: 'top' as const,
       fontSize: 9,
       color: '#999',
-      formatter: (p: any) => (p.value ? `¥${Number(p.value).toFixed(2)}` : ''),
+      formatter: (p: any) => (p.value ? `¥${formatMoney(Number(p.value))}` : ''),
     };
     return {
       tooltip: { trigger: 'axis' as const },
@@ -432,7 +433,7 @@ export default function Stats() {
           ].map((s) => (
             <div key={s.label} style={{ flex: 1, background: '#fff', borderRadius: 12, padding: 12, textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 12 }}>{s.label}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: s.color }}>¥{s.value.toFixed(2)}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: s.color }}>¥{formatMoney(s.value)}</div>
             </div>
           ))}
         </div>
@@ -551,7 +552,7 @@ export default function Stats() {
             <div style={{ flex: 1, background: '#f5f6f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 11 }}>合计</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: activeCategory?.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
-                ¥{categoryTotal.toFixed(2)}
+                ¥{formatMoney(categoryTotal)}
               </div>
             </div>
             <div style={{ flex: 1, background: '#f5f6f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>

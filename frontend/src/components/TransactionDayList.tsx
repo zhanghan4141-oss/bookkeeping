@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Transaction } from '../types';
+import { formatMoney } from '../lib/format';
 
 function groupByDate(list: Transaction[]) {
   const map = new Map<string, Transaction[]>();
@@ -12,7 +13,7 @@ function groupByDate(list: Transaction[]) {
 }
 
 function fmt(n: string | number) {
-  return Number(n).toFixed(2);
+  return formatMoney(n);
 }
 
 function formatDateTime(d: Date) {

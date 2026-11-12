@@ -246,10 +246,19 @@ export class ImportExportService {
       const dateVal = row.getCell(1).value;
       const typeStr = String(row.getCell(2).value ?? '').trim();
       const categoryName = String(row.getCell(3).value ?? '').trim();
-      const amount = Number(row.getCell(4).value);
+      const amountVal = row.getCell(4).value;
+      const amount = Number(amountVal);
       const note = String(row.getCell(5).value ?? '').trim();
 
-      if (!dateVal || !typeStr || !categoryName || !amount) {
+      if (
+        !dateVal ||
+        !typeStr ||
+        !categoryName ||
+        amountVal === null ||
+        amountVal === undefined ||
+        amountVal === '' ||
+        isNaN(amount)
+      ) {
         errors.push({ row: rowNumber, message: '日期/类型/类别/金额不能为空' });
         return;
       }

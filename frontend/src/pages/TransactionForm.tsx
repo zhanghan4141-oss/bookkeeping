@@ -76,7 +76,7 @@ export default function TransactionForm() {
   const handleSubmit = async () => {
     const amount = Number(draft.amount);
     try {
-      if (!amount || amount <= 0) {
+      if (!draft.amount || amount < 0) {
         Toast.show({ content: '请输入金额' });
         return;
       }

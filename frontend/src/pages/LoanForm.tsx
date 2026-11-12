@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, DatePicker, Input, NavBar, Picker, Toast } from 'antd-mobile';
 import { loanApi } from '../api/loan';
 import { invalidateFinancialData } from '../lib/invalidate';
+import { formatMoney } from '../lib/format';
 import type { Loan } from '../types';
 
 const METHODS = [
@@ -55,10 +56,6 @@ function calcPlan(params: {
     }
   }
   return list;
-}
-
-function fmt(n: number) {
-  return Math.round(n * 100) / 100;
 }
 
 interface LoanFormState {
@@ -171,7 +168,7 @@ export default function LoanForm() {
       Toast.show({ content: '请输入贷款名称' });
       return;
     }
-    if (!form.principal || Number(form.principal) <= 0) {
+    if (!form.principal || Number(form.principal) < 0) {
       Toast.show({ content: '请输入本金' });
       return;
     }
@@ -323,11 +320,11 @@ export default function LoanForm() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>
                 <div className="text-secondary" style={{ fontSize: 12 }}>还款总额</div>
-                <div style={{ fontSize: 20, fontWeight: 700 }}>¥{fmt(totalRepay).toFixed(2)}</div>
+                <div style={{ fontSize: 20, fontWeight: 700 }}>¥{formatMoney(totalRepay)}</div>
               </div>
               <div>
                 <div className="text-secondary" style={{ fontSize: 12 }}>总利息</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#faad14' }}>¥{fmt(totalInterest).toFixed(2)}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#faad14' }}>¥{formatMoney(totalInterest)}</div>
               </div>
             </div>
             <div className="text-secondary" style={{ fontSize: 12, marginBottom: 4 }}>
@@ -336,9 +333,9 @@ export default function LoanForm() {
             {plan.slice(0, 5).map((p, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: '1px solid #eee' }}>
                 <span>第{i + 1}期</span>
-                <span>本金 ¥{fmt(p.principal).toFixed(2)}</span>
-                <span>利息 ¥{fmt(p.interest).toFixed(2)}</span>
-                <span style={{ fontWeight: 600 }}>¥{fmt(p.total).toFixed(2)}</span>
+                <span>本金 ¥{formatMoney(p.principal)}</span>
+                <span>利息 ¥{formatMoney(p.interest)}</span>
+                <span style={{ fontWeight: 600 }}>¥{formatMoney(p.total)}</span>
               </div>
             ))}
           </div>

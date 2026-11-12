@@ -20,6 +20,7 @@ import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
 import api from '../api/client';
 import { invalidateFinancialData } from '../lib/invalidate';
+import { formatMoney } from '../lib/format';
 import type { Category, Transaction } from '../types';
 
 function groupByDate(list: Transaction[]) {
@@ -33,7 +34,7 @@ function groupByDate(list: Transaction[]) {
 }
 
 function fmt(n: string | number) {
-  return Number(n).toFixed(2);
+  return formatMoney(n);
 }
 
 /** 格式化日期时间（本地时间，精确到分钟） */

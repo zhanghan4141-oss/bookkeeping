@@ -5,6 +5,7 @@ import { Button, DatePicker, Dialog, Input, List, NavBar, Popup, Toast } from 'a
 import { loanApi } from '../api/loan';
 import { ledgerApi } from '../api/ledger';
 import { invalidateFinancialData } from '../lib/invalidate';
+import { formatMoney } from '../lib/format';
 import type { Ledger, Loan, LoanRepayment } from '../types';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -43,7 +44,7 @@ export default function LoanDetail() {
   const handlePay = async () => {
     if (!paying) return;
     const amount = Number(payAmount);
-    if (!amount || amount <= 0) {
+    if (!payAmount || amount < 0) {
       Toast.show({ content: '请输入金额' });
       return;
     }
@@ -95,7 +96,7 @@ export default function LoanDetail() {
   // 提前还款
   const handlePrepay = async () => {
     const amount = Number(prepayAmount);
-    if (!amount || amount <= 0) {
+    if (!prepayAmount || amount < 0) {
       Toast.show({ content: '请输入提前还款金额' });
       return;
     }
@@ -178,7 +179,7 @@ export default function LoanDetail() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', rowGap: 12, marginBottom: 12 }}>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>本金</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>¥{Number(loan.principal).toFixed(2)}</div>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>¥{formatMoney(Number(loan.principal))}</div>
             </div>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>期数</div>
@@ -194,7 +195,7 @@ export default function LoanDetail() {
                 {isCustom ? '剩余未还本息' : '剩余未还本金'}
               </div>
               <div style={{ fontSize: 18, fontWeight: 700, color: '#1677ff' }}>
-                ¥{(isCustom ? remainingPrincipal + remainingInterest : remainingPrincipal).toFixed(2)}
+                ¥{formatMoney(isCustom ? remainingPrincipal + remainingInterest : remainingPrincipal)}
               </div>
             </div>
             <div>
@@ -202,7 +203,7 @@ export default function LoanDetail() {
                 <>
                   <div className="text-secondary" style={{ fontSize: 12 }}>剩余未还利息</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: '#faad14' }}>
-                    ¥{remainingInterest.toFixed(2)}
+                    ¥{formatMoney(remainingInterest)}
                   </div>
                 </>
               )}
@@ -299,7 +300,7 @@ export default function LoanDetail() {
                     extra={
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontWeight: 600, color: '#52c41a' }}>
-                          ¥{Number(r.totalAmount).toFixed(2)}
+                          ¥{formatMoney(Number(r.totalAmount))}
                         </div>
                         <div style={{ fontSize: 12, color: '#52c41a' }}>已还</div>
                       </div>
@@ -318,13 +319,13 @@ export default function LoanDetail() {
                   key={r.periodNo}
                   description={
                     <div style={{ fontSize: 12, marginTop: 2 }}>
-                      本金 ¥{Number(r.principalAmount).toFixed(2)} · 利息 ¥{Number(r.interestAmount).toFixed(2)}
+                      本金 ¥{formatMoney(Number(r.principalAmount))} · 利息 ¥{formatMoney(Number(r.interestAmount))}
                       <span style={{ marginLeft: 8 }}>{r.dueDate.slice(0, 10)}</span>
                     </div>
                   }
                   extra={
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 600 }}>¥{Number(r.totalAmount).toFixed(2)}</div>
+                      <div style={{ fontWeight: 600 }}>¥{formatMoney(Number(r.totalAmount))}</div>
                       <div style={{ fontSize: 12, color: st.color }}>{st.label}</div>
                     </div>
                   }
@@ -361,7 +362,7 @@ export default function LoanDetail() {
         <div style={{ padding: 24 }}>
           <h3 style={{ marginBottom: 8 }}>第 {paying?.periodNo} 期还款</h3>
           <div className="text-secondary" style={{ fontSize: 13, marginBottom: 16 }}>
-            应还 ¥{paying ? (Number(paying.totalAmount) - Number(paying.paidAmount)).toFixed(2) : '0.00'}
+            应还 ¥{paying ? formatMoney(Number(paying.totalAmount) - Number(paying.paidAmount)) : '0.00'}
           </div>
           <Input
             type="number"
