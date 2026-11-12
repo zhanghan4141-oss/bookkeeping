@@ -281,6 +281,7 @@ export class StatService {
       include: {
         category: { select: { id: true, name: true, icon: true, color: true, type: true } },
         ledger: { select: { id: true, name: true } },
+        loan: { select: { id: true, name: true } },
       },
       orderBy: { occurredAt: 'desc' },
     });

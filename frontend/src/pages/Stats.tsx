@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Button, DatePicker, NavBar, Popup, SearchBar } from 'antd-mobile';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button, DatePicker, Dialog, Input, NavBar, Popup, SearchBar, SwipeAction, Toast } from 'antd-mobile';
 import { LeftOutline, RightOutline } from 'antd-mobile-icons';
 import { Lunar, LunarMonth, Solar } from 'lunar-javascript';
 import { statApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
+import { transactionApi } from '../api/transaction';
 import Chart from '../components/Chart';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
-import TransactionDayList from '../components/TransactionDayList';
-import { useLedgerSelectionStore } from '../stores/ledgerSelection';
+import { useStatLedgerSelection } from '../stores/statLedgerSelection';
+import { TabActiveContext } from '../components/KeepAlive';
 import type { Ledger, StatSummary, Transaction } from '../types';
 import { formatMoney } from '../lib/format';
 
@@ -30,6 +32,24 @@ function shortAxisKey(key: string, period: 'day' | 'month' | 'year'): string {
   if (period === 'month') return key.split('-')[1] ?? key;
   return key;
 }
+
+function groupByDate(list: Transaction[]) {
+  const map = new Map<string, Transaction[]>();
+  for (const t of list) {
+    const key = t.occurredAt.slice(0, 10);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(t);
+  }
+  return Array.from(map.entries());
+}
+
+function formatDateTime(d: Date) {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 稳定的空数组引用，避免 useQuery 默认值每次渲染都新建导致依赖不稳定（引发无限循环） */
+const EMPTY_TX: Transaction[] = [];
 
 /** 快捷区间：当年 / 当月 / 四个季度，跟随当前历法（公历/农历） */
 function quickRange(
@@ -139,6 +159,9 @@ function monthRangeOf(
 }
 
 export default function Stats() {
+  const navigate = useNavigate();
+  const pageRef = useRef<HTMLDivElement>(null);
+  const isActive = useContext(TabActiveContext);
   const [calendar, setCalendar] = useState<'solar' | 'lunar'>('solar');
   const [showRangePicker, setShowRangePicker] = useState(false);
   const [showLedgerPicker, setShowLedgerPicker] = useState(false);
@@ -146,10 +169,10 @@ export default function Stats() {
   const [tempEnd, setTempEnd] = useState('');
   // 是否为自定义区间（false = 按当前历法的「月」导航）
   const [isCustom, setIsCustom] = useState(false);
-  const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
-  const deselectedIds = useLedgerSelectionStore((s) => s.deselectedIds);
-  const selectOne = useLedgerSelectionStore((s) => s.selectOne);
-  const toggle = useLedgerSelectionStore((s) => s.toggle);
+  const selectedIds = useStatLedgerSelection((s) => s.selectedIds);
+  const deselectedIds = useStatLedgerSelection((s) => s.deselectedIds);
+  const selectOne = useStatLedgerSelection((s) => s.selectOne);
+  const toggle = useStatLedgerSelection((s) => s.toggle);
 
   // 统计日期范围（默认当前公历月）
   const [range, setRange] = useState(() => monthRangeOf(new Date(), 'solar'));
@@ -201,7 +224,7 @@ export default function Stats() {
     icon: string | null;
   } | null>(null);
 
-  const { data: categoryTxList = [] } = useQuery({
+  const { data: categoryTxList = EMPTY_TX } = useQuery({
     queryKey: ['stats', 'category-transactions', activeCategory?.categoryId, range.start, range.end, selectedIds],
     queryFn: async () => {
       if (!activeCategory) return [];
@@ -235,6 +258,134 @@ export default function Stats() {
     () => filteredCategoryTx.reduce((s, t) => s + Number(t.amount), 0),
     [filteredCategoryTx],
   );
+
+  // 可删除的流水（贷款流水不可删，批量删除时排除）
+  const deletableCategoryTx = useMemo(
+    () => filteredCategoryTx.filter((t) => !t.loanId),
+    [filteredCategoryTx],
+  );
+
+  const queryClient = useQueryClient();
+  const showLedgerName = selectedIds.length !== 1;
+
+  // 类别详情：批量选择 + 编辑
+  const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [editForm, setEditForm] = useState({ type: 'expense', amount: '', note: '' });
+  const [expandedCategoryDates, setExpandedCategoryDates] = useState<Set<string>>(new Set());
+
+  const categoryGroups = useMemo(() => groupByDate(filteredCategoryTx), [filteredCategoryTx]);
+
+  useEffect(() => {
+    setExpandedCategoryDates(categoryGroups.length > 0 ? new Set([categoryGroups[0][0]]) : new Set());
+  }, [categoryGroups]);
+
+  const toggleCategoryDate = (date: string) => {
+    setExpandedCategoryDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  };
+
+  const refreshCategoryTx = () => {
+    queryClient.invalidateQueries({ queryKey: ['stats', 'category-transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['stats', 'summary'] });
+  };
+
+  const handleCopyTx = async (t: Transaction) => {
+    try {
+      await transactionApi.copy({
+        ledgerId: t.ledgerId,
+        categoryId: t.categoryId,
+        type: t.type,
+        amount: Number(t.amount),
+        note: t.note,
+        occurredAt: t.occurredAt,
+      });
+      Toast.show({ content: '已复制' });
+      refreshCategoryTx();
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '复制失败' });
+    }
+  };
+
+  const handleDeleteTx = async (t: Transaction) => {
+    const ok = await new Promise((resolve) => {
+      Dialog.confirm({
+        content: '删除这条流水？',
+        onConfirm: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+    if (!ok) return;
+    try {
+      await transactionApi.remove(t.id);
+      Toast.show({ content: '已删除' });
+      refreshCategoryTx();
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '删除失败' });
+    }
+  };
+
+  const toggleSelectTx = (id: string) => {
+    setSelectedTxIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllTx = () => {
+    if (selectedTxIds.size === deletableCategoryTx.length) {
+      setSelectedTxIds(new Set());
+    } else {
+      setSelectedTxIds(new Set(deletableCategoryTx.map((t) => t.id)));
+    }
+  };
+
+  const handleBatchDeleteTx = async () => {
+    if (selectedTxIds.size === 0) return;
+    const ok = await new Promise((resolve) => {
+      Dialog.confirm({
+        content: `删除选中的 ${selectedTxIds.size} 条流水？`,
+        onConfirm: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+    if (!ok) return;
+    try {
+      await transactionApi.removeMany([...selectedTxIds]);
+      Toast.show({ content: '已删除' });
+      setSelectedTxIds(new Set());
+      refreshCategoryTx();
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '删除失败' });
+    }
+  };
+
+  const openEditTx = (t: Transaction) => {
+    setEditingTx(t);
+    setEditForm({ type: t.type, amount: t.amount, note: t.note ?? '' });
+  };
+
+  const saveEditTx = async () => {
+    if (!editingTx) return;
+    try {
+      await transactionApi.update(editingTx.id, {
+        type: editForm.type,
+        amount: Number(editForm.amount),
+        note: editForm.note || undefined,
+      });
+      Toast.show({ content: '已保存' });
+      setEditingTx(null);
+      refreshCategoryTx();
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '保存失败' });
+    }
+  };
 
   const openCategory = (c: { categoryId: string; name: string; type: string; icon: string | null }) => {
     setActiveCategory(c);
@@ -359,7 +510,7 @@ export default function Stats() {
   }, [summary]);
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar
         back={null}
         style={{ background: '#fff' }}
@@ -548,12 +699,15 @@ export default function Stats() {
         ledgers={ledgers}
         selectedIds={selectedIds}
         onToggle={toggle}
+        getContainer={() => pageRef.current ?? document.body}
       />
 
       {/* 类别流水弹窗 */}
       <Popup
         visible={showCategoryTx}
         onMaskClick={() => setShowCategoryTx(false)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
         <div style={{ padding: 16, maxHeight: '75vh', overflowY: 'auto' }}>
@@ -588,11 +742,174 @@ export default function Stats() {
             />
           </div>
 
-          <TransactionDayList
-            transactions={filteredCategoryTx}
-            showLedgerName={selectedIds.length !== 1}
-            emptyText="该类别暂无流水"
-          />
+          {categoryKeyword.trim() !== '' ? (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedTxIds.size} 条</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button size="mini" fill="outline" onClick={toggleSelectAllTx}>
+                    {selectedTxIds.size === deletableCategoryTx.length ? '取消全选' : '全选'}
+                  </Button>
+                  <Button size="mini" color="danger" onClick={handleBatchDeleteTx} disabled={selectedTxIds.size === 0}>
+                    删除选中
+                  </Button>
+                </div>
+              </div>
+              {filteredCategoryTx.map((t) => {
+                const isLoanTx = !!t.loanId;
+                return (
+                  <div key={t.id} style={{ background: isLoanTx ? '#fafafa' : '#fff', marginBottom: 8, borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center' }}>
+                    {!isLoanTx ? (
+                      <input type="checkbox" checked={selectedTxIds.has(t.id)} onChange={() => toggleSelectTx(t.id)} style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }} />
+                    ) : (
+                      <span style={{ marginRight: 10, width: 18, flexShrink: 0 }} />
+                    )}
+                    <span style={{ fontSize: 22, marginRight: 10 }}>{t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 15 }}>{t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}</div>
+                      <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                        {formatDateTime(new Date(t.occurredAt))}
+                        {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
+                        {isLoanTx && (
+                          <span onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }} style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}>〔{t.loan?.name ?? '贷款'}〕</span>
+                        )}
+                        {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#1677ff' }}>〔{t.ledger.name}〕</span>}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>{t.type === 'income' ? '+' : '-'}¥{formatMoney(t.amount)}</span>
+                  </div>
+                );
+              })}
+              {filteredCategoryTx.length === 0 && (
+                <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>无搜索结果</div>
+              )}
+            </div>
+          ) : (
+            <div>
+              {categoryGroups.map(([date, items]) => {
+                const dayIncome = items.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+                const dayExpense = items.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+                const isExpanded = expandedCategoryDates.has(date);
+                return (
+                  <div key={date} style={{ background: '#fff', marginBottom: 8, borderRadius: 12, overflow: 'hidden' }}>
+                    <div onClick={() => toggleCategoryDate(date)} style={{ padding: '8px 12px', fontSize: 13, color: '#666', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: isExpanded ? '1px solid #f5f5f5' : 'none' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: '#bbb', fontSize: 12, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
+                        <span>{date}</span>
+                        <span style={{ fontSize: 12, color: '#999' }}>{items.length} 笔</span>
+                      </span>
+                      <span>
+                        {dayExpense > 0 && <span style={{ color: '#999' }}>支 ¥{formatMoney(dayExpense)} </span>}
+                        {dayIncome > 0 && <span style={{ color: '#999' }}>收 ¥{formatMoney(dayIncome)}</span>}
+                      </span>
+                    </div>
+                    {isExpanded && items.map((t) => {
+                      const isLoanTx = !!t.loanId;
+                      const content = (
+                        <div
+                          key={t.id}
+                          onClick={() => !isLoanTx && openEditTx(t)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '10px 12px',
+                            borderBottom: '1px solid #fafafa',
+                            background: isLoanTx ? '#fafafa' : '#fff',
+                            cursor: isLoanTx ? 'default' : 'pointer',
+                          }}
+                        >
+                          <span style={{ fontSize: 22, marginRight: 10 }}>{t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 15 }}>{t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}</div>
+                            <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                              {formatDateTime(new Date(t.occurredAt))}
+                              {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
+                              {isLoanTx && (
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/loans/${t.loanId}`);
+                                  }}
+                                  style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}
+                                >
+                                  〔{t.loan?.name ?? '贷款'}〕
+                                </span>
+                              )}
+                              {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#1677ff' }}>〔{t.ledger.name}〕</span>}
+                            </div>
+                          </div>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>{t.type === 'income' ? '+' : '-'}¥{formatMoney(t.amount)}</span>
+                        </div>
+                      );
+                      return (
+                        <SwipeAction
+                          key={t.id}
+                          rightActions={
+                            isLoanTx
+                              ? [{ key: 'copy', text: '复制', color: 'primary', onClick: () => handleCopyTx(t) }]
+                              : [
+                                  { key: 'copy', text: '复制', color: 'primary', onClick: () => handleCopyTx(t) },
+                                  { key: 'delete', text: '删除', color: 'danger', onClick: () => handleDeleteTx(t) },
+                                ]
+                          }
+                        >
+                          {content}
+                        </SwipeAction>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+              {filteredCategoryTx.length === 0 && (
+                <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>该类别暂无流水</div>
+              )}
+            </div>
+          )}
+        </div>
+      </Popup>
+
+      {/* 编辑流水弹窗 */}
+      <Popup
+        visible={!!editingTx}
+        onMaskClick={() => setEditingTx(null)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 16 }}>编辑流水</h3>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {[
+              { key: 'expense', label: '支出', color: '#ff4d4f' },
+              { key: 'income', label: '收入', color: '#52c41a' },
+              { key: 'transfer', label: '转账', color: '#1677ff' },
+            ].map((x) => (
+              <div
+                key={x.key}
+                onClick={() => setEditForm((f) => ({ ...f, type: x.key }))}
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  padding: '8px 0',
+                  borderRadius: 8,
+                  background: editForm.type === x.key ? x.color : '#f5f5f5',
+                  color: editForm.type === x.key ? '#fff' : '#666',
+                  fontWeight: editForm.type === x.key ? 600 : 400,
+                }}
+              >
+                {x.label}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>金额</div>
+            <Input type="number" value={editForm.amount} onChange={(v) => setEditForm((f) => ({ ...f, amount: v }))} style={{ fontSize: 24 }} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>备注</div>
+            <Input placeholder="可选" value={editForm.note} onChange={(v) => setEditForm((f) => ({ ...f, note: v }))} />
+          </div>
+          <Button block color="primary" onClick={saveEditTx}>保存</Button>
         </div>
       </Popup>
     </div>
