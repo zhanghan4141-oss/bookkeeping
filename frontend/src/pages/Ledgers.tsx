@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Form, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
@@ -97,51 +97,41 @@ export default function Ledgers() {
           }}
         >
           <div style={{ overflowX: 'auto' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '44px repeat(4, minmax(88px, 1fr))',
-              alignItems: 'center',
-              rowGap: 8,
-              columnGap: 8,
-              minWidth: 428,
-            }}
-          >
-            {/* 表头 */}
-            <div />
-            {OVERVIEW_BUCKETS.map((b) => (
-              <div key={b.key} className="text-secondary" style={{ fontSize: 12, textAlign: 'center' }}>
-                {b.label}
-              </div>
-            ))}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '36px repeat(3, minmax(84px, 1fr))',
+                alignItems: 'center',
+                rowGap: 8,
+                columnGap: 4,
+                minWidth: 300,
+              }}
+            >
+              {/* 表头：收 / 支 / 余 */}
+              <div />
+              <div className="text-secondary" style={{ fontSize: 12, textAlign: 'center' }}>收</div>
+              <div className="text-secondary" style={{ fontSize: 12, textAlign: 'center' }}>支</div>
+              <div className="text-secondary" style={{ fontSize: 12, textAlign: 'center' }}>余</div>
 
-            {/* 收 */}
-            <div className="text-secondary" style={{ fontSize: 12 }}>收</div>
-            {OVERVIEW_BUCKETS.map((b) => (
-              <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: '#52c41a', textAlign: 'center' }}>
-                ¥{formatMoney(overview?.[b.key]?.income ?? 0)}
-              </div>
-            ))}
-
-            {/* 支 */}
-            <div className="text-secondary" style={{ fontSize: 12 }}>支</div>
-            {OVERVIEW_BUCKETS.map((b) => (
-              <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: '#ff4d4f', textAlign: 'center' }}>
-                ¥{formatMoney(overview?.[b.key]?.expense ?? 0)}
-              </div>
-            ))}
-
-            {/* 余 */}
-            <div className="text-secondary" style={{ fontSize: 12 }}>余</div>
-            {OVERVIEW_BUCKETS.map((b) => {
-              const s = overview?.[b.key]?.surplus ?? 0;
-              return (
-                <div key={b.key} style={{ fontSize: 13, fontWeight: 700, color: '#1677ff', textAlign: 'center' }}>
-                  ¥{formatMoney(s)}
-                </div>
-              );
-            })}
-          </div>
+              {/* 行：当日 / 当月 / 当年 / 所有 */}
+              {OVERVIEW_BUCKETS.map((b) => {
+                const s = overview?.[b.key];
+                return (
+                  <Fragment key={b.key}>
+                    <div className="text-secondary" style={{ fontSize: 12 }}>{b.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#52c41a', textAlign: 'center' }}>
+                      ¥{formatMoney(s?.income ?? 0)}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#ff4d4f', textAlign: 'center' }}>
+                      ¥{formatMoney(s?.expense ?? 0)}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1677ff', textAlign: 'center' }}>
+                      ¥{formatMoney(s?.surplus ?? 0)}
+                    </div>
+                  </Fragment>
+                );
+              })}
+            </div>
           </div>
         </div>
 
