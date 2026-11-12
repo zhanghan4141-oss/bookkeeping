@@ -61,6 +61,8 @@ jobs:
             cd /home/admin/bookkeeping
             git pull origin master
             cd deploy
+            # app-update 目录（manifest + APK）由宿主机挂载托管，确保存在（首次/重建后）
+            mkdir -p /home/admin/app-update
             # 镜像已在 GitHub Actions 构建并推送，这里只拉取不构建，避免低内存服务器 OOM
             docker compose pull
             docker compose up -d

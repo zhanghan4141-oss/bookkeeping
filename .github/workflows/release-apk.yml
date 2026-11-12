@@ -112,7 +112,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 写 manifest 并提交回仓库
+      - name: 写 manifest.json
         shell: bash
         env:
           VERSION: ${{ steps.ver.outputs.version }}
@@ -130,12 +130,14 @@ jobs:
           if [ -z "$NOTE" ]; then NOTE="更新至 v${VERSION}"; fi
           export NOTE
           node -e 'const fs=require("fs");const m={version:process.env.VERSION,note:process.env.NOTE,apkUrl:"/app-update/bookkeeping-latest.apk",fallbackUrl:process.env.FALLBACK,apkSize:Number(process.env.SIZE),publishedAt:new Date().toISOString()};fs.writeFileSync("frontend/public/app-update/manifest.json",JSON.stringify(m,null,2)+"\n");'
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/public/app-update/manifest.json frontend/public/app-update/bookkeeping-latest.apk
-          if git diff --cached --quiet; then
-            echo "无变化，跳过提交"
-          else
-            git commit -m "chore(release): 发布 v${VERSION}（更新 manifest 与 app-update/bookkeeping-latest.apk）"
-            git push origin HEAD:master || echo "::warning::推送 master 失败（可能受保护或并发提交），请手动同步"
-          fi
+
+      - name: 直传 app-update 到服务器（不触发全量重建）
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          source: "frontend/public/app-update/manifest.json,frontend/public/app-update/bookkeeping-latest.apk"
+          target: "/home/admin/app-update"
+          strip_components: 3

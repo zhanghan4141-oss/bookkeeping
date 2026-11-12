@@ -325,6 +325,14 @@ docker compose up -d
 
 数据库迁移自动执行。nginx 配置若无变化无需重载。
 
+### app-update 目录（App 内更新用）
+
+frontend 容器把宿主机 `/home/admin/app-update` 挂载到 nginx 的 `/app-update`，托管 `manifest.json` + `bookkeeping-latest.apk`（App 内「检查更新」与下载 APK 用）。这两个文件**不入 git**，由 release-apk.yml 每次发版 scp 直传到该目录，无需重建镜像。
+
+- 正常发版：自动 scp，无需手动维护。
+- 全新服务器（该目录为空）时，App 更新检测会 404（不影响使用），待下一次发版自动填充；也可手动从 GitHub Release 拉取最新 APK 放入该目录。
+- 验证：`curl -sI https://bookkeeping.zhangyuning.xyz/app-update/manifest.json` 应返回 200。
+
 ---
 
 ## 七、数据备份

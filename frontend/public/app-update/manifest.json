@@ -1,8 +1,0 @@
-{
-  "version": "1.1.0",
-  "note": "新增贷款编辑、操作日志、账本详情页按月/年筛选、金额千位分隔符",
-  "apkUrl": "/app-update/bookkeeping-latest.apk",
-  "fallbackUrl": "https://github.com/zhanghan4141-oss/bookkeeping/releases/download/v1.1.0/bookkeeping-1.1.0.apk",
-  "apkSize": 8177439,
-  "publishedAt": "2026-11-12T07:31:11.285Z"
-}

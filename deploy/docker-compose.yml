@@ -42,6 +42,10 @@ services:
     restart: unless-stopped
     ports:
       - "8081:80"
+    # app-update（manifest.json + bookkeeping-latest.apk）走宿主机目录挂载，
+    # 发 APK 时由 release-apk.yml 直传到 /home/admin/app-update，无需重建 frontend 镜像
+    volumes:
+      - /home/admin/app-update:/usr/share/nginx/html/app-update
     depends_on:
       - backend
     networks:

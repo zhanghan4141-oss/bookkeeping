@@ -21,3 +21,6 @@ Thumbs.db
 
 # Playwright MCP 调试临时文件
 .playwright-mcp/
+
+# app-update 静态文件（manifest + APK）由 release 工作流直传服务器，不入库
+frontend/public/app-update/
