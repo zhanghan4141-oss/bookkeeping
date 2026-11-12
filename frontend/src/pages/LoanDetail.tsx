@@ -129,7 +129,7 @@ export default function LoanDetail() {
   // 提前还款
   const handlePrepay = async () => {
     const amount = Number(prepayAmount);
-    if (!prepayAmount || amount < 0) {
+    if (!prepayAmount || amount <= 0) {
       Toast.show({ content: '请输入提前还款金额' });
       return;
     }
@@ -448,7 +448,7 @@ export default function LoanDetail() {
             </DatePicker>
           </div>
           <div style={{ marginBottom: 16 }}>
-            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>提前还款金额（本金）</div>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>提前还款金额{isCustom ? '' : '（本金）'}</div>
             <Input
               type="number"
               placeholder="提前还的本金金额"
@@ -475,16 +475,22 @@ export default function LoanDetail() {
             </div>
           )}
           <div className="text-secondary" style={{ fontSize: 12, marginBottom: 16 }}>
-            小于剩余本金时重算后续计划；等于或大于剩余本金时提前结清。
-            提前还款将按天收取截至还款日的当期利息
-            {prepayEstimate && prepayEstimate.interest > 0 && (
-              <>（约 ¥{formatMoney(prepayEstimate.interest)}）</>
-            )}
-            {prepayEstimate && prepayEstimate.interest > 0 && (
-              <span style={{ color: '#1677ff', fontWeight: 600 }}>
-                ，本次合计约 ¥{formatMoney(prepayEstimate.total)}
-                {prepayEstimate.isFull ? '（含结清）' : ''}
-              </span>
+            {isCustom ? (
+              <>记一笔提前还款，不改变剩余计划，也不自动结清。</>
+            ) : (
+              <>
+                小于剩余本金时重算后续计划；等于或大于剩余本金时提前结清。
+                提前还款将按天收取截至还款日的当期利息
+                {prepayEstimate && prepayEstimate.interest > 0 && (
+                  <>（约 ¥{formatMoney(prepayEstimate.interest)}）</>
+                )}
+                {prepayEstimate && prepayEstimate.interest > 0 && (
+                  <span style={{ color: '#1677ff', fontWeight: 600 }}>
+                    ，本次合计约 ¥{formatMoney(prepayEstimate.total)}
+                    {prepayEstimate.isFull ? '（含结清）' : ''}
+                  </span>
+                )}
+              </>
             )}
           </div>
           <Button block color="primary" onClick={handlePrepay}>确认提前还款</Button>

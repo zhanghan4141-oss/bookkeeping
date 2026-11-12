@@ -213,6 +213,52 @@ export class LoanService {
 
     const prepayDate = new Date(dto.prepayDate);
 
+    // ===== 自定义贷款：纯记账，追加一条已还的「提前还款」计划记录 + 一条支出流水 =====
+    if (loan.repaymentMethod === 'custom') {
+      const amount = dto.amount;
+      if (amount <= 0) throw new BadRequestException('请输入提前还款金额');
+      const prepayNo =
+        10000 + loan.repayments.filter((r) => r.kind === 'prepay').length + 1;
+      await this.prisma.$transaction(async (tx) => {
+        await tx.loanRepayment.create({
+          data: {
+            loanId,
+            periodNo: prepayNo,
+            kind: 'prepay',
+            dueDate: prepayDate,
+            principalAmount: new Prisma.Decimal(0),
+            interestAmount: new Prisma.Decimal(0),
+            totalAmount: new Prisma.Decimal(amount),
+            paidAmount: new Prisma.Decimal(amount),
+            status: 'paid',
+            paidDate: prepayDate,
+            note: '提前还款',
+          },
+        });
+        const principalCategory = await this.findOrCreateCategory(
+          tx,
+          loan.ledgerId,
+          '还款本金',
+          'expense',
+        );
+        if (principalCategory) {
+          await tx.transaction.create({
+            data: {
+              ledgerId: loan.ledgerId,
+              categoryId: principalCategory.id,
+              userId,
+              type: 'expense',
+              amount: new Prisma.Decimal(amount),
+              note: `${loan.name} 提前还款`,
+              occurredAt: prepayDate,
+              loanId,
+            },
+          });
+        }
+      });
+      return this.findOne(loanId);
+    }
+
     // 找出「提前还款日之后」未还清的期
     const remaining = loan.repayments.filter(
       (r) => r.dueDate > prepayDate && r.status !== 'paid',
