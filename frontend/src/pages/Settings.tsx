@@ -103,6 +103,7 @@ export default function Settings() {
             onClick={() => {
               const a = document.createElement('a');
               a.href = 'https://bookkeeping.zhangyuning.xyz/app-update/bookkeeping-latest.apk';
+              a.download = 'bookkeeping-latest.apk';
               a.rel = 'noopener';
               document.body.appendChild(a);
               a.click();

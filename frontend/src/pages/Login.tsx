@@ -52,6 +52,8 @@ export default function Login() {
   const downloadApp = () => {
     const a = document.createElement('a');
     a.href = APK_URL;
+    // download 属性强制浏览器下载（而非导航跳转），否则移动端点击后只刷新不下载
+    a.download = 'bookkeeping-latest.apk';
     a.rel = 'noopener';
     document.body.appendChild(a);
     a.click();
