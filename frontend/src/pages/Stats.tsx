@@ -147,6 +147,7 @@ export default function Stats() {
   // 是否为自定义区间（false = 按当前历法的「月」导航）
   const [isCustom, setIsCustom] = useState(false);
   const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
+  const deselectedIds = useLedgerSelectionStore((s) => s.deselectedIds);
   const selectOne = useLedgerSelectionStore((s) => s.selectOne);
   const toggle = useLedgerSelectionStore((s) => s.toggle);
 
@@ -292,11 +293,24 @@ export default function Stats() {
     setTempEnd(r.end);
   };
 
-  // 选中的账本对象
-  const selectedLedgers = useMemo(
-    () => ledgers.filter((l) => selectedIds.includes(l.id)),
-    [ledgers, selectedIds],
-  );
+  // 行内队列顺序：选中（按选中顺序）→ 最近取消选中（最新在前）→ 其余（原顺序）
+  const orderedLedgers = useMemo(() => {
+    const byId = new Map(ledgers.map((l) => [l.id, l] as const));
+    const seen = new Set<string>();
+    const result: Ledger[] = [];
+    const push = (id: string) => {
+      if (seen.has(id)) return;
+      const l = byId.get(id);
+      if (l) {
+        result.push(l);
+        seen.add(id);
+      }
+    };
+    selectedIds.forEach(push);
+    deselectedIds.forEach(push);
+    ledgers.forEach((l) => push(l.id));
+    return result;
+  }, [ledgers, selectedIds, deselectedIds]);
 
   const pieOption = useMemo(() => {
     const expenseCats = (summary?.byCategory ?? []).filter((c) => c.type === 'expense');
@@ -398,28 +412,32 @@ export default function Stats() {
           }}
           onClick={() => setShowLedgerPicker(true)}
         >
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, flex: 1 }}>
-            <span className="text-secondary" style={{ fontSize: 13 }}>账本</span>
-            {selectedLedgers.slice(0, 3).map((l) => (
-              <span
-                key={l.id}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 12,
-                  background: '#e6f4ff',
-                  color: '#1677ff',
-                  fontSize: 13,
-                }}
-              >
-                {l.name}
-              </span>
-            ))}
-            {selectedLedgers.length > 3 && (
-              <span style={{ fontSize: 13, color: '#666' }}>+{selectedLedgers.length - 3}</span>
-            )}
-            {selectedLedgers.length === 0 && (
-              <span className="text-secondary" style={{ fontSize: 13 }}>全部账本</span>
-            )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, overflow: 'hidden' }}>
+            <span className="text-secondary" style={{ fontSize: 13, flexShrink: 0 }}>账本</span>
+            {orderedLedgers.map((l) => {
+              const selected = selectedIds.includes(l.id);
+              return (
+                <span
+                  key={l.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggle(l.id);
+                  }}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 12,
+                    background: selected ? '#e6f4ff' : '#f5f5f5',
+                    color: selected ? '#1677ff' : '#999',
+                    fontSize: 13,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {l.name}
+                </span>
+              );
+            })}
           </div>
           <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
         </div>

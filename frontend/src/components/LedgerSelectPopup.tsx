@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Checkbox, Popup } from 'antd-mobile';
 import type { Ledger } from '../types';
 
@@ -21,14 +21,29 @@ export default function LedgerSelectPopup({
   selectedIds,
   onToggle,
 }: Props) {
-  // 选中的排前面
+  // 打开弹窗时冻结一次顺序（选中置顶）；打开期间勾选不再重排
+  const [sortedIds, setSortedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (visible) {
+      setSortedIds(
+        [...ledgers]
+          .sort((a, b) => {
+            const aSel = selectedIds.includes(a.id) ? 1 : 0;
+            const bSel = selectedIds.includes(b.id) ? 1 : 0;
+            return bSel - aSel;
+          })
+          .map((l) => l.id),
+      );
+    }
+  }, [visible, ledgers]);
+
   const sorted = useMemo(() => {
-    return [...ledgers].sort((a, b) => {
-      const aSel = selectedIds.includes(a.id) ? 1 : 0;
-      const bSel = selectedIds.includes(b.id) ? 1 : 0;
-      return bSel - aSel;
-    });
-  }, [ledgers, selectedIds]);
+    const byId = new Map(ledgers.map((l) => [l.id, l] as const));
+    return sortedIds
+      .map((id) => byId.get(id))
+      .filter((l): l is Ledger => !!l);
+  }, [ledgers, sortedIds]);
 
   return (
     <Popup
