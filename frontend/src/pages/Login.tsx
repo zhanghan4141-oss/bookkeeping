@@ -13,6 +13,7 @@ export default function Login() {
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [installState, setInstallState] = useState<'idle' | 'installing' | 'installed'>('idle');
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
@@ -26,13 +27,25 @@ export default function Login() {
       setDeferredPrompt(e);
     };
     window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+
+    const installedHandler = () => {
+      setInstallState('installed');
+    };
+    window.addEventListener('appinstalled', installedHandler);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', installedHandler);
+    };
   }, []);
 
   const installPwa = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
+    const choice = await deferredPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      setInstallState('installing');
+    }
     setDeferredPrompt(null);
   };
 
@@ -123,8 +136,12 @@ export default function Login() {
           </Button>
           {deferredPrompt && (
             <div style={{ marginTop: 12 }}>
-              <Button block fill="none" onClick={installPwa}>
-                安装到桌面（PWA）
+              <Button block fill="none" disabled={installState !== 'idle'} onClick={installPwa}>
+                {installState === 'installing'
+                  ? 'PWA正在安装...'
+                  : installState === 'installed'
+                    ? 'PWA已经安装，请等待弹窗添加到桌面'
+                    : '安装到桌面（PWA）'}
               </Button>
             </div>
           )}
