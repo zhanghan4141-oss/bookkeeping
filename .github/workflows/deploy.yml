@@ -35,6 +35,8 @@ jobs:
           context: backend
           push: true
           tags: crpi-g3wn4otglvq1me5n.cn-hangzhou.personal.cr.aliyuncs.com/zhangyuning-bookkeeping/bookkeeping-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: 构建并推送 frontend 镜像
         uses: docker/build-push-action@v6
@@ -42,6 +44,8 @@ jobs:
           context: frontend
           push: true
           tags: crpi-g3wn4otglvq1me5n.cn-hangzhou.personal.cr.aliyuncs.com/zhangyuning-bookkeeping/bookkeeping-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     needs: build-and-push

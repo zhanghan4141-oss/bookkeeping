@@ -17,14 +17,13 @@ RUN npm run build
 FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-RUN npm config set registry https://registry.npmmirror.com
-RUN npm config set audit false
-RUN npm config set fund false
-COPY package*.json ./
-RUN npm install --omit=dev --no-audit --no-fund
-COPY prisma ./prisma
-RUN npx prisma generate
+# 直接复用 builder 阶段的 node_modules（含生产依赖 + prisma client/engine + prisma CLI），
+# 不再重复 npm install / prisma generate，避免依赖和 engine 下载两遍。
+# 注意：prisma CLI 在 devDependencies，这里保留完整 node_modules 以保证 `prisma migrate deploy` 可用。
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY package*.json ./
+COPY prisma ./prisma
 EXPOSE 3000
 # 启动时执行迁移并启动服务
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
