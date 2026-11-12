@@ -14,34 +14,60 @@ const METHODS = [
   { label: '自定义', value: 'custom' },
 ];
 
-/** 前端预览计算（等额本息/本金/先息后本），与后端一致 */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/** 与后端 repaymentDate 一致的到期日计算（UTC，避免本地时区偏移） */
+function dueDateOf(startDate: string, monthOffset: number, day: number): string {
+  const [y, m] = startDate.split('-').map(Number);
+  const first = new Date(Date.UTC(y, m - 1 + monthOffset, 1));
+  const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  const actualDay = Math.min(day, lastDay);
+  const d = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), actualDay));
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${mm}-${dd}`;
+}
+
+/** 前端预览计算（等额本息/本金/先息后本），金额按后端 round2 对齐，并附带每期到期日 */
 function calcPlan(params: {
   principal: number;
   annualRate: number;
   termMonths: number;
+  repaymentDay: number;
+  startDate: string;
   method: string;
 }) {
-  const { principal, annualRate, termMonths, method } = params;
+  const { principal, annualRate, termMonths, repaymentDay, startDate, method } = params;
   const r = annualRate / 100 / 12;
-  const list: { principal: number; interest: number; total: number }[] = [];
+  const list: { dueDate: string; principal: number; interest: number; total: number }[] = [];
+  const push = (i: number, principal: number, interest: number) => {
+    list.push({
+      dueDate: dueDateOf(startDate, i + 1, repaymentDay),
+      principal: round2(principal),
+      interest: round2(interest),
+      total: round2(principal + interest),
+    });
+  };
   if (method === 'equal_principal') {
     const mp = principal / termMonths;
     let remain = principal;
     for (let i = 0; i < termMonths; i++) {
       const interest = remain * r;
-      list.push({ principal: mp, interest, total: mp + interest });
+      push(i, mp, interest);
       remain -= mp;
     }
   } else if (method === 'interest_first') {
     const mi = principal * r;
     for (let i = 0; i < termMonths; i++) {
       const principalPart = i === termMonths - 1 ? principal : 0;
-      list.push({ principal: principalPart, interest: mi, total: mi + principalPart });
+      push(i, principalPart, mi);
     }
   } else {
     if (r === 0) {
       const mp = principal / termMonths;
-      for (let i = 0; i < termMonths; i++) list.push({ principal: mp, interest: 0, total: mp });
+      for (let i = 0; i < termMonths; i++) push(i, mp, 0);
     } else {
       const f = Math.pow(1 + r, termMonths);
       const monthly = (principal * r * f) / (f - 1);
@@ -50,7 +76,7 @@ function calcPlan(params: {
         const interest = remain * r;
         let p = monthly - interest;
         if (i === termMonths - 1) p = remain;
-        list.push({ principal: p, interest, total: p + interest });
+        push(i, p, interest);
         remain -= p;
       }
     }
@@ -155,10 +181,17 @@ export default function LoanForm() {
     const annualRate = Number(form.annualRate);
     const termMonths = Number(form.termMonths);
     if (!principal || !termMonths) return null;
-    // 自定义方式也显示预览：按等额本息生成默认计划（与后端一致）
+    // 自定义也按等额本息规则生成到期日（金额创建后填写，预览不显示假金额）
     const method = form.method === 'custom' ? 'equal_installment' : form.method;
-    return calcPlan({ principal, annualRate, termMonths, method });
-  }, [form.principal, form.annualRate, form.termMonths, form.method]);
+    return calcPlan({
+      principal,
+      annualRate,
+      termMonths,
+      repaymentDay: Number(form.repaymentDay),
+      startDate: form.startDate,
+      method,
+    });
+  }, [form.principal, form.annualRate, form.termMonths, form.repaymentDay, form.startDate, form.method]);
 
   const totalRepay = plan?.reduce((s, p) => s + p.total, 0) ?? 0;
   const totalInterest = plan?.reduce((s, p) => s + p.interest, 0) ?? 0;
@@ -304,7 +337,7 @@ export default function LoanForm() {
         )}
         {isCustom && !isEdit && (
           <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
-            将按等额本息自动生成默认还款计划，创建后可在贷款详情中编辑每期金额和日期
+            到期日将按等额本息规则自动生成，创建后可在贷款详情中填写每期金额和日期
           </div>
         )}
 
@@ -320,29 +353,41 @@ export default function LoanForm() {
         {plan && (
           <div style={{ background: '#f5f6f8', borderRadius: 12, padding: 16, marginTop: 16 }}>
             <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
-              {isCustom ? '默认还款计划预览（按等额本息生成，创建后可编辑）' : '还款计划预览'}
+              {isCustom
+                ? `还款计划（共 ${plan.length} 期，金额创建后填写）`
+                : '还款计划预览'}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div>
-                <div className="text-secondary" style={{ fontSize: 12 }}>还款总额</div>
-                <div style={{ fontSize: 20, fontWeight: 700 }}>¥{formatMoney(totalRepay)}</div>
+            {!isCustom && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <div className="text-secondary" style={{ fontSize: 12 }}>还款总额</div>
+                  <div style={{ fontSize: 20, fontWeight: 700 }}>¥{formatMoney(totalRepay)}</div>
+                </div>
+                <div>
+                  <div className="text-secondary" style={{ fontSize: 12 }}>总利息</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#faad14' }}>¥{formatMoney(totalInterest)}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-secondary" style={{ fontSize: 12 }}>总利息</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#faad14' }}>¥{formatMoney(totalInterest)}</div>
-              </div>
+            )}
+            <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+              {plan.map((p, i) => (
+                <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid #eee' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <span>第{i + 1}期</span>
+                    <span className="text-secondary">{p.dueDate}</span>
+                  </div>
+                  {isCustom ? (
+                    <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>金额待填写</div>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2, color: '#666' }}>
+                      <span>本金 ¥{formatMoney(p.principal)}</span>
+                      <span>利息 ¥{formatMoney(p.interest)}</span>
+                      <span style={{ fontWeight: 600, color: '#1a1a1a' }}>¥{formatMoney(p.total)}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="text-secondary" style={{ fontSize: 12, marginBottom: 4 }}>
-              前 {Math.min(plan.length, 5)} 期预览
-            </div>
-            {plan.slice(0, 5).map((p, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderBottom: '1px solid #eee' }}>
-                <span>第{i + 1}期</span>
-                <span>本金 ¥{formatMoney(p.principal)}</span>
-                <span>利息 ¥{formatMoney(p.interest)}</span>
-                <span style={{ fontWeight: 600 }}>¥{formatMoney(p.total)}</span>
-              </div>
-            ))}
           </div>
         )}
       </div>
