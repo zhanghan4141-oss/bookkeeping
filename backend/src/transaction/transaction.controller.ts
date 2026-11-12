@@ -14,6 +14,7 @@ import type { AuthUser } from '../common/decorators/current-user.decorator.js';
 import {
   CreateTransactionDto,
   QueryTransactionDto,
+  RemoveManyTransactionDto,
   UpdateTransactionDto,
 } from './dto/transaction.dto.js';
 import { TransactionService } from './transaction.service.js';
@@ -60,5 +61,17 @@ export class TransactionController {
     const tx = await this.transactionService.findOne(id);
     await this.access.assertWritable(tx.ledgerId, user.id);
     return this.transactionService.remove(id);
+  }
+
+  @Delete('transactions')
+  async removeMany(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RemoveManyTransactionDto,
+  ) {
+    const ledgerIds = await this.transactionService.findLedgerIds(dto.ids);
+    for (const ledgerId of ledgerIds) {
+      await this.access.assertWritable(ledgerId, user.id);
+    }
+    return this.transactionService.removeMany(dto.ids);
   }
 }

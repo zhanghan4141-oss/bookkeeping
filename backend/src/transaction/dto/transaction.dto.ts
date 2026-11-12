@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsDateString,
   IsIn,
   IsNotEmpty,
@@ -22,7 +23,7 @@ export class CreateTransactionDto {
   type!: 'expense' | 'income' | 'transfer';
 
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0.01, { message: '金额必须大于 0' })
+  @Min(0, { message: '金额不能为负' })
   @Type(() => Number)
   amount!: number;
 
@@ -45,7 +46,7 @@ export class UpdateTransactionDto {
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0.01)
+  @Min(0)
   @Type(() => Number)
   amount?: number;
 
@@ -65,6 +66,10 @@ export class QueryTransactionDto {
 
   @IsOptional()
   @IsString()
+  year?: string; // YYYY
+
+  @IsOptional()
+  @IsString()
   categoryId?: string;
 
   @IsOptional()
@@ -74,4 +79,10 @@ export class QueryTransactionDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+}
+
+export class RemoveManyTransactionDto {
+  @IsArray()
+  @IsString({ each: true })
+  ids!: string[];
 }

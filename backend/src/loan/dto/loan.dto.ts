@@ -34,7 +34,7 @@ export class CreateLoanDto {
   direction?: 'borrow' | 'lend';
 
   @IsNumber()
-  @Min(0.01)
+  @Min(0)
   @Type(() => Number)
   principal!: number;
 
@@ -84,7 +84,7 @@ export class UpdateLoanDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(0.01)
+  @Min(0)
   @Type(() => Number)
   principal?: number;
 
@@ -134,7 +134,7 @@ export class UpdateLoanDto {
 
 export class PayRepaymentDto {
   @IsNumber()
-  @Min(0.01)
+  @Min(0)
   @Type(() => Number)
   amount!: number; // 本次还款金额
 
@@ -145,7 +145,7 @@ export class PayRepaymentDto {
 
 export class PrepayDto {
   @IsNumber()
-  @Min(0.01)
+  @Min(0)
   @Type(() => Number)
   amount!: number; // 提前还的本金金额
 

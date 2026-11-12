@@ -19,6 +19,10 @@ export class TransactionService {
       const end = new Date(start);
       end.setMonth(end.getMonth() + 1);
       where.occurredAt = { gte: start, lt: end };
+    } else if (query.year) {
+      const start = new Date(`${query.year}-01-01T00:00:00`);
+      const end = new Date(`${Number(query.year) + 1}-01-01T00:00:00`);
+      where.occurredAt = { gte: start, lt: end };
     }
     if (query.categoryId) where.categoryId = query.categoryId;
     if (query.type) where.type = query.type;
@@ -89,6 +93,20 @@ export class TransactionService {
 
   async remove(id: string) {
     await this.prisma.transaction.delete({ where: { id } });
+    return { success: true };
+  }
+
+  async findLedgerIds(ids: string[]): Promise<string[]> {
+    const txs = await this.prisma.transaction.findMany({
+      where: { id: { in: ids } },
+      select: { ledgerId: true },
+    });
+    return [...new Set(txs.map((t) => t.ledgerId))];
+  }
+
+  async removeMany(ids: string[]) {
+    if (!ids?.length) return { success: true };
+    await this.prisma.transaction.deleteMany({ where: { id: { in: ids } } });
     return { success: true };
   }
 }
