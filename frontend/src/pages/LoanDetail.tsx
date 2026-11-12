@@ -28,7 +28,9 @@ export default function LoanDetail() {
   const [prepayMode, setPrepayMode] = useState<'reduce_payment' | 'reduce_term'>('reduce_payment');
   // 编辑还款计划状态
   const [editingPlan, setEditingPlan] = useState(false);
-  const [editPeriods, setEditPeriods] = useState<{ dueDate: string; totalAmount: string }[]>([]);
+  const [editPeriods, setEditPeriods] = useState<
+    { kind: 'period' | 'prepay'; dueDate: string; totalAmount: string }[]
+  >([]);
 
   const { data: loan } = useQuery({
     queryKey: ['loan', id],
@@ -156,6 +158,7 @@ export default function LoanDetail() {
     const doStart = () => {
       setEditPeriods(
         loan.repayments.map((r) => ({
+          kind: r.kind,
           dueDate: r.dueDate.slice(0, 10),
           totalAmount: r.totalAmount,
         })),
@@ -173,8 +176,8 @@ export default function LoanDetail() {
   };
 
   const saveEditPlan = async () => {
-    // 校验
-    if (editPeriods.length !== loan?.termMonths) {
+    // 校验（仅统计普通各期，提前还款条目不计入期数）
+    if (editPeriods.filter((p) => p.kind === 'period').length !== loan?.termMonths) {
       Toast.show({ content: '期数不匹配' });
       return;
     }
@@ -185,7 +188,7 @@ export default function LoanDetail() {
     try {
       await loanApi.updateRepayments(
         id,
-        editPeriods.map((p) => ({ dueDate: p.dueDate, totalAmount: Number(p.totalAmount) })),
+        editPeriods.map((p) => ({ kind: p.kind, dueDate: p.dueDate, totalAmount: Number(p.totalAmount) })),
       );
       Toast.show({ content: '已保存' });
       setEditingPlan(false);
@@ -282,8 +285,8 @@ export default function LoanDetail() {
               const isPaid = orig && Number(orig.paidAmount) > 0;
               return (
                 <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ width: 50, fontSize: 13, color: '#666' }}>
-                    第{i + 1}期{isPaid ? '✓' : ''}
+                  <span style={{ width: 56, fontSize: 13, color: p.kind === 'prepay' ? '#52c41a' : '#666' }}>
+                    {p.kind === 'prepay' ? '提前还款' : `第${i + 1}期${isPaid ? '✓' : ''}`}
                   </span>
                   <div style={{ flex: 1 }}>
                     <DatePicker

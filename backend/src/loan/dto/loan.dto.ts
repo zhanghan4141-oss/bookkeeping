@@ -13,6 +13,10 @@ import {
 } from 'class-validator';
 
 class CustomPeriodDto {
+  @IsOptional()
+  @IsIn(['period', 'prepay'])
+  kind?: 'period' | 'prepay';
+
   @IsDateString()
   dueDate!: string;
 

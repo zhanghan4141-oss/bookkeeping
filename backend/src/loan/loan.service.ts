@@ -123,28 +123,34 @@ export class LoanService {
       throw new BadRequestException('仅自定义还款方式可编辑还款计划');
     }
 
-    const customPeriods = this.toCustomPeriodDates(dto.customPeriods);
-    if (!customPeriods || customPeriods.length !== loan.termMonths) {
+    const entries = dto.customPeriods.map((c) => ({
+      kind: c.kind ?? 'period',
+      dueDate: new Date(c.dueDate),
+      totalAmount: c.totalAmount,
+    }));
+    const periodEntries = entries.filter((e) => e.kind === 'period');
+    if (periodEntries.length !== loan.termMonths) {
       throw new BadRequestException(
         `还款计划期数不匹配：需要 ${loan.termMonths} 期`,
       );
     }
+    const prepayEntries = entries.filter((e) => e.kind === 'prepay');
 
-    // 保留已还期的状态映射
+    // 保留已还期的状态映射（仅 period）
     const paidMap = new Map(
       loan.repayments
-        .filter((r) => Number(r.paidAmount) > 0)
+        .filter((r) => r.kind === 'period' && Number(r.paidAmount) > 0)
         .map((r) => [r.periodNo, r]),
     );
 
     await this.prisma.$transaction(async (tx) => {
-      // 删除旧流水 + 旧计划
+      // 删除旧流水 + 旧计划（period 与 prepay 一并重建）
       await tx.transaction.deleteMany({ where: { loanId } });
       await tx.loanRepayment.deleteMany({ where: { loanId } });
 
-      // 重建计划（保留已还期状态）
+      // 重建各期（保留已还期状态）
       await tx.loanRepayment.createMany({
-        data: customPeriods.map((p, i) => {
+        data: periodEntries.map((p, i) => {
           const periodNo = i + 1;
           const paid = paidMap.get(periodNo);
           const totalAmount = p.totalAmount;
@@ -172,7 +178,26 @@ export class LoanService {
         }),
       });
 
-      // 写新流水（放款收入 + 每期还款总额）
+      // 重建提前还款条目（视为已还，paidAmount 跟随金额）
+      if (prepayEntries.length > 0) {
+        await tx.loanRepayment.createMany({
+          data: prepayEntries.map((p, i) => ({
+            loanId,
+            periodNo: 10000 + i + 1,
+            kind: 'prepay',
+            dueDate: p.dueDate,
+            principalAmount: new Prisma.Decimal(0),
+            interestAmount: new Prisma.Decimal(0),
+            totalAmount: new Prisma.Decimal(p.totalAmount),
+            paidAmount: new Prisma.Decimal(p.totalAmount),
+            status: 'paid',
+            paidDate: p.dueDate,
+            note: '提前还款',
+          })),
+        });
+      }
+
+      // 写流水：放款收入 + 每期还款总额
       await this.writeLoanTransactions(
         userId,
         loanId,
@@ -180,7 +205,7 @@ export class LoanService {
         {
           principal: Number(loan.principal),
           startDate: loan.startDate,
-          plan: customPeriods.map((p, i) => ({
+          plan: periodEntries.map((p, i) => ({
             periodNo: i + 1,
             dueDate: p.dueDate,
             principalAmount: 0,
@@ -190,6 +215,32 @@ export class LoanService {
         },
         tx,
       );
+
+      // 写提前还款流水
+      if (prepayEntries.length > 0) {
+        const principalCategory = await this.findOrCreateCategory(
+          tx,
+          loan.ledgerId,
+          '还款本金',
+          'expense',
+        );
+        if (principalCategory) {
+          for (const p of prepayEntries) {
+            await tx.transaction.create({
+              data: {
+                ledgerId: loan.ledgerId,
+                categoryId: principalCategory.id,
+                userId,
+                type: 'expense',
+                amount: new Prisma.Decimal(p.totalAmount),
+                note: `${loan.name} 提前还款`,
+                occurredAt: p.dueDate,
+                loanId,
+              },
+            });
+          }
+        }
+      }
     });
 
     return this.findOne(loanId);
