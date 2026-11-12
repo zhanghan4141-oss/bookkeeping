@@ -197,8 +197,11 @@ export class LoanService {
 
   /**
    * 提前还款：
-   * - amount < 剩余本金：部分提前还本金，重算剩余计划（期数不变、每期金额变小）
+   * - amount < 剩余本金：部分提前还本金，重算剩余计划
+   *   · mode=reduce_payment（默认）：期数不变、每期金额变小
+   *   · mode=reduce_term：等额本息保持月供不变 / 等额本金保持每期本金不变，期数缩短
    * - amount >= 剩余本金：提前结清，删除剩余计划，贷款标记还清
+   * - 两种情况都会按天收取「截至还款日的当期已产生利息」
    */
   async prepay(userId: string, loanId: string, dto: PrepayDto) {
     const loan = await this.prisma.loan.findUnique({
@@ -224,6 +227,27 @@ export class LoanService {
       return s + Number(r.principalAmount) * (1 - paidRatio);
     }, 0);
 
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    // 当期已产生利息：从上一个到期日（或起息日）到提前还款日，按天单利计息。
+    // 结清/提前还款时一并收取，避免把已产生的利息凭空抹掉。
+    let accruedInterest = 0;
+    if (loan.repaymentMethod !== 'custom' && remaining.length > 0) {
+      const nextDue = remaining[0].dueDate;
+      const prev = loan.repayments.find(
+        (r) => r.kind === 'period' && r.periodNo === remaining[0].periodNo - 1,
+      );
+      const prevDue = prev ? prev.dueDate : loan.startDate;
+      const days = Math.floor(
+        (prepayDate.getTime() - prevDue.getTime()) / (24 * 60 * 60 * 1000),
+      );
+      if (days > 0) {
+        accruedInterest = round2(
+          remainingPrincipal * (Number(loan.annualRate) / 100) * (days / 365),
+        );
+      }
+    }
+
     const prepayAmount = dto.amount;
     const isFullSettlement = prepayAmount >= remainingPrincipal - 0.005;
     const remainingDueDates = remaining.map((r) => r.dueDate);
@@ -248,7 +272,7 @@ export class LoanService {
             periodNo: { in: remaining.map((r) => r.periodNo) },
           },
         });
-        // 3. 提前结清流水（本金支出）
+        // 3. 提前结清流水（本金 + 当期已产生利息）
         const principalCategory = await this.findOrCreateCategory(
           tx,
           loan.ledgerId,
@@ -269,7 +293,29 @@ export class LoanService {
             },
           });
         }
-        // 4. 提前结清也加入还款计划（还多少记多少）
+        if (accruedInterest > 0) {
+          const interestCategory = await this.findOrCreateCategory(
+            tx,
+            loan.ledgerId,
+            '还款利息',
+            'expense',
+          );
+          if (interestCategory) {
+            await tx.transaction.create({
+              data: {
+                ledgerId: loan.ledgerId,
+                categoryId: interestCategory.id,
+                userId,
+                type: 'expense',
+                amount: new Prisma.Decimal(accruedInterest),
+                note: `${loan.name} 提前结清利息`,
+                occurredAt: prepayDate,
+                loanId,
+              },
+            });
+          }
+        }
+        // 4. 提前结清也加入还款计划（还多少记多少：本金 + 当期利息）
         await tx.loanRepayment.create({
           data: {
             loanId,
@@ -277,9 +323,9 @@ export class LoanService {
             kind: 'prepay',
             dueDate: prepayDate,
             principalAmount: new Prisma.Decimal(remainingPrincipal),
-            interestAmount: new Prisma.Decimal(0),
-            totalAmount: new Prisma.Decimal(remainingPrincipal),
-            paidAmount: new Prisma.Decimal(remainingPrincipal),
+            interestAmount: new Prisma.Decimal(accruedInterest),
+            totalAmount: new Prisma.Decimal(round2(remainingPrincipal + accruedInterest)),
+            paidAmount: new Prisma.Decimal(round2(remainingPrincipal + accruedInterest)),
             status: 'paid',
             paidDate: prepayDate,
             note: '提前结清',
@@ -296,17 +342,44 @@ export class LoanService {
       // ===== 部分提前还本金 =====
       const newPrincipal = Math.round((remainingPrincipal - prepayAmount) * 100) / 100;
       const remainTermMonths = remaining.length;
+      const method = loan.repaymentMethod;
+      const mode: 'reduce_term' | 'reduce_payment' = dto.mode ?? 'reduce_payment';
 
-      // 重新生成剩余期数的还款计划（保持原到期日不变）
+      // 重新生成剩余还款计划：
+      // - 降低月供（默认）：期数不变、每期金额变小
+      // - 缩短期限：等额本息保持月供不变、等额本金保持每期本金不变，期数减少
+      const shortenTerm =
+        mode === 'reduce_term' &&
+        (method === 'equal_installment' || method === 'equal_principal');
+      const newTerm = shortenTerm
+        ? this.reducedTermMonths(loan, remaining, newPrincipal)
+        : remainTermMonths;
+
       const newPlan = generateRepaymentPlan({
         principal: newPrincipal,
         annualRate: Number(loan.annualRate),
         startDate: remaining[0].dueDate,
-        termMonths: remainTermMonths,
+        termMonths: newTerm,
         repaymentDay: loan.repaymentDay,
-        method: loan.repaymentMethod as RepaymentMethod,
-        dueDates: remaining.map((r) => r.dueDate),
+        method: method as RepaymentMethod,
+        dueDates: remaining.slice(0, newTerm).map((r) => r.dueDate),
       });
+
+      // 首期只覆盖 [提前还款日, 下个到期日]，按天重算首期利息，避免与上面已收的当期利息重复计息
+      if (method !== 'custom' && newPlan.length > 0) {
+        const daysToNext = Math.max(
+          1,
+          Math.round(
+            (remaining[0].dueDate.getTime() - prepayDate.getTime()) /
+              (24 * 60 * 60 * 1000),
+          ),
+        );
+        const firstInterest = round2(
+          newPrincipal * (Number(loan.annualRate) / 100) * (daysToNext / 365),
+        );
+        newPlan[0].interestAmount = firstInterest;
+        newPlan[0].totalAmount = round2(newPlan[0].principalAmount + firstInterest);
+      }
 
       // 1. 删除剩余期的流水（按到期日精确匹配，保留已还期的流水）
       await tx.transaction.deleteMany({
@@ -363,7 +436,7 @@ export class LoanService {
         tx,
       );
 
-      // 5. 提前还款本身也记一笔流水（本金支出）
+      // 5. 提前还款本身也记流水（本金 + 当期已产生利息）
       const principalCategory = await this.findOrCreateCategory(
         tx,
         loan.ledgerId,
@@ -384,8 +457,30 @@ export class LoanService {
           },
         });
       }
+      if (accruedInterest > 0) {
+        const interestCategory = await this.findOrCreateCategory(
+          tx,
+          loan.ledgerId,
+          '还款利息',
+          'expense',
+        );
+        if (interestCategory) {
+          await tx.transaction.create({
+            data: {
+              ledgerId: loan.ledgerId,
+              categoryId: interestCategory.id,
+              userId,
+              type: 'expense',
+              amount: new Prisma.Decimal(accruedInterest),
+              note: `${loan.name} 提前还款利息`,
+              occurredAt: prepayDate,
+              loanId,
+            },
+          });
+        }
+      }
 
-      // 6. 提前还款也加入还款计划（还多少记多少）
+      // 6. 提前还款也加入还款计划（还多少记多少：本金 + 当期利息）
       await tx.loanRepayment.create({
         data: {
           loanId,
@@ -393,9 +488,9 @@ export class LoanService {
           kind: 'prepay',
           dueDate: prepayDate,
           principalAmount: new Prisma.Decimal(prepayAmount),
-          interestAmount: new Prisma.Decimal(0),
-          totalAmount: new Prisma.Decimal(prepayAmount),
-          paidAmount: new Prisma.Decimal(prepayAmount),
+          interestAmount: new Prisma.Decimal(accruedInterest),
+          totalAmount: new Prisma.Decimal(round2(prepayAmount + accruedInterest)),
+          paidAmount: new Prisma.Decimal(round2(prepayAmount + accruedInterest)),
           status: 'paid',
           paidDate: prepayDate,
           note: '提前还款',
@@ -404,6 +499,33 @@ export class LoanService {
     });
 
     return this.findOne(loanId);
+  }
+
+  /** 计算「缩短期限」后的剩余期数：等额本息保持月供不变、等额本金保持每期本金不变，期数缩短 */
+  private reducedTermMonths(
+    loan: { annualRate: Prisma.Decimal; repaymentMethod: string },
+    remaining: { principalAmount: Prisma.Decimal; totalAmount: Prisma.Decimal }[],
+    newPrincipal: number,
+  ): number {
+    const total = remaining.length;
+    if (total <= 1) return total;
+    if (loan.repaymentMethod === 'equal_principal') {
+      const perPeriod = Number(remaining[0].principalAmount);
+      if (perPeriod <= 0) return total;
+      return Math.max(1, Math.min(total, Math.ceil(newPrincipal / perPeriod)));
+    }
+    // 等额本息：M = 当前月供，n 满足 newPrincipal = M·(1-(1+r)^-n)/r
+    const M = Number(remaining[0].totalAmount);
+    const r = Number(loan.annualRate) / 100 / 12;
+    if (M <= 0) return total;
+    if (r === 0) {
+      return Math.max(1, Math.min(total, Math.ceil(newPrincipal / M)));
+    }
+    const x = 1 - (newPrincipal * r) / M;
+    if (x <= 0) return total;
+    const n = -Math.log(x) / Math.log(1 + r);
+    if (!Number.isFinite(n) || n <= 0) return total;
+    return Math.max(1, Math.min(total, Math.ceil(n)));
   }
 
   /**

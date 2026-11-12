@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, DatePicker, Dialog, Input, List, NavBar, Popup, Toast } from 'antd-mobile';
+import { Button, DatePicker, Dialog, Input, List, NavBar, Popup, Radio, Toast } from 'antd-mobile';
 import { loanApi } from '../api/loan';
 import { ledgerApi } from '../api/ledger';
 import { invalidateFinancialData } from '../lib/invalidate';
@@ -25,6 +25,7 @@ export default function LoanDetail() {
   const [showPrepay, setShowPrepay] = useState(false);
   const [prepayAmount, setPrepayAmount] = useState('');
   const [prepayDate, setPrepayDate] = useState(() => formatDate(new Date()));
+  const [prepayMode, setPrepayMode] = useState<'reduce_payment' | 'reduce_term'>('reduce_payment');
   // 编辑还款计划状态
   const [editingPlan, setEditingPlan] = useState(false);
   const [editPeriods, setEditPeriods] = useState<{ dueDate: string; totalAmount: string }[]>([]);
@@ -40,6 +41,38 @@ export default function LoanDetail() {
     enabled: !!loan?.ledgerId,
   });
   const isViewer = ledger?.role === 'viewer';
+
+  // 提前还款的当期利息预估（按天单利，仅供展示；以后端实际为准）
+  const prepayEstimate = useMemo(() => {
+    if (!loan || loan.repaymentMethod === 'custom') return null;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const pd = new Date(prepayDate);
+    const next = loan.repayments.find(
+      (r) => r.kind === 'period' && r.status !== 'paid' && new Date(r.dueDate) > pd,
+    );
+    if (!next) return null;
+    const prev = loan.repayments.find(
+      (r) => r.kind === 'period' && r.periodNo === next.periodNo - 1,
+    );
+    const prevDue = prev ? new Date(prev.dueDate) : new Date(loan.startDate);
+    const days = Math.floor((pd.getTime() - prevDue.getTime()) / dayMs);
+    if (days <= 0) return { interest: 0, total: 0, isFull: false };
+    const base = Number(loan.remainingPrincipal ?? 0);
+    const interest =
+      Math.round(base * (Number(loan.annualRate) / 100) * (days / 365) * 100) / 100;
+    const amount = Number(prepayAmount) || 0;
+    const isFull = amount >= base - 0.005;
+    const principal = isFull ? base : amount;
+    return {
+      interest,
+      total: Math.round((principal + interest) * 100) / 100,
+      isFull,
+    };
+  }, [loan, prepayDate, prepayAmount]);
+
+  const showPrepayMode =
+    loan?.repaymentMethod === 'equal_installment' ||
+    loan?.repaymentMethod === 'equal_principal';
 
   const handlePay = async () => {
     if (!paying) return;
@@ -105,7 +138,7 @@ export default function LoanDetail() {
       return;
     }
     try {
-      await loanApi.prepay(id, { amount, prepayDate });
+      await loanApi.prepay(id, { amount, prepayDate, mode: prepayMode });
       Toast.show({ content: '已提前还款' });
       setShowPrepay(false);
       setPrepayAmount('');
@@ -216,7 +249,7 @@ export default function LoanDetail() {
             </div>
           </div>
           <div className="text-secondary" style={{ fontSize: 13 }}>
-            {loan.direction === 'lend' ? '我借入（应还）' : '我借出（应收）'} · 每月 {loan.repaymentDay} 号还款 ·{' '}
+            贷款日期 {loan.startDate.slice(0, 10)} · 每月 {loan.repaymentDay} 号还款 ·{' '}
             {loan.repaymentMethod === 'equal_installment' ? '等额本息' : loan.repaymentMethod === 'equal_principal' ? '等额本金' : loan.repaymentMethod === 'interest_first' ? '先息后本' : '自定义'}
           </div>
           <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -424,8 +457,35 @@ export default function LoanDetail() {
               style={{ fontSize: 20 }}
             />
           </div>
+          {showPrepayMode && (
+            <div style={{ marginBottom: 16 }}>
+              <div className="text-secondary" style={{ fontSize: 13, marginBottom: 8 }}>提前还款方式</div>
+              <Radio.Group
+                value={prepayMode}
+                onChange={(v) => setPrepayMode(v as 'reduce_payment' | 'reduce_term')}
+              >
+                <Radio value="reduce_payment" style={{ marginRight: 20 }}>降低月供</Radio>
+                <Radio value="reduce_term">缩短期限</Radio>
+              </Radio.Group>
+              <div className="text-secondary" style={{ fontSize: 12, marginTop: 6 }}>
+                {prepayMode === 'reduce_term'
+                  ? '每月还款额不变，还款期数减少，节省利息更多'
+                  : '还款期数不变，每期还款额降低'}
+              </div>
+            </div>
+          )}
           <div className="text-secondary" style={{ fontSize: 12, marginBottom: 16 }}>
-            小于剩余本金时重算后续每期金额；等于或大于剩余本金时提前结清贷款
+            小于剩余本金时重算后续计划；等于或大于剩余本金时提前结清。
+            提前还款将按天收取截至还款日的当期利息
+            {prepayEstimate && prepayEstimate.interest > 0 && (
+              <>（约 ¥{formatMoney(prepayEstimate.interest)}）</>
+            )}
+            {prepayEstimate && prepayEstimate.interest > 0 && (
+              <span style={{ color: '#1677ff', fontWeight: 600 }}>
+                ，本次合计约 ¥{formatMoney(prepayEstimate.total)}
+                {prepayEstimate.isFull ? '（含结清）' : ''}
+              </span>
+            )}
           </div>
           <Button block color="primary" onClick={handlePrepay}>确认提前还款</Button>
         </div>

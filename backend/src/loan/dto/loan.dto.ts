@@ -151,6 +151,10 @@ export class PrepayDto {
 
   @IsDateString()
   prepayDate!: string; // 提前还款日期
+
+  @IsOptional()
+  @IsIn(['reduce_term', 'reduce_payment'])
+  mode?: 'reduce_term' | 'reduce_payment'; // 部分提前还款方式：缩短期限 / 降低月供（默认降低月供）
 }
 
 export class UpdateRepaymentsDto {
