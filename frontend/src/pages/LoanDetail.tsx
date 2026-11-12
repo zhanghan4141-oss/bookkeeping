@@ -286,6 +286,23 @@ export default function LoanDetail() {
           </div>
         ) : (
           <List style={{ borderRadius: 12, overflow: 'hidden' }}>
+            {/* 放款收款（第一笔） */}
+            <List.Item
+              key="disburse"
+              description={
+                <div style={{ fontSize: 12, marginTop: 2 }}>
+                  放款收款
+                  <span style={{ marginLeft: 8 }}>{loan.startDate.slice(0, 10)}</span>
+                </div>
+              }
+              extra={
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 600, color: '#52c41a' }}>+¥{formatMoney(Number(loan.principal))}</div>
+                </div>
+              }
+            >
+              放款
+            </List.Item>
             {loan.repayments.map((r) => {
               if (r.kind === 'prepay') {
                 return (

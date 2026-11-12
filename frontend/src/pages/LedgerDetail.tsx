@@ -141,6 +141,12 @@ export default function LedgerDetail() {
     });
   }, [transactions, keyword, searchField]);
 
+  // 可删除的流水（贷款流水不可删，批量删除时排除）
+  const deletableFiltered = useMemo(
+    () => filtered.filter((t) => !t.loanId),
+    [filtered],
+  );
+
   const groups = useMemo(() => {
     if (period === 'month') return groupByDate(filtered);
     return groupByMonth(filtered);
@@ -327,10 +333,10 @@ export default function LedgerDetail() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === filtered.length) {
+    if (selectedIds.size === deletableFiltered.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered.map((t) => t.id)));
+      setSelectedIds(new Set(deletableFiltered.map((t) => t.id)));
     }
   };
 
@@ -528,7 +534,7 @@ export default function LedgerDetail() {
                 <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedIds.size} 条</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAll}>
-                    {selectedIds.size === filtered.length ? '取消全选' : '全选'}
+                    {selectedIds.size === deletableFiltered.length ? '取消全选' : '全选'}
                   </Button>
                   <Button size="mini" color="danger" onClick={handleBatchDelete} disabled={selectedIds.size === 0}>
                     删除选中
@@ -536,33 +542,47 @@ export default function LedgerDetail() {
                 </div>
               </div>
             )}
-            {filtered.map((t) => (
-              <div key={t.id} style={{ background: '#fff', marginBottom: 8, borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center' }}>
-                {!isViewer && (
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(t.id)}
-                    onChange={() => toggleSelect(t.id)}
-                    style={{ marginRight: 10, width: 18, height: 18 }}
-                  />
-                )}
-                <span style={{ fontSize: 22, marginRight: 10 }}>
-                  {t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15 }}>
-                    {t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}
+            {filtered.map((t) => {
+              const isLoanTx = !!t.loanId;
+              return (
+                <div key={t.id} style={{ background: isLoanTx ? '#fafafa' : '#fff', marginBottom: 8, borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center' }}>
+                  {!isViewer && !isLoanTx && (
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(t.id)}
+                      onChange={() => toggleSelect(t.id)}
+                      style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
+                    />
+                  )}
+                  {!isViewer && isLoanTx && (
+                    <span style={{ marginRight: 10, width: 18, flexShrink: 0 }} />
+                  )}
+                  <span style={{ fontSize: 22, marginRight: 10 }}>
+                    {t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15 }}>
+                      {t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                      {formatDateTime(new Date(t.occurredAt))}
+                      {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
+                      {isLoanTx && (
+                        <span
+                          onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }}
+                          style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}
+                        >
+                          〔{t.loan?.name ?? '贷款'}〕
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                    {formatDateTime(new Date(t.occurredAt))}
-                    {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
-                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
+                    {t.type === 'income' ? '+' : '-'}¥{fmt(t.amount)}
+                  </span>
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
-                  {t.type === 'income' ? '+' : '-'}¥{fmt(t.amount)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
             {filtered.length === 0 && (
               <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>无搜索结果</div>
             )}
@@ -610,7 +630,7 @@ export default function LedgerDetail() {
                       alignItems: 'center',
                       padding: '10px 12px',
                       borderBottom: '1px solid #fafafa',
-                      background: '#fff',
+                      background: isLoanTx ? '#fafafa' : '#fff',
                       cursor: isLoanTx || isViewer ? 'default' : 'pointer',
                     }}
                   >
@@ -625,7 +645,10 @@ export default function LedgerDetail() {
                         {formatDateTime(new Date(t.occurredAt))}
                         {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
                         {isLoanTx && (
-                          <span style={{ marginLeft: 6, color: '#1677ff' }}>
+                          <span
+                            onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }}
+                            style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}
+                          >
                             〔{t.loan?.name ?? '贷款'}〕
                           </span>
                         )}
@@ -637,26 +660,38 @@ export default function LedgerDetail() {
                   </div>
                 );
 
-                // 贷款流水只读，不可左滑操作；viewer 也只读
-                if (isLoanTx || isViewer) return content;
+                // viewer：所有流水只读
+                if (isViewer) return content;
 
+                // 贷款流水：可复制、不可删除；普通流水：复制 + 删除
                 return (
                   <SwipeAction
                     key={t.id}
-                    rightActions={[
-                      {
-                        key: 'copy',
-                        text: '复制',
-                        color: 'primary',
-                        onClick: () => handleCopy(t),
-                      },
-                      {
-                        key: 'delete',
-                        text: '删除',
-                        color: 'danger',
-                        onClick: () => handleDelete(t),
-                      },
-                    ]}
+                    rightActions={
+                      isLoanTx
+                        ? [
+                            {
+                              key: 'copy',
+                              text: '复制',
+                              color: 'primary',
+                              onClick: () => handleCopy(t),
+                            },
+                          ]
+                        : [
+                            {
+                              key: 'copy',
+                              text: '复制',
+                              color: 'primary',
+                              onClick: () => handleCopy(t),
+                            },
+                            {
+                              key: 'delete',
+                              text: '删除',
+                              color: 'danger',
+                              onClick: () => handleDelete(t),
+                            },
+                          ]
+                    }
                   >
                     {content}
                   </SwipeAction>
