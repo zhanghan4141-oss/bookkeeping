@@ -714,6 +714,7 @@ export class LoanService {
   private withDerived(loan: {
     principal: Prisma.Decimal;
     startDate: Date;
+    repaymentMethod: string;
     repayments: {
       kind: string;
       status: string;
@@ -735,17 +736,26 @@ export class LoanService {
 
     let remainingPrincipal = 0;
     let remainingInterest = 0;
+    let prepayTotal = 0;
     for (const r of loan.repayments) {
-      if (r.kind !== 'period' || r.status === 'paid') continue;
+      if (r.kind === 'prepay') {
+        prepayTotal += Number(r.totalAmount);
+        continue;
+      }
+      if (r.status === 'paid') continue;
       const ratio = Number(r.paidAmount) / Math.max(Number(r.totalAmount), 1);
       const remaining = 1 - ratio;
-      if (Number(r.principalAmount) === 0 && Number(r.interestAmount) === 0) {
-        // 自定义方式不区分本金利息：未还总额计入剩余本金，利息按 0
+      if (loan.repaymentMethod === 'custom') {
+        // 自定义：本息合并，未还总额计入剩余本金
         remainingPrincipal += Number(r.totalAmount) * remaining;
       } else {
         remainingPrincipal += Number(r.principalAmount) * remaining;
         remainingInterest += Number(r.interestAmount) * remaining;
       }
+    }
+    // 自定义：剩余未还本息 = 各期未还 − 提前还款（下限 0）
+    if (loan.repaymentMethod === 'custom') {
+      remainingPrincipal = Math.max(0, remainingPrincipal - prepayTotal);
     }
 
     return {
@@ -841,6 +851,17 @@ export class LoanService {
 
     await this.prisma.$transaction(async (tx) => {
       await tx.loan.update({ where: { id }, data });
+
+      // 非自定义 → 自定义：归一化计划（自定义不区分本金/利息，totalAmount 保持本息合计不变）
+      if (methodChanged && targetMethod === 'custom') {
+        await tx.loanRepayment.updateMany({
+          where: { loanId: id },
+          data: {
+            principalAmount: new Prisma.Decimal(0),
+            interestAmount: new Prisma.Decimal(0),
+          },
+        });
+      }
 
       if (termChanged) {
         const newTerm = dto.termMonths!;
