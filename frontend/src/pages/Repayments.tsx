@@ -1,12 +1,46 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { DatePicker, NavBar } from 'antd-mobile';
+import { Button, DatePicker, NavBar, Popup } from 'antd-mobile';
 import { repaymentApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
 import { useRepaymentLedgerSelection } from '../stores/repaymentLedgerSelection';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
 import type { Ledger } from '../types';
 import { formatDate, formatMoney } from '../lib/format';
+import { Lunar, LunarMonth, Solar } from 'lunar-javascript';
+
+/** 公历今年年底（12-31）→ YYYY-MM-DD */
+function solarYearEnd(): string {
+  const now = new Date();
+  return formatDate(new Date(now.getFullYear(), 11, 31));
+}
+
+/** 公历本月底（当月最后一天）→ YYYY-MM-DD */
+function monthEnd(): string {
+  const now = new Date();
+  // 日传 0 = 下月第 0 天，即本月最后一天
+  return formatDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+}
+
+/** 农历今年年底（腊月最后一天）→ YYYY-MM-DD */
+function lunarYearEnd(): string {
+  const now = new Date();
+  const lunarYear = Solar.fromDate(now).getLunar().getYear();
+  const dayCount = LunarMonth.fromYm(lunarYear, 12).getDayCount();
+  const solar = Lunar.fromYmd(lunarYear, 12, dayCount).getSolar();
+  return formatDate(new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay()));
+}
+
+/** 统计截止日期快捷预设 */
+const END_DATE_PRESETS = [
+  { key: 'monthend', label: '本月底' },
+  { key: '30', label: '30天后' },
+  { key: '60', label: '60天后' },
+  { key: '90', label: '90天后' },
+  { key: '180', label: '180天后' },
+  { key: 'yearend', label: '今年底' },
+  { key: 'lunaryearend', label: '到农历年底' },
+];
 
 export default function Repayments() {
   const selectedIds = useRepaymentLedgerSelection((s) => s.selectedIds);
@@ -14,6 +48,10 @@ export default function Repayments() {
   const toggle = useRepaymentLedgerSelection((s) => s.toggle);
   const [showPicker, setShowPicker] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
+  // 截止日期选择弹窗
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  // 弹窗内待定的截止日期（点预设/改日期后，点「确定」才生效；打开时同步为当前值）
+  const [tempEnd, setTempEnd] = useState('');
   // 截止日期（默认未来 30 天）
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
@@ -35,6 +73,37 @@ export default function Repayments() {
     const diff = Math.ceil((end.getTime() - today.getTime()) / (24 * 3600 * 1000));
     return Math.min(Math.max(diff, 1), 365);
   }, [endDate]);
+
+  // 打开截止日期弹窗：先把当前截止日期填入待定态
+  const openEndPicker = () => {
+    setTempEnd(endDate);
+    setShowEndPicker(true);
+  };
+
+  // 预设按钮：填入待定态，点「确定」再生效
+  const applyEndPreset = (key: string) => {
+    if (key === 'monthend') {
+      setTempEnd(monthEnd());
+      return;
+    }
+    if (key === 'yearend') {
+      setTempEnd(solarYearEnd());
+      return;
+    }
+    if (key === 'lunaryearend') {
+      setTempEnd(lunarYearEnd());
+      return;
+    }
+    const d = new Date();
+    d.setDate(d.getDate() + Number(key));
+    setTempEnd(formatDate(d));
+  };
+
+  const confirmEndDate = () => {
+    if (!tempEnd) return;
+    setEndDate(tempEnd);
+    setShowEndPicker(false);
+  };
 
   const { data } = useQuery({
     queryKey: ['repayments', 'upcoming', days, selectedIds],
@@ -157,26 +226,18 @@ export default function Repayments() {
           }}
         >
           <span className="text-secondary" style={{ fontSize: 13 }}>统计截止时间</span>
-          <DatePicker
-            value={new Date(endDate)}
-            min={new Date()}
-            onConfirm={(v) => setEndDate(formatDate(v))}
+          <div
+            onClick={openEndPicker}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              color: '#1677ff',
+              fontSize: 13,
+            }}
           >
-            {(value, actions) => (
-              <div
-                onClick={() => actions.open()}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  color: '#1677ff',
-                  fontSize: 13,
-                }}
-              >
-                {value ? formatDate(value) : '选择日期'}（约 {days} 天）
-              </div>
-            )}
-          </DatePicker>
+            {endDate}（约 {days} 天）
+          </div>
         </div>
 
         {/* 汇总卡片 */}
@@ -303,6 +364,48 @@ export default function Repayments() {
         selectedIds={selectedIds}
         onToggle={toggle}
       />
+
+      {/* 统计截止时间选择弹窗 */}
+      <Popup
+        visible={showEndPicker}
+        onMaskClick={() => setShowEndPicker(false)}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 16 }}>设置统计截止日期</h3>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {END_DATE_PRESETS.map((b) => (
+              <Button key={b.key} size="mini" fill="outline" onClick={() => applyEndPreset(b.key)}>
+                {b.label}
+              </Button>
+            ))}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>截止日期</div>
+            <DatePicker
+              precision="day"
+              value={tempEnd ? new Date(tempEnd) : new Date()}
+              min={new Date()}
+              onConfirm={(v) => setTempEnd(formatDate(v))}
+            >
+              {(value, actions) => (
+                <div
+                  onClick={() => actions.open()}
+                  style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}
+                >
+                  {value ? formatDate(value) : '选择日期'}
+                </div>
+              )}
+            </DatePicker>
+          </div>
+
+          <Button block color="primary" onClick={confirmEndDate}>
+            确定
+          </Button>
+        </div>
+      </Popup>
     </div>
   );
 }

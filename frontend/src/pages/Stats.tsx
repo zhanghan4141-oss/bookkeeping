@@ -773,7 +773,7 @@ export default function Stats() {
                         {isLoanTx && (
                           <span onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }} style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}>〔{t.loan?.name ?? '贷款'}〕</span>
                         )}
-                        {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#1677ff' }}>〔{t.ledger.name}〕</span>}
+                        {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#ff8f1f' }}>〔{t.ledger.name}〕</span>}
                       </div>
                     </div>
                     <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>{t.type === 'income' ? '+' : '-'}¥{formatMoney(t.amount)}</span>
@@ -835,7 +835,7 @@ export default function Stats() {
                                   〔{t.loan?.name ?? '贷款'}〕
                                 </span>
                               )}
-                              {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#1677ff' }}>〔{t.ledger.name}〕</span>}
+                              {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#ff8f1f' }}>〔{t.ledger.name}〕</span>}
                             </div>
                           </div>
                           <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>{t.type === 'income' ? '+' : '-'}¥{formatMoney(t.amount)}</span>
