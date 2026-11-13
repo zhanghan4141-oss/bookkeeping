@@ -833,26 +833,21 @@ export class LoanService {
 
     let remainingPrincipal = 0;
     let remainingInterest = 0;
-    let prepayTotal = 0;
-    for (const r of loan.repayments) {
-      if (r.kind === 'prepay') {
-        prepayTotal += Number(r.totalAmount);
-        continue;
+    if (loan.repaymentMethod === 'custom') {
+      // 自定义：剩余未还本息 = 本金 − 已还（各期已还 + 提前还款），下限 0
+      let paidTotal = 0;
+      for (const r of loan.repayments) {
+        paidTotal += Number(r.paidAmount);
       }
-      if (r.status === 'paid') continue;
-      const ratio = Number(r.paidAmount) / Math.max(Number(r.totalAmount), 1);
-      const remaining = 1 - ratio;
-      if (loan.repaymentMethod === 'custom') {
-        // 自定义：本息合并，未还总额计入剩余本金
-        remainingPrincipal += Number(r.totalAmount) * remaining;
-      } else {
+      remainingPrincipal = Math.max(0, Number(loan.principal) - paidTotal);
+    } else {
+      for (const r of loan.repayments) {
+        if (r.kind === 'prepay' || r.status === 'paid') continue;
+        const ratio = Number(r.paidAmount) / Math.max(Number(r.totalAmount), 1);
+        const remaining = 1 - ratio;
         remainingPrincipal += Number(r.principalAmount) * remaining;
         remainingInterest += Number(r.interestAmount) * remaining;
       }
-    }
-    // 自定义：剩余未还本息 = 各期未还 − 提前还款（下限 0）
-    if (loan.repaymentMethod === 'custom') {
-      remainingPrincipal = Math.max(0, remainingPrincipal - prepayTotal);
     }
 
     return {
