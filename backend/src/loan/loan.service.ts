@@ -278,6 +278,35 @@ export class LoanService {
     if (loan.repaymentMethod === 'custom') {
       const amount = dto.amount;
       if (amount <= 0) throw new BadRequestException('请输入提前还款金额');
+      // 未还本金 = 贷款本金 − 已还本金 − 提前还款本金（与 withDerived 口径一致，下限 0）
+      let paidPrincipal = 0;
+      let prepayTotal = 0;
+      for (const r of loan.repayments) {
+        const total = Number(r.totalAmount);
+        if (r.kind === 'prepay') {
+          prepayTotal += total;
+          continue;
+        }
+        if (total <= 0) continue;
+        const ratio = Number(r.paidAmount) / Math.max(total, 1);
+        const P = Number(r.principalAmount);
+        const I = Number(r.interestAmount);
+        if (P === 0 && I === 0) {
+          // 历史合并期：全额当本金
+          paidPrincipal += total * ratio;
+        } else {
+          paidPrincipal += P * ratio;
+        }
+      }
+      const unpaidPrincipal = Math.max(
+        0,
+        Math.round((Number(loan.principal) - paidPrincipal - prepayTotal) * 100) / 100,
+      );
+      if (amount > unpaidPrincipal + 0.005) {
+        throw new BadRequestException(
+          `提前还款金额不能超过未还本金 ¥${unpaidPrincipal}`,
+        );
+      }
       const prepayNo =
         10000 + loan.repayments.filter((r) => r.kind === 'prepay').length + 1;
       await this.prisma.$transaction(async (tx) => {
@@ -356,7 +385,18 @@ export class LoanService {
     }
 
     const prepayAmount = dto.amount;
-    const isFullSettlement = prepayAmount >= remainingPrincipal - 0.005;
+    // 结清金额 = 剩余本金 + 当期已产生利息（判定与结清记账统一，不留灰色区间）
+    const settleAmount = round2(remainingPrincipal + accruedInterest);
+    const isFullSettlement = prepayAmount >= settleAmount - 0.005;
+    // 中间区间：≥ 剩余本金 但 < 结清金额（不够还息），作为非法输入拦截
+    if (
+      !isFullSettlement &&
+      prepayAmount >= remainingPrincipal - 0.005
+    ) {
+      throw new BadRequestException(
+        `提前还款金额 ¥${prepayAmount} 未达到结清金额 ¥${settleAmount}（剩余本金 ¥${round2(remainingPrincipal)} + 当期利息 ¥${accruedInterest}），请填写结清金额或小于剩余本金的金额`,
+      );
+    }
     const remainingDueDates = remaining.map((r) => r.dueDate);
     // 提前还款记录的 periodNo 用大偏移量，避免与正常期数（<=360）冲突，排序时自然排在计划末尾
     const prepayNo =

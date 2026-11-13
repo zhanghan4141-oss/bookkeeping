@@ -75,6 +75,27 @@ export default function LoanDetail() {
     };
   }, [loan, prepayDate, prepayAmount]);
 
+  // 结清金额（仅非自定义）：剩余本金 + 当期已产生利息（按天），不随输入金额变化
+  const prepaySettleAmount = useMemo(() => {
+    if (!loan || loan.repaymentMethod === 'custom') return 0;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const pd = new Date(prepayDate);
+    const next = loan.repayments.find(
+      (r) => r.kind === 'period' && r.status !== 'paid' && new Date(r.dueDate) > pd,
+    );
+    if (!next) return 0;
+    const prev = loan.repayments.find(
+      (r) => r.kind === 'period' && r.periodNo === next.periodNo - 1,
+    );
+    const prevDue = prev ? new Date(prev.dueDate) : new Date(loan.startDate);
+    const days = Math.floor((pd.getTime() - prevDue.getTime()) / dayMs);
+    if (days <= 0) return 0;
+    const base = Number(loan.remainingPrincipal ?? 0);
+    const interest =
+      Math.round(base * (Number(loan.annualRate) / 100) * (days / 365) * 100) / 100;
+    return Math.round((base + interest) * 100) / 100;
+  }, [loan, prepayDate]);
+
   const showPrepayMode =
     loan?.repaymentMethod === 'equal_installment' ||
     loan?.repaymentMethod === 'equal_principal';
@@ -111,6 +132,28 @@ export default function LoanDetail() {
     }
   };
 
+  // 导出还款计划（Excel）：走 axios 带 token 拉 blob 再下载。
+  // 不能用 window.open —— 浏览器导航不带 Authorization，被全局 JwtAuthGuard 拦截会 401。
+  const handleExportPlan = async () => {
+    try {
+      const res = await loanApi.exportPlan(id);
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${loan?.name ?? '贷款'}_还款计划.xlsx`;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      Toast.show({ content: err.response?.data?.message ?? '导出失败' });
+    }
+  };
+
   // 删除贷款（二次确认）
   const handleDeleteLoan = async () => {
     const ok = await new Promise((resolve) => {
@@ -142,6 +185,57 @@ export default function LoanDetail() {
       Toast.show({ content: '请选择还款日期' });
       return;
     }
+    const remainingP = Number(loan?.remainingPrincipal ?? 0);
+    // ===== 自定义：纯记账，提前还款金额不能超过未还本金 =====
+    if (loan?.repaymentMethod === 'custom') {
+      if (remainingP > 0 && amount > remainingP + 0.005) {
+        Toast.show({ content: `提前还款金额不能超过未还本金 ¥${formatMoney(remainingP)}` });
+        return;
+      }
+      try {
+        await loanApi.prepay(id, { amount, prepayDate, mode: prepayMode });
+        Toast.show({ content: '已提前还款' });
+        setShowPrepay(false);
+        setPrepayAmount('');
+        invalidateFinancialData(queryClient);
+      } catch (e: any) {
+        Toast.show({ content: e.response?.data?.message ?? '提前还款失败' });
+      }
+      return;
+    }
+    // ===== 非自定义：结清金额 = 剩余本金 + 当期利息，判定与记账统一 =====
+    const settleAmount = Number(prepaySettleAmount);
+    if (remainingP > 0 && amount >= remainingP - 0.005) {
+      // 灰色区间：≥ 剩余本金 但 < 结清金额（不够还息），直接拦截
+      if (settleAmount > 0 && amount < settleAmount - 0.005) {
+        Toast.show({
+          content: `金额未达到结清金额 ¥${formatMoney(settleAmount)}（剩余本金 ¥${formatMoney(remainingP)} + 当期利息），请填结清金额或小于剩余本金的金额`,
+        });
+        return;
+      }
+      // 达到结清金额：弹窗确认直接结清
+      Dialog.confirm({
+        content:
+          `提前还款金额 ¥${formatMoney(amount)}` +
+          ` 已达到结清金额（¥${formatMoney(settleAmount || remainingP)}），` +
+          '确认后将直接结清贷款，剩余计划将被删除。是否继续？',
+        cancelText: '取消',
+        okText: '确认结清',
+        onConfirm: async () => {
+          try {
+            await loanApi.prepay(id, { amount, prepayDate, mode: prepayMode });
+            Toast.show({ content: '已提前结清贷款' });
+            setShowPrepay(false);
+            setPrepayAmount('');
+            invalidateFinancialData(queryClient);
+          } catch (e: any) {
+            Toast.show({ content: e.response?.data?.message ?? '提前结清失败' });
+          }
+        },
+      });
+      return;
+    }
+    // 低于剩余本金：部分提前还款，直接提交
     try {
       await loanApi.prepay(id, { amount, prepayDate, mode: prepayMode });
       Toast.show({ content: '已提前还款' });
@@ -286,13 +380,14 @@ export default function LoanDetail() {
             {loan.repaymentMethod === 'equal_installment' ? '等额本息' : loan.repaymentMethod === 'equal_principal' ? '等额本金' : loan.repaymentMethod === 'interest_first' ? '先息后本' : '自定义'}
           </div>
           <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {!isViewer && (
-              <>
-                <Button size="mini" color="primary" onClick={() => setShowPrepay(true)}>提前还款</Button>
-                <Button size="mini" fill="outline" onClick={() => navigate(`/loans/${id}/edit`)}>编辑贷款信息</Button>
-              </>
+            {/* 已提前结清后不再提供提前还款 */}
+            {!isViewer && loan.status !== 'paid_off' && (
+              <Button size="mini" color="primary" onClick={() => setShowPrepay(true)}>提前还款</Button>
             )}
-            <Button size="mini" fill="outline" onClick={() => { window.open(`/api/loans/${id}/export`, '_blank'); }}>导出计划</Button>
+            {!isViewer && (
+              <Button size="mini" fill="outline" onClick={() => navigate(`/loans/${id}/edit`)}>编辑贷款信息</Button>
+            )}
+            <Button size="mini" fill="outline" onClick={handleExportPlan}>导出计划</Button>
             {!isViewer && (
               <Button size="mini" fill="outline" color="danger" onClick={handleDeleteLoan}>删除</Button>
             )}

@@ -22,4 +22,5 @@ export const loanApi = {
     id: string,
     data: { amount: number; prepayDate: string; mode?: 'reduce_payment' | 'reduce_term' },
   ) => api.post(`/loans/${id}/prepay`, data),
+  exportPlan: (id: string) => api.get(`/loans/${id}/export`, { responseType: 'blob' }),
 };
