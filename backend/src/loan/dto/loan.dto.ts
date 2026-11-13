@@ -12,7 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-class CustomPeriodDto {
+export class CustomPeriodDto {
   @IsOptional()
   @IsIn(['period', 'prepay'])
   kind?: 'period' | 'prepay';
@@ -20,10 +20,25 @@ class CustomPeriodDto {
   @IsDateString()
   dueDate!: string;
 
+  // 分账（kind=period）：本金 / 利息，合计 = 本金 + 利息
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  totalAmount!: number;
+  principal?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  interest?: number;
+
+  // 合计（kind=prepay，或历史合并期仅给总额）
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  totalAmount?: number;
 }
 
 export class CreateLoanDto {

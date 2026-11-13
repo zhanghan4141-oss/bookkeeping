@@ -13,7 +13,7 @@ const DAILY_INCOME_CATEGORIES = ['工资', '奖金', '理财', '其他收入'];
 const LOAN_CATEGORIES = [
   { name: '还款本金', type: 'expense' },
   { name: '还款利息', type: 'expense' },
-  { name: '放款收款', type: 'income' },
+  { name: '贷款', type: 'income' },
 ];
 
 @Injectable()

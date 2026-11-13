@@ -337,7 +337,7 @@ export default function LoanForm() {
         )}
         {isCustom && !isEdit && (
           <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
-            到期日将按等额本息规则自动生成，创建后可在贷款详情中填写每期金额和日期
+            到期日将按等额本息规则自动生成，创建后可在贷款详情中填写每期本金/利息和日期
           </div>
         )}
 
@@ -354,7 +354,7 @@ export default function LoanForm() {
           <div style={{ background: '#f5f6f8', borderRadius: 12, padding: 16, marginTop: 16 }}>
             <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
               {isCustom
-                ? `还款计划（共 ${plan.length} 期，金额创建后填写）`
+                ? `还款计划（共 ${plan.length} 期，本金/利息创建后填写）`
                 : '还款计划预览'}
             </div>
             {!isCustom && (

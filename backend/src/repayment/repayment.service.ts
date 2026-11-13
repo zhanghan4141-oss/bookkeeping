@@ -56,12 +56,24 @@ export class RepaymentService {
           kind: 'period',
           status: { in: ['pending', 'partial'] },
         },
-        select: { loanId: true, principalAmount: true, totalAmount: true, paidAmount: true },
+        select: {
+          loanId: true,
+          principalAmount: true,
+          interestAmount: true,
+          totalAmount: true,
+          paidAmount: true,
+          loan: { select: { repaymentMethod: true } },
+        },
       });
       for (const r of outstanding) {
         const entry = remainingByLoan.get(r.loanId) ?? { principal: 0, periods: 0 };
         const ratio = Number(r.paidAmount) / Math.max(Number(r.totalAmount), 1);
-        entry.principal += Number(r.principalAmount) * (1 - ratio);
+        // 自定义分账：本金/利息分开累计；历史合并期（本金/利息均为 0）全额当本金
+        let base = Number(r.principalAmount);
+        if (r.loan.repaymentMethod === 'custom' && base === 0 && Number(r.interestAmount) === 0) {
+          base = Number(r.totalAmount);
+        }
+        entry.principal += base * (1 - ratio);
         entry.periods += 1;
         remainingByLoan.set(r.loanId, entry);
       }

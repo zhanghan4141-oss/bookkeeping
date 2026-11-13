@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CreateLoanDto,
+  CustomPeriodDto,
   PayRepaymentDto,
   PrepayDto,
   UpdateLoanDto,
@@ -123,11 +124,20 @@ export class LoanService {
       throw new BadRequestException('仅自定义还款方式可编辑还款计划');
     }
 
-    const entries = dto.customPeriods.map((c) => ({
-      kind: c.kind ?? 'period',
-      dueDate: new Date(c.dueDate),
-      totalAmount: c.totalAmount,
-    }));
+    const entries = dto.customPeriods.map((c) => {
+      const kind = c.kind ?? 'period';
+      if (kind === 'prepay') {
+        // 提前还款：纯本金，只记总额
+        return { kind, dueDate: new Date(c.dueDate), totalAmount: c.totalAmount ?? 0 };
+      }
+      // 普通期：分账（本金/利息）或历史合并期（仅总额，全额按本金处理）
+      if (c.principal !== undefined || c.interest !== undefined) {
+        const principal = c.principal ?? 0;
+        const interest = c.interest ?? 0;
+        return { kind, dueDate: new Date(c.dueDate), principal, interest, totalAmount: principal + interest };
+      }
+      return { kind, dueDate: new Date(c.dueDate), principal: 0, interest: 0, totalAmount: c.totalAmount ?? 0 };
+    });
     const periodEntries = entries.filter((e) => e.kind === 'period');
     if (periodEntries.length !== loan.termMonths) {
       throw new BadRequestException(
@@ -164,8 +174,8 @@ export class LoanService {
             loanId,
             periodNo,
             dueDate: p.dueDate,
-            principalAmount: new Prisma.Decimal(0),
-            interestAmount: new Prisma.Decimal(0),
+            principalAmount: new Prisma.Decimal(p.principal),
+            interestAmount: new Prisma.Decimal(p.interest),
             totalAmount: new Prisma.Decimal(totalAmount),
             paidAmount: paid ? paid.paidAmount : new Prisma.Decimal(0),
             status: paid
@@ -208,8 +218,8 @@ export class LoanService {
           plan: periodEntries.map((p, i) => ({
             periodNo: i + 1,
             dueDate: p.dueDate,
-            principalAmount: 0,
-            interestAmount: 0,
+            principalAmount: p.principal,
+            interestAmount: p.interest,
             totalAmount: p.totalAmount,
           })),
         },
@@ -637,13 +647,13 @@ export class LoanService {
       principal: number;
       startDate: Date;
       plan: { dueDate: Date; principalAmount: number; interestAmount: number; totalAmount: number }[];
-      /** 是否写「放款收款」收入流水，默认 true；提前还款重算时传 false，避免多记一笔放款 */
+      /** 是否写「贷款」收入流水，默认 true；提前还款重算时传 false，避免多记一笔放款 */
       writeIncome?: boolean;
     },
     tx?: Prisma.TransactionClient,
   ) {
     const db = tx ?? this.prisma;
-    const incomeCategory = await this.findOrCreateCategory(db, ledgerId, '放款收款', 'income');
+    const incomeCategory = await this.findOrCreateCategory(db, ledgerId, '贷款', 'income');
     const principalCategory = await this.findOrCreateCategory(db, ledgerId, '还款本金', 'expense');
     const interestCategory = await this.findOrCreateCategory(db, ledgerId, '还款利息', 'expense');
 
@@ -657,7 +667,7 @@ export class LoanService {
         userId,
         type: 'income',
         amount: new Prisma.Decimal(params.principal),
-        note: '放款收款',
+        note: '贷款',
         occurredAt: params.startDate,
         loanId,
       });
@@ -746,13 +756,16 @@ export class LoanService {
   }
 
   private toCustomPeriodDates(
-    customPeriods?: { dueDate: string; totalAmount: number }[],
+    customPeriods?: CustomPeriodDto[],
   ): { dueDate: Date; totalAmount: number }[] | undefined {
     if (!customPeriods) return undefined;
-    return customPeriods.map((c) => ({
-      dueDate: new Date(c.dueDate),
-      totalAmount: c.totalAmount,
-    }));
+    return customPeriods.map((c) => {
+      let totalAmount = c.totalAmount ?? 0;
+      if (c.principal !== undefined || c.interest !== undefined) {
+        totalAmount = (c.principal ?? 0) + (c.interest ?? 0);
+      }
+      return { dueDate: new Date(c.dueDate), totalAmount };
+    });
   }
 
   async findAll(ledgerId: string) {
@@ -834,12 +847,33 @@ export class LoanService {
     let remainingPrincipal = 0;
     let remainingInterest = 0;
     if (loan.repaymentMethod === 'custom') {
-      // 自定义：剩余未还本息 = Σ(各期应还 − 已还)（未还的加上、已还的减掉，含提前还款条目），下限自然为 0
-      let remain = 0;
+      // 自定义分账：
+      // - 各期拆成本金/利息分别按「未还比例」累加（未还比例 = 1 − 已还/合计，已还的扣掉）
+      // - 历史合并期（principal/interest 均为 0 仅 totalAmount）：全额按本金处理（存量兼容）
+      // - 提前还款 = 纯本金，从剩余本金中减除（下限 0）
+      let prepayTotal = 0;
       for (const r of loan.repayments) {
-        remain += Math.max(0, Number(r.totalAmount) - Number(r.paidAmount));
+        const total = Number(r.totalAmount);
+        if (r.kind === 'prepay') {
+          prepayTotal += total;
+          continue;
+        }
+        if (r.status === 'paid' || total <= 0) continue;
+        const ratio = Number(r.paidAmount) / Math.max(total, 1);
+        const factor = 1 - ratio;
+        const P = Number(r.principalAmount);
+        const I = Number(r.interestAmount);
+        if (P === 0 && I === 0) {
+          // 历史合并期：全额当本金
+          remainingPrincipal += total * factor;
+        } else {
+          remainingPrincipal += P * factor;
+          remainingInterest += I * factor;
+        }
       }
-      remainingPrincipal = Math.round(remain * 100) / 100;
+      remainingPrincipal = Math.max(0, remainingPrincipal - prepayTotal);
+      remainingPrincipal = Math.round(remainingPrincipal * 100) / 100;
+      remainingInterest = Math.round(remainingInterest * 100) / 100;
     } else {
       for (const r of loan.repayments) {
         if (r.kind === 'prepay' || r.status === 'paid') continue;

@@ -15,6 +15,11 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   overdue: { label: '逾期', color: '#ff4d4f' },
 };
 
+/** 编辑还款计划时的一行：普通期编辑本金/利息，提前还款只编辑金额 */
+type EditPlanRow =
+  | { kind: 'period'; periodNo?: number; dueDate: string; principal: string; interest: string }
+  | { kind: 'prepay'; periodNo?: number; dueDate: string; totalAmount: string };
+
 export default function LoanDetail() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
@@ -28,9 +33,7 @@ export default function LoanDetail() {
   const [prepayMode, setPrepayMode] = useState<'reduce_payment' | 'reduce_term'>('reduce_payment');
   // 编辑还款计划状态
   const [editingPlan, setEditingPlan] = useState(false);
-  const [editPeriods, setEditPeriods] = useState<
-    { kind: 'period' | 'prepay'; periodNo?: number; dueDate: string; totalAmount: string }[]
-  >([]);
+  const [editPeriods, setEditPeriods] = useState<EditPlanRow[]>([]);
 
   const { data: loan } = useQuery({
     queryKey: ['loan', id],
@@ -157,12 +160,30 @@ export default function LoanDetail() {
     const hasPaid = loan.repayments.some((r) => Number(r.paidAmount) > 0);
     const doStart = () => {
       setEditPeriods(
-        loan.repayments.map((r) => ({
-          kind: r.kind,
-          periodNo: r.kind === 'period' ? r.periodNo : undefined,
-          dueDate: r.dueDate.slice(0, 10),
-          totalAmount: r.totalAmount,
-        })),
+        loan.repayments.map((r): EditPlanRow => {
+          if (r.kind === 'prepay') {
+            return { kind: 'prepay', dueDate: r.dueDate.slice(0, 10), totalAmount: r.totalAmount };
+          }
+          const P = Number(r.principalAmount);
+          const I = Number(r.interestAmount);
+          // 历史合并期（本金/利息为 0 仅总额）：全额当本金回填，与后端口径一致
+          if (P === 0 && I === 0) {
+            return {
+              kind: 'period',
+              periodNo: r.periodNo,
+              dueDate: r.dueDate.slice(0, 10),
+              principal: r.totalAmount,
+              interest: '0',
+            };
+          }
+          return {
+            kind: 'period',
+            periodNo: r.periodNo,
+            dueDate: r.dueDate.slice(0, 10),
+            principal: r.principalAmount,
+            interest: r.interestAmount,
+          };
+        }),
       );
       setEditingPlan(true);
     };
@@ -182,14 +203,28 @@ export default function LoanDetail() {
       Toast.show({ content: '期数不匹配' });
       return;
     }
-    if (editPeriods.some((p) => !p.dueDate || !p.totalAmount)) {
-      Toast.show({ content: '请完整填写每期日期和金额' });
+    if (editPeriods.some((p) => !p.dueDate)) {
+      Toast.show({ content: '请完整填写每期日期' });
       return;
+    }
+    for (const p of editPeriods) {
+      if (p.kind === 'period' && (p.principal === '' || p.interest === '')) {
+        Toast.show({ content: '请完整填写每期本金和利息' });
+        return;
+      }
+      if (p.kind === 'prepay' && p.totalAmount === '') {
+        Toast.show({ content: '请完整填写提前还款金额' });
+        return;
+      }
     }
     try {
       await loanApi.updateRepayments(
         id,
-        editPeriods.map((p) => ({ kind: p.kind, dueDate: p.dueDate, totalAmount: Number(p.totalAmount) })),
+        editPeriods.map((p) =>
+          p.kind === 'prepay'
+            ? { kind: 'prepay' as const, dueDate: p.dueDate, totalAmount: Number(p.totalAmount) }
+            : { kind: 'period' as const, dueDate: p.dueDate, principal: Number(p.principal), interest: Number(p.interest) },
+        ),
       );
       Toast.show({ content: '已保存' });
       setEditingPlan(false);
@@ -228,22 +263,16 @@ export default function LoanDetail() {
             </div>
 
             <div>
-              <div className="text-secondary" style={{ fontSize: 12 }}>
-                {isCustom ? '剩余未还本息' : '剩余未还本金'}
-              </div>
+              <div className="text-secondary" style={{ fontSize: 12 }}>剩余未还本金</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: '#1677ff' }}>
-                ¥{formatMoney(isCustom ? remainingPrincipal + remainingInterest : remainingPrincipal)}
+                ¥{formatMoney(remainingPrincipal)}
               </div>
             </div>
             <div>
-              {!isCustom && (
-                <>
-                  <div className="text-secondary" style={{ fontSize: 12 }}>剩余未还利息</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#faad14' }}>
-                    ¥{formatMoney(remainingInterest)}
-                  </div>
-                </>
-              )}
+              <div className="text-secondary" style={{ fontSize: 12 }}>剩余未还利息</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#faad14' }}>
+                ¥{formatMoney(remainingInterest)}
+              </div>
             </div>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>实际年利率</div>
@@ -284,33 +313,77 @@ export default function LoanDetail() {
             {editPeriods.map((p, i) => {
               const orig = loan.repayments[i];
               const isPaid = orig && Number(orig.paidAmount) > 0;
-              return (
-                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ width: 56, fontSize: 13, color: p.kind === 'prepay' ? '#52c41a' : '#666' }}>
-                    {p.kind === 'prepay' ? '提前还款' : `第${p.periodNo}期${isPaid ? '✓' : ''}`}
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <DatePicker
-                      value={p.dueDate ? new Date(p.dueDate) : new Date()}
-                      onConfirm={(v) => {
-                        const date = formatDate(v);
-                        setEditPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, dueDate: date } : x)));
-                      }}
-                    >
-                      {(_value, actions) => (
-                        <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
-                          {p.dueDate || '日期'}
-                        </div>
-                      )}
-                    </DatePicker>
+              const setRow = (patch: Partial<EditPlanRow>) =>
+                setEditPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, ...patch } : x) as EditPlanRow));
+              if (p.kind === 'prepay') {
+                return (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ width: 56, fontSize: 13, color: '#52c41a' }}>
+                      提前还款
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <DatePicker
+                        value={p.dueDate ? new Date(p.dueDate) : new Date()}
+                        onConfirm={(v) => {
+                          const date = formatDate(v);
+                          setRow({ dueDate: date });
+                        }}
+                      >
+                        {(_value, actions) => (
+                          <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                            {p.dueDate || '日期'}
+                          </div>
+                        )}
+                      </DatePicker>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <Input
+                        type="number"
+                        placeholder="金额"
+                        value={p.totalAmount}
+                        onChange={(v) => setRow({ totalAmount: v })}
+                        style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13 }}
+                      />
+                    </div>
                   </div>
-                  <div style={{ flex: 1 }}>
+                );
+              }
+              return (
+                <div key={i} style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ width: 56, fontSize: 13, color: '#666' }}>
+                      第{p.periodNo}期{isPaid ? '✓' : ''}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <DatePicker
+                        value={p.dueDate ? new Date(p.dueDate) : new Date()}
+                        onConfirm={(v) => {
+                          const date = formatDate(v);
+                          setRow({ dueDate: date });
+                        }}
+                      >
+                        {(_value, actions) => (
+                          <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                            {p.dueDate || '日期'}
+                          </div>
+                        )}
+                      </DatePicker>
+                    </div>
+                    <span style={{ fontSize: 12, color: '#666' }}>本金</span>
                     <Input
                       type="number"
-                      placeholder="金额"
-                      value={p.totalAmount}
-                      onChange={(v) => setEditPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, totalAmount: v } : x)))}
-                      style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13 }}
+                      placeholder="本金"
+                      value={p.principal}
+                      onChange={(v) => setRow({ principal: v })}
+                      style={{ width: 70, background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13 }}
+                    />
+                    <span style={{ fontSize: 12, color: '#666' }}>利息</span>
+                    <Input
+                      type="number"
+                      placeholder="利息"
+                      value={p.interest}
+                      onChange={(v) => setRow({ interest: v })}
+                      style={{ width: 70, background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13 }}
                     />
                   </div>
                 </div>
@@ -323,12 +396,12 @@ export default function LoanDetail() {
           </div>
         ) : (
           <List style={{ borderRadius: 12, overflow: 'hidden' }}>
-            {/* 放款收款（第一笔） */}
+            {/* 贷款（第一笔） */}
             <List.Item
               key="disburse"
               description={
                 <div style={{ fontSize: 12, marginTop: 2 }}>
-                  放款收款
+                  贷款
                   <span style={{ marginLeft: 8 }}>{loan.startDate.slice(0, 10)}</span>
                 </div>
               }
@@ -368,12 +441,15 @@ export default function LoanDetail() {
               }
               const st = STATUS_MAP[r.status] ?? STATUS_MAP.pending;
               const remain = Number(r.totalAmount) - Number(r.paidAmount);
+              const isMerged = isCustom && Number(r.principalAmount) === 0 && Number(r.interestAmount) === 0;
               return (
                 <List.Item
                   key={r.periodNo}
                   description={
                     <div style={{ fontSize: 12, marginTop: 2 }}>
-                      本金 ¥{formatMoney(Number(r.principalAmount))} · 利息 ¥{formatMoney(Number(r.interestAmount))}
+                      {isMerged
+                        ? <>合计 ¥{formatMoney(Number(r.totalAmount))}</>
+                        : <>本金 ¥{formatMoney(Number(r.principalAmount))} · 利息 ¥{formatMoney(Number(r.interestAmount))}</>}
                       <span style={{ marginLeft: 8 }}>{r.dueDate.slice(0, 10)}</span>
                     </div>
                   }

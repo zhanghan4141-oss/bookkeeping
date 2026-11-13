@@ -13,7 +13,10 @@ export const loanApi = {
     api.post(`/loans/${id}/repayments/${periodNo}/undo`),
   updateRepayments: (
     id: string,
-    customPeriods: { kind?: 'period' | 'prepay'; dueDate: string; totalAmount: number }[],
+    customPeriods: (
+      | { kind?: 'period'; dueDate: string; principal: number; interest: number }
+      | { kind: 'prepay'; dueDate: string; totalAmount: number }
+    )[],
   ) => api.patch(`/loans/${id}/repayments`, { customPeriods }),
   prepay: (
     id: string,
