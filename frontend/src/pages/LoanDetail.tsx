@@ -29,7 +29,7 @@ export default function LoanDetail() {
   // 编辑还款计划状态
   const [editingPlan, setEditingPlan] = useState(false);
   const [editPeriods, setEditPeriods] = useState<
-    { kind: 'period' | 'prepay'; dueDate: string; totalAmount: string }[]
+    { kind: 'period' | 'prepay'; periodNo?: number; dueDate: string; totalAmount: string }[]
   >([]);
 
   const { data: loan } = useQuery({
@@ -159,6 +159,7 @@ export default function LoanDetail() {
       setEditPeriods(
         loan.repayments.map((r) => ({
           kind: r.kind,
+          periodNo: r.kind === 'period' ? r.periodNo : undefined,
           dueDate: r.dueDate.slice(0, 10),
           totalAmount: r.totalAmount,
         })),
@@ -286,7 +287,7 @@ export default function LoanDetail() {
               return (
                 <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ width: 56, fontSize: 13, color: p.kind === 'prepay' ? '#52c41a' : '#666' }}>
-                    {p.kind === 'prepay' ? '提前还款' : `第${i + 1}期${isPaid ? '✓' : ''}`}
+                    {p.kind === 'prepay' ? '提前还款' : `第${p.periodNo}期${isPaid ? '✓' : ''}`}
                   </span>
                   <div style={{ flex: 1 }}>
                     <DatePicker

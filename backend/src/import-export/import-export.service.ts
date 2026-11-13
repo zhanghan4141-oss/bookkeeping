@@ -75,7 +75,7 @@ export class ImportExportService {
         ledger: {
           include: {
             categories: true,
-            loans: { include: { repayments: { orderBy: { periodNo: 'asc' } } } },
+            loans: { include: { repayments: { orderBy: [{ dueDate: 'asc' }, { periodNo: 'asc' }] } } },
           },
         },
       },
@@ -293,7 +293,7 @@ export class ImportExportService {
   async exportLoan(loanId: string): Promise<{ buffer: Buffer; filename: string }> {
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
-      include: { repayments: { orderBy: { periodNo: 'asc' } } },
+      include: { repayments: { orderBy: [{ dueDate: 'asc' }, { periodNo: 'asc' }] } },
     });
     if (!loan) throw new NotFoundException('贷款不存在');
 

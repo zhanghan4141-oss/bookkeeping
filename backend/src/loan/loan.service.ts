@@ -96,7 +96,7 @@ export class LoanService {
       // 读回完整贷款（含默认字段，如 kind/paidAmount/status）
       return tx.loan.findUnique({
         where: { id: created.id },
-        include: { repayments: { orderBy: { periodNo: 'asc' } } },
+        include: { repayments: { orderBy: [{ dueDate: 'asc' }, { periodNo: 'asc' }] } },
       });
     });
 
@@ -116,7 +116,7 @@ export class LoanService {
   ) {
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
-      include: { repayments: { orderBy: { periodNo: 'asc' } } },
+      include: { repayments: { orderBy: [{ dueDate: 'asc' }, { periodNo: 'asc' }] } },
     });
     if (!loan) throw new NotFoundException('贷款不存在');
     if (loan.repaymentMethod !== 'custom') {
@@ -257,7 +257,7 @@ export class LoanService {
   async prepay(userId: string, loanId: string, dto: PrepayDto) {
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
-      include: { repayments: { orderBy: { periodNo: 'asc' } } },
+      include: { repayments: { orderBy: [{ dueDate: 'asc' }, { periodNo: 'asc' }] } },
     });
     if (!loan) throw new NotFoundException('贷款不存在');
     if (loan.status === 'paid_off') throw new BadRequestException('贷款已还清');
@@ -762,7 +762,7 @@ export class LoanService {
       where: { ledgerId },
       include: {
         repayments: {
-          orderBy: { periodNo: 'asc' },
+          orderBy: [{ dueDate: 'asc' }, { periodNo: 'asc' }],
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -775,7 +775,7 @@ export class LoanService {
     await this.autoSettleExpired(id);
     const loan = await this.prisma.loan.findUnique({
       where: { id },
-      include: { repayments: { orderBy: { periodNo: 'asc' } } },
+      include: { repayments: { orderBy: [{ dueDate: 'asc' }, { periodNo: 'asc' }] } },
     });
     if (!loan) throw new NotFoundException('贷款不存在');
     return this.withDerived(loan);
@@ -834,12 +834,12 @@ export class LoanService {
     let remainingPrincipal = 0;
     let remainingInterest = 0;
     if (loan.repaymentMethod === 'custom') {
-      // 自定义：剩余未还本息 = 本金 − 已还（各期已还 + 提前还款），下限 0
-      let paidTotal = 0;
+      // 自定义：剩余未还本息 = Σ(各期应还 − 已还)（未还的加上、已还的减掉，含提前还款条目），下限自然为 0
+      let remain = 0;
       for (const r of loan.repayments) {
-        paidTotal += Number(r.paidAmount);
+        remain += Math.max(0, Number(r.totalAmount) - Number(r.paidAmount));
       }
-      remainingPrincipal = Math.max(0, Number(loan.principal) - paidTotal);
+      remainingPrincipal = Math.round(remain * 100) / 100;
     } else {
       for (const r of loan.repayments) {
         if (r.kind === 'prepay' || r.status === 'paid') continue;
