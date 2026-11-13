@@ -40,7 +40,7 @@ export class RepaymentService {
       },
       include: {
         loan: {
-          select: { id: true, name: true, ledgerId: true, direction: true },
+          select: { id: true, name: true, ledgerId: true, direction: true, principal: true, repaymentMethod: true },
         },
       },
       orderBy: { dueDate: 'asc' },
@@ -62,20 +62,58 @@ export class RepaymentService {
           interestAmount: true,
           totalAmount: true,
           paidAmount: true,
-          loan: { select: { repaymentMethod: true } },
+          loan: { select: { repaymentMethod: true, principal: true } },
         },
       });
       for (const r of outstanding) {
         const entry = remainingByLoan.get(r.loanId) ?? { principal: 0, periods: 0 };
-        const ratio = Number(r.paidAmount) / Math.max(Number(r.totalAmount), 1);
-        // 自定义分账：本金/利息分开累计；历史合并期（本金/利息均为 0）全额当本金
-        let base = Number(r.principalAmount);
-        if (r.loan.repaymentMethod === 'custom' && base === 0 && Number(r.interestAmount) === 0) {
-          base = Number(r.totalAmount);
+        if (r.loan.repaymentMethod !== 'custom') {
+          // 非自定义：剩余本金 = Σ 各期未还本金（未还比例）
+          const ratio = Number(r.paidAmount) / Math.max(Number(r.totalAmount), 1);
+          entry.principal += Number(r.principalAmount) * (1 - ratio);
         }
-        entry.principal += base * (1 - ratio);
         entry.periods += 1;
         remainingByLoan.set(r.loanId, entry);
+      }
+
+      // 自定义：剩余未还本金 = 贷款本金 − 已还本金 − 提前还款本金（与贷款详情口径一致）
+      // 已还本金 = Σ 各期本金 × 还款比例（历史合并期全额当本金）；提前还款单列
+      const allEntries = await this.prisma.loanRepayment.findMany({
+        where: { loanId: { in: loanIds } },
+        select: {
+          loanId: true,
+          kind: true,
+          principalAmount: true,
+          interestAmount: true,
+          totalAmount: true,
+          paidAmount: true,
+          loan: { select: { repaymentMethod: true, principal: true } },
+        },
+      });
+      for (const r of allEntries) {
+        if (r.loan.repaymentMethod !== 'custom') continue;
+        const entry = remainingByLoan.get(r.loanId);
+        if (!entry) continue;
+        const total = Number(r.totalAmount);
+        const ratio = Number(r.paidAmount) / Math.max(total, 1);
+        if (r.kind === 'prepay') {
+          entry.principal += total;
+        } else if (total > 0) {
+          const P = Number(r.principalAmount);
+          const I = Number(r.interestAmount);
+          const base = P === 0 && I === 0 ? total : P;
+          entry.principal += base * ratio;
+        }
+      }
+      // 回填贷款本金
+      for (const item of allEntries) {
+        if (item.loan.repaymentMethod !== 'custom') continue;
+        const entry = remainingByLoan.get(item.loanId);
+        if (!entry) continue;
+        entry.principal = Math.max(
+          0,
+          Number(item.loan.principal) - entry.principal,
+        );
       }
     }
 

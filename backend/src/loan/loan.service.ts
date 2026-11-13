@@ -847,31 +847,34 @@ export class LoanService {
     let remainingPrincipal = 0;
     let remainingInterest = 0;
     if (loan.repaymentMethod === 'custom') {
-      // 自定义分账：
-      // - 各期拆成本金/利息分别按「未还比例」累加（未还比例 = 1 − 已还/合计，已还的扣掉）
-      // - 历史合并期（principal/interest 均为 0 仅 totalAmount）：全额按本金处理（存量兼容）
-      // - 提前还款 = 纯本金，从剩余本金中减除（下限 0）
+      // 自定义：剩余未还本金 = 贷款本金 − 已还本金 − 提前还款本金（下限 0）
+      // - 已还本金：按各期未还比例倒算（历史合并期全额当本金）
+      // - 提前还款 = 纯本金，单独累计；不重复计入已还本金
       let prepayTotal = 0;
+      let paidPrincipal = 0;
       for (const r of loan.repayments) {
         const total = Number(r.totalAmount);
         if (r.kind === 'prepay') {
           prepayTotal += total;
           continue;
         }
-        if (r.status === 'paid' || total <= 0) continue;
+        if (total <= 0) continue;
         const ratio = Number(r.paidAmount) / Math.max(total, 1);
         const factor = 1 - ratio;
         const P = Number(r.principalAmount);
         const I = Number(r.interestAmount);
         if (P === 0 && I === 0) {
-          // 历史合并期：全额当本金
-          remainingPrincipal += total * factor;
+          // 历史合并期：全额当本金，利息按 0
+          paidPrincipal += total * ratio;
         } else {
-          remainingPrincipal += P * factor;
+          paidPrincipal += P * ratio;
           remainingInterest += I * factor;
         }
       }
-      remainingPrincipal = Math.max(0, remainingPrincipal - prepayTotal);
+      remainingPrincipal = Math.max(
+        0,
+        Number(loan.principal) - paidPrincipal - prepayTotal,
+      );
       remainingPrincipal = Math.round(remainingPrincipal * 100) / 100;
       remainingInterest = Math.round(remainingInterest * 100) / 100;
     } else {
