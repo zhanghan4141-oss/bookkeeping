@@ -643,6 +643,14 @@ export class LoanService {
           note: '提前还款',
         },
       });
+
+      // 7. 缩短期限后同步贷款期数 = 实际剩余期数（保持贷款信息与还款计划一致）
+      if (shortenTerm) {
+        await tx.loan.update({
+          where: { id: loanId },
+          data: { termMonths: newTerm },
+        });
+      }
     });
 
     return this.findOne(loanId);
@@ -1035,9 +1043,10 @@ export class LoanService {
       if (termChanged) {
         const newTerm = dto.termMonths!;
         if (newTerm < existing.termMonths) {
-          // 截断多余的期（不改保留期金额）
+          // 截断多余的期（不改保留期金额）。仅删除普通期，绝不删除提前还款记录
+          // （prepay 的 periodNo 恒 >= 10000，若无此条件会被 periodNo > newTerm 误删）
           await tx.loanRepayment.deleteMany({
-            where: { loanId: id, periodNo: { gt: newTerm } },
+            where: { loanId: id, periodNo: { gt: newTerm }, kind: 'period' },
           });
         } else if (newTerm > existing.termMonths) {
           // 新增期：金额 0，日期按还款日递推
