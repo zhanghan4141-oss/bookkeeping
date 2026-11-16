@@ -220,7 +220,7 @@ export default function LoanDetail() {
           ` 已达到结清金额（¥${formatMoney(settleAmount || remainingP)}），` +
           '确认后将直接结清贷款，剩余计划将被删除。是否继续？',
         cancelText: '取消',
-        okText: '确认结清',
+        confirmText: '确认结清',
         onConfirm: async () => {
           try {
             await loanApi.prepay(id, { amount, prepayDate, mode: prepayMode });
