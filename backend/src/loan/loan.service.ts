@@ -90,6 +90,7 @@ export class LoanService {
           principal: dto.principal,
           startDate: new Date(dto.startDate),
           plan,
+          loanNote: dto.note,
         },
         tx,
       );
@@ -222,6 +223,7 @@ export class LoanService {
             interestAmount: p.interest,
             totalAmount: p.totalAmount,
           })),
+          loanNote: loan.note,
         },
         tx,
       );
@@ -243,7 +245,7 @@ export class LoanService {
                 userId,
                 type: 'expense',
                 amount: new Prisma.Decimal(p.totalAmount),
-                note: `${loan.name} 提前还款`,
+                note: this.noteWithLoan(`${loan.name} 提前还款`, loan.note),
                 occurredAt: p.dueDate,
                 loanId,
               },
@@ -339,7 +341,7 @@ export class LoanService {
               userId,
               type: 'expense',
               amount: new Prisma.Decimal(amount),
-              note: `${loan.name} 提前还款`,
+              note: this.noteWithLoan(`${loan.name} 提前还款`, loan.note),
               occurredAt: prepayDate,
               loanId,
             },
@@ -434,7 +436,7 @@ export class LoanService {
               userId,
               type: 'expense',
               amount: new Prisma.Decimal(remainingPrincipal),
-              note: `${loan.name} 提前结清`,
+              note: this.noteWithLoan(`${loan.name} 提前结清`, loan.note),
               occurredAt: prepayDate,
               loanId,
             },
@@ -455,7 +457,7 @@ export class LoanService {
                 userId,
                 type: 'expense',
                 amount: new Prisma.Decimal(accruedInterest),
-                note: `${loan.name} 提前结清利息`,
+                note: this.noteWithLoan(`${loan.name} 提前结清利息`, loan.note),
                 occurredAt: prepayDate,
                 loanId,
               },
@@ -579,6 +581,7 @@ export class LoanService {
           startDate: remaining[0].dueDate,
           plan: newPlan,
           writeIncome: false,
+          loanNote: loan.note,
         },
         tx,
       );
@@ -598,7 +601,7 @@ export class LoanService {
             userId,
             type: 'expense',
             amount: new Prisma.Decimal(prepayAmount),
-            note: `${loan.name} 提前还款`,
+            note: this.noteWithLoan(`${loan.name} 提前还款`, loan.note),
             occurredAt: prepayDate,
             loanId,
           },
@@ -619,7 +622,7 @@ export class LoanService {
               userId,
               type: 'expense',
               amount: new Prisma.Decimal(accruedInterest),
-              note: `${loan.name} 提前还款利息`,
+              note: this.noteWithLoan(`${loan.name} 提前还款利息`, loan.note),
               occurredAt: prepayDate,
               loanId,
             },
@@ -683,6 +686,12 @@ export class LoanService {
     return Math.max(1, Math.min(total, Math.ceil(n)));
   }
 
+  /** 拼接贷款备注：贷款有备注时以「（备注）」追加到流水备注，无则原样返回 */
+  private noteWithLoan(base: string, loanNote?: string | null): string {
+    const t = loanNote?.trim();
+    return t ? `${base}（${t}）`.slice(0, 191) : base;
+  }
+
   /**
    * 写贷款相关流水：放款收入 + 每期本金/利息支出。
    * @param tx 可选，事务客户端
@@ -697,6 +706,8 @@ export class LoanService {
       plan: { dueDate: Date; principalAmount: number; interestAmount: number; totalAmount: number }[];
       /** 是否写「贷款」收入流水，默认 true；提前还款重算时传 false，避免多记一笔放款 */
       writeIncome?: boolean;
+      /** 贷款备注：非空时追加到每笔流水备注 */
+      loanNote?: string | null;
     },
     tx?: Prisma.TransactionClient,
   ) {
@@ -715,7 +726,7 @@ export class LoanService {
         userId,
         type: 'income',
         amount: new Prisma.Decimal(params.principal),
-        note: '贷款',
+        note: this.noteWithLoan('贷款', params.loanNote),
         occurredAt: params.startDate,
         loanId,
       });
@@ -732,7 +743,7 @@ export class LoanService {
             userId,
             type: 'expense',
             amount: new Prisma.Decimal(p.totalAmount),
-            note: '还款',
+            note: this.noteWithLoan('还款', params.loanNote),
             occurredAt: p.dueDate,
             loanId,
           });
@@ -746,7 +757,7 @@ export class LoanService {
           userId,
           type: 'expense',
           amount: new Prisma.Decimal(p.principalAmount),
-          note: '还款本金',
+          note: this.noteWithLoan('还款本金', params.loanNote),
           occurredAt: p.dueDate,
           loanId,
         });
@@ -758,7 +769,7 @@ export class LoanService {
           userId,
           type: 'expense',
           amount: new Prisma.Decimal(p.interestAmount),
-          note: '还款利息',
+          note: this.noteWithLoan('还款利息', params.loanNote),
           occurredAt: p.dueDate,
           loanId,
         });
