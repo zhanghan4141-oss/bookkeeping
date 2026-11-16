@@ -1115,15 +1115,34 @@ export class LoanService {
       status = 'partial';
     }
 
+    const paidAt = dto.paidDate ? new Date(dto.paidDate) : new Date();
+    // paidDate 落库为 DATE（截断到当日 00:00），流水时间同步为同一「当日 00:00」，
+    // 使 undo 能按 paidDate 精确匹配撤销，且保证标记当日即计入「已支出」。
+    const flowOccurredAt = new Date(paidAt);
+    flowOccurredAt.setHours(0, 0, 0, 0);
+
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.loanRepayment.update({
         where: { loanId_periodNo: { loanId, periodNo } },
         data: {
           paidAmount: new Prisma.Decimal(newPaid),
           status,
-          paidDate: dto.paidDate ? new Date(dto.paidDate) : new Date(),
+          paidDate: paidAt,
         },
       });
+
+      // 手动标记已还（还款页）：把该期本金/利息流水时间同步为该「当日 00:00」，
+      // 账本统计在标记当日即计入「已支出」；取消标记时由 undo 按 paidDate 精确匹配恢复。
+      if (dto.syncTransactionsToPaidAt && repayment.dueDate) {
+        await tx.transaction.updateMany({
+          where: {
+            loanId,
+            note: { in: ['还款本金', '还款利息'] },
+            occurredAt: repayment.dueDate,
+          },
+          data: { occurredAt: flowOccurredAt },
+        });
+      }
 
       await this.recalcLoanStatus(loanId, tx);
       return updated;
@@ -1133,6 +1152,11 @@ export class LoanService {
   /** 撤销某期还款（恢复 pending） */
   async undoRepayment(loanId: string, periodNo: number) {
     return this.prisma.$transaction(async (tx) => {
+      const repayment = await tx.loanRepayment.findUnique({
+        where: { loanId_periodNo: { loanId, periodNo } },
+      });
+      if (!repayment) throw new NotFoundException('还款计划不存在');
+
       const updated = await tx.loanRepayment.update({
         where: { loanId_periodNo: { loanId, periodNo } },
         data: {
@@ -1141,6 +1165,21 @@ export class LoanService {
           paidDate: null,
         },
       });
+
+      // 若此前手动标记已还把该期本金/利息流水挪到了 paidDate（当日 00:00），
+      // 这里按 paidDate 精确匹配、只恢复本期的流水到计划到期日，不影响其它标记期；
+      // 普通还款（流水本就在到期日）无匹配、无副作用。
+      if (repayment.paidDate) {
+        await tx.transaction.updateMany({
+          where: {
+            loanId,
+            note: { in: ['还款本金', '还款利息'] },
+            occurredAt: repayment.paidDate,
+          },
+          data: { occurredAt: repayment.dueDate },
+        });
+      }
+
       await this.recalcLoanStatus(loanId, tx);
       return updated;
     });

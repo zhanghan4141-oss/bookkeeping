@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, DatePicker, NavBar, Popup } from 'antd-mobile';
+import { Button, DatePicker, Dialog, Input, NavBar, Popup, Toast } from 'antd-mobile';
 import { repaymentApi } from '../api/misc';
+import { loanApi } from '../api/loan';
 import { ledgerApi } from '../api/ledger';
 import { useRepaymentLedgerSelection } from '../stores/repaymentLedgerSelection';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
@@ -105,10 +106,67 @@ export default function Repayments() {
     setShowEndPicker(false);
   };
 
-  const { data } = useQuery({
+  const { data, refetch } = useQuery({
     queryKey: ['repayments', 'upcoming', days, selectedIds],
     queryFn: async () => (await repaymentApi.upcoming(days, selectedIds)).data,
   });
+
+  // ===== 手动标记已还 =====
+  // 距「今天」的日差（到期日 = 日期分组头的 date 字符串）
+  const daysUntil = (dateStr: string) => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return Math.ceil((new Date(`${dateStr}T00:00:00`).getTime() - start.getTime()) / 86400000);
+  };
+
+  const [markItem, setMarkItem] = useState<any>(null);
+  const [markAmount, setMarkAmount] = useState('');
+  const [markDate, setMarkDate] = useState(''); // 空 = 今天（后端取标记时刻，含时间）
+
+  // 点「标记已还」：提前 >3 天先二次确认，再打开标记弹窗
+  const handleMarkClick = (it: any, dueDate: string) => {
+    const daysN = daysUntil(dueDate);
+    const openMark = () => {
+      setMarkItem(it);
+      setMarkAmount(String(it.totalAmount ?? 0));
+      setMarkDate('');
+    };
+    if (daysN > 3) {
+      Dialog.confirm({
+        title: '提前标记确认',
+        content: `该期还有 ${daysN} 天才到期，标记为已还会把该笔支出记到标记时刻（今天 ${formatDate(new Date())}），确定继续吗？`,
+        confirmText: '继续标记',
+        cancelText: '取消',
+        onConfirm: () => openMark(),
+      });
+      return;
+    }
+    openMark();
+  };
+
+  const submitMark = async () => {
+    if (!markItem) return;
+    const amount = Number(markAmount);
+    if (!markAmount || amount <= 0) {
+      Toast.show({ content: '请输入金额' });
+      return;
+    }
+    try {
+      const payload: { amount: number; paidDate?: string; syncTransactionsToPaidAt: boolean } = {
+        amount,
+        syncTransactionsToPaidAt: true,
+      };
+      // 默认今天 → 不传 paidDate，后端按标记时刻（精确时间）记录流水；
+      // 显式选到其它日期才传 paidDate。
+      if (markDate && markDate !== formatDate(new Date())) payload.paidDate = markDate;
+      await loanApi.pay(markItem.loanId, markItem.periodNo, payload);
+      Toast.show({ content: '已标记已还' });
+      setMarkItem(null);
+      refetch();
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '标记失败' });
+    }
+  };
 
   // 行内队列顺序：选中（按选中顺序）→ 最近取消选中（最新在前）→ 其余（原顺序）
   const orderedLedgers = useMemo(() => {
@@ -299,7 +357,7 @@ export default function Repayments() {
                 <span style={{ fontWeight: 700, color: '#999' }}>¥{formatMoney(d.total)}</span>
               </div>
               {isExpanded && d.items.map((it: any) => (
-                <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa' }}>
+                <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ color: '#1677ff' }}>{it.loanName}</span> 第{it.periodNo}期 · 剩余{' '}
                   <span style={{ color: '#ff4d4f' }}>¥{formatMoney(it.remainingPrincipal)}</span>
                   /{it.remainingPeriods}期、本期{' '}
@@ -307,6 +365,9 @@ export default function Repayments() {
                   <span style={{ marginLeft: 6, color: it.status === 'overdue' ? '#ff4d4f' : '#999' }}>
                     {it.status === 'overdue' ? '逾期' : it.status === 'partial' ? '部分还' : '待还'}
                   </span>
+                  <Button size="mini" color="primary" fill="outline" style={{ marginLeft: 8 }} onClick={() => handleMarkClick(it, d.date)}>
+                    标记已还
+                  </Button>
                 </div>
               ))}
             </div>
@@ -404,6 +465,37 @@ export default function Repayments() {
           <Button block color="primary" onClick={confirmEndDate}>
             确定
           </Button>
+        </div>
+      </Popup>
+
+      {/* 标记为已还弹窗 */}
+      <Popup
+        visible={!!markItem}
+        onMaskClick={() => setMarkItem(null)}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 8 }}>标记为已还</h3>
+          <div className="text-secondary" style={{ fontSize: 13, marginBottom: 16 }}>
+            {markItem?.loanName} 第{markItem?.periodNo}期 · 应还 ¥{formatMoney(Number(markItem?.totalAmount ?? 0))}
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <Input
+              type="number"
+              placeholder="还款金额"
+              value={markAmount}
+              onChange={setMarkAmount}
+              style={{ fontSize: 24, marginBottom: 12 }}
+            />
+            <DatePicker precision="day" value={markDate ? new Date(markDate) : new Date()} onConfirm={(v) => setMarkDate(formatDate(v))}>
+              {(_value, actions) => (
+                <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                  {markDate || '今天'}
+                </div>
+              )}
+            </DatePicker>
+          </div>
+          <Button block color="primary" onClick={submitMark}>确认标记</Button>
         </div>
       </Popup>
     </div>

@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsIn,
   IsInt,
@@ -163,6 +164,10 @@ export class PayRepaymentDto {
   @IsOptional()
   @IsDateString()
   paidDate?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  syncTransactionsToPaidAt?: boolean; // 手动标记已还：同步该期还款流水时间到 paidAt
 }
 
 export class PrepayDto {

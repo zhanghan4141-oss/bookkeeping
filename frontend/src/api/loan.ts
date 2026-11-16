@@ -7,8 +7,11 @@ export const loanApi = {
   update: (id: string, data: Record<string, unknown>) =>
     api.patch(`/loans/${id}`, data),
   remove: (id: string) => api.delete(`/loans/${id}`),
-  pay: (id: string, periodNo: number, data: { amount: number; paidDate?: string }) =>
-    api.post(`/loans/${id}/repayments/${periodNo}/pay`, data),
+  pay: (
+    id: string,
+    periodNo: number,
+    data: { amount: number; paidDate?: string; syncTransactionsToPaidAt?: boolean },
+  ) => api.post(`/loans/${id}/repayments/${periodNo}/pay`, data),
   undo: (id: string, periodNo: number) =>
     api.post(`/loans/${id}/repayments/${periodNo}/undo`),
   updateRepayments: (
