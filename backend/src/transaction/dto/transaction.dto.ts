@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -29,6 +30,7 @@ export class CreateTransactionDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(191, { message: '备注不能超过 191 个字符' })
   note?: string;
 
   @IsDateString()
@@ -52,6 +54,7 @@ export class UpdateTransactionDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(191, { message: '备注不能超过 191 个字符' })
   note?: string;
 
   @IsOptional()

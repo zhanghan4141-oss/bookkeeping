@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -83,6 +84,7 @@ export class CreateLoanDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(191, { message: '备注不能超过 191 个字符' })
   note?: string;
 
   @IsOptional()
@@ -138,6 +140,7 @@ export class UpdateLoanDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(191, { message: '备注不能超过 191 个字符' })
   note?: string;
 
   @IsOptional()

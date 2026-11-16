@@ -343,7 +343,7 @@ export default function LoanForm() {
 
         <div style={fieldWrap}>
           <div style={labelStyle}>备注</div>
-          <Input placeholder="可选" value={form.note} onChange={(v) => set('note', v)} />
+          <Input placeholder="可选" maxLength={191} value={form.note} onChange={(v) => set('note', v)} />
         </div>
 
         <Button block type="submit" color="primary" size="large" onClick={onSubmit} style={{ marginTop: 8 }}>

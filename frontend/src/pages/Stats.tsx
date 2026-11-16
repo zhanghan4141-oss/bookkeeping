@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, DatePicker, Dialog, Input, NavBar, Popup, SearchBar, SwipeAction, Toast } from 'antd-mobile';
+import { Button, DatePicker, Dialog, Input, NavBar, Popup, SearchBar, SwipeAction, TextArea, Toast } from 'antd-mobile';
 import { LeftOutline, RightOutline } from 'antd-mobile-icons';
 import { Lunar, LunarMonth, Solar } from 'lunar-javascript';
 import { statApi } from '../api/misc';
@@ -946,7 +946,7 @@ export default function Stats() {
           </div>
           <div style={{ marginBottom: 12 }}>
             <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>备注</div>
-            <Input placeholder="可选" value={editForm.note} onChange={(v) => setEditForm((f) => ({ ...f, note: v }))} />
+            <TextArea placeholder="可选" value={editForm.note} onChange={(v) => setEditForm((f) => ({ ...f, note: v }))} maxLength={191} autoSize={{ minRows: 2 }} />
           </div>
           <Button block color="primary" onClick={saveEditTx}>保存</Button>
         </div>

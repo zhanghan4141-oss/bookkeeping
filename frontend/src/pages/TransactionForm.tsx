@@ -194,6 +194,7 @@ export default function TransactionForm() {
             <TextArea
               placeholder="备注（可选）"
               autoSize={{ minRows: 1, maxRows: 8 }}
+              maxLength={191}
               value={draft.note}
               onChange={setNote}
             />

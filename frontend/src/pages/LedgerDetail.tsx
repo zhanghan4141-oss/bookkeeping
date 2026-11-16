@@ -7,6 +7,7 @@ import {
   Dialog,
   FloatingBubble,
   Input,
+  TextArea,
   NavBar,
   Picker,
   Popup,
@@ -862,10 +863,12 @@ export default function LedgerDetail() {
 
           <div style={{ marginBottom: 16 }}>
             <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>备注</div>
-            <Input
+            <TextArea
               value={editForm.note}
               onChange={(v) => setEditForm((f) => ({ ...f, note: v }))}
               placeholder="备注"
+              maxLength={191}
+              autoSize={{ minRows: 2 }}
             />
           </div>
 
