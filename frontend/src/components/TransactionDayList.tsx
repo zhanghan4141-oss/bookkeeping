@@ -99,7 +99,7 @@ export default function TransactionDayList({
                     </div>
                     <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                       {formatDateTime(new Date(t.occurredAt))}
-                      {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
+                      {t.note && <span style={{ marginLeft: 6, color: '#722ed1' }}>{t.note}</span>}
                       {showLedgerName && t.ledger?.name && (
                         <span style={{ marginLeft: 6, color: '#1677ff' }}>
                           〔{t.ledger.name}〕
