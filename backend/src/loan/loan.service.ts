@@ -1029,16 +1029,10 @@ export class LoanService {
     await this.prisma.$transaction(async (tx) => {
       await tx.loan.update({ where: { id }, data });
 
-      // 非自定义 → 自定义：归一化计划（自定义不区分本金/利息，totalAmount 保持本息合计不变）
-      if (methodChanged && targetMethod === 'custom') {
-        await tx.loanRepayment.updateMany({
-          where: { loanId: id },
-          data: {
-            principalAmount: new Prisma.Decimal(0),
-            interestAmount: new Prisma.Decimal(0),
-          },
-        });
-      }
+      // 非自定义 → 自定义：保留每期原有本金/利息拆分。
+      // 早期版本曾把 principal/interest 清零做「归一化」，但 withDerived 已改为
+      // 按 repaymentMethod + 贷款本金锚定计算，归一化不再必要；清零反而把
+      // 等额/先息后本各期已拆好的本金+利息合并，转自定义后剩余利息丢失、与分账方向矛盾。
 
       if (termChanged) {
         const newTerm = dto.termMonths!;
