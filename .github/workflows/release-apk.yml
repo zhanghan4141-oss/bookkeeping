@@ -77,6 +77,9 @@ jobs:
             echo "$RELEASE_KEYSTORE_B64" | base64 -d > android/release.keystore
           fi
 
+      - name: 缓存 Gradle（跨 run 复用依赖缓存与编译缓存）
+        uses: gradle/actions/setup-gradle@v4
+
       - name: 构建 APK（有 keystore 出 release，否则 debug）
         working-directory: frontend/android
         env:
@@ -84,9 +87,9 @@ jobs:
         run: |
           chmod +x gradlew
           if [ -f release.keystore ]; then
-            ./gradlew assembleRelease --no-daemon
+            ./gradlew assembleRelease
           else
-            ./gradlew assembleDebug --no-daemon
+            ./gradlew assembleDebug
           fi
 
       - name: 命名 APK
