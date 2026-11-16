@@ -345,15 +345,15 @@ export default function LoanDetail() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', rowGap: 12, marginBottom: 12 }}>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>本金</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>¥{formatMoney(Number(loan.principal))}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#52c41a' }}>¥{formatMoney(Number(loan.principal))}</div>
             </div>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>期数</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{loan.termMonths} 期</div>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{loan.termMonths} 期</div>
             </div>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>年利率</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{loan.annualRate}%</div>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{loan.annualRate}%</div>
             </div>
 
             <div>
@@ -413,7 +413,7 @@ export default function LoanDetail() {
               if (p.kind === 'prepay') {
                 return (
                   <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ width: 56, fontSize: 13, color: '#52c41a' }}>
+                    <span style={{ width: 56, fontSize: 13, color: '#a855f7' }}>
                       提前还款
                     </span>
                     <div style={{ flex: 1 }}>
@@ -520,14 +520,14 @@ export default function LoanDetail() {
                     }
                     extra={
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 600, color: '#52c41a' }}>
+                        <div style={{ fontWeight: 600, color: '#a855f7' }}>
                           ¥{formatMoney(Number(r.totalAmount))}
                         </div>
-                        <div style={{ fontSize: 12, color: '#52c41a' }}>已还</div>
+                        <div style={{ fontSize: 12, color: '#a855f7' }}>已还</div>
                       </div>
                     }
                   >
-                    <span style={{ color: '#52c41a', fontWeight: 600 }}>
+                    <span style={{ color: '#a855f7', fontWeight: 600 }}>
                       {r.note ?? '提前还款'}
                     </span>
                   </List.Item>
