@@ -585,7 +585,7 @@ export default function LedgerDetail() {
                     </div>
                     <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                       {formatDateTime(new Date(t.occurredAt))}
-                      {t.note && <span style={{ marginLeft: 6, color: '#722ed1' }}>{t.note}</span>}
+                      {t.note && <span style={{ marginLeft: 6, color: '#722ed1', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{t.note}</span>}
                       {isLoanTx && (
                         <span
                           onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }}
@@ -702,7 +702,7 @@ export default function LedgerDetail() {
                       </div>
                       <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                         {formatDateTime(new Date(t.occurredAt))}
-                        {t.note && <span style={{ marginLeft: 6, color: '#722ed1' }}>{t.note}</span>}
+                        {t.note && <span style={{ marginLeft: 6, color: '#722ed1', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{t.note}</span>}
                         {isLoanTx && (
                           <span
                             onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }}

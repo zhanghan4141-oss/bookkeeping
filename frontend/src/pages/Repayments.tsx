@@ -345,7 +345,7 @@ export default function Repayments() {
               {isExpanded && d.items.map((it: any) => (
                 <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa' }}>
                   {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#52c41a' }}>¥{formatMoney(it.amount)}</span>
-                  {it.note && <span style={{ marginLeft: 6, color: '#722ed1' }}>（{it.note}）</span>}
+                  {it.note && <span style={{ marginLeft: 6, color: '#722ed1', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>（{it.note}）</span>}
                 </div>
               ))}
             </div>
