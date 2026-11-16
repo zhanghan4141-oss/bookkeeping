@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
-import { Dialog } from 'antd-mobile';
+import { Dialog, Toast } from 'antd-mobile';
 
 const DEFAULT_ORIGIN = 'https://bookkeeping.zhangyuning.xyz';
 
@@ -14,8 +14,14 @@ function cmpVersion(a: string, b: string) {
   return 0;
 }
 
-/** App 内启动时检查更新：读 /app-update/manifest.json，版本更高则弹窗提示下载 */
-export async function checkAppUpdate() {
+/** 更新检查选项 */
+export interface CheckAppUpdateOptions {
+  /** 无新版本时提示「已是最新版本」（手动「检测更新」用）；启动自动检测保持静默 */
+  notifyNoUpdate?: boolean;
+}
+
+/** App 内检查更新：读 /app-update/manifest.json，版本更高则弹窗提示下载 */
+export async function checkAppUpdate(options: CheckAppUpdateOptions = {}) {
   if (!Capacitor.isNativePlatform()) return;
   try {
     const origin = window.APP_SERVER_ORIGIN || DEFAULT_ORIGIN;
@@ -26,7 +32,10 @@ export async function checkAppUpdate() {
 
     const info = await CapacitorApp.getInfo();
     const installed = info?.version;
-    if (!installed || cmpVersion(m.version, installed) <= 0) return;
+    if (!installed || cmpVersion(m.version, installed) <= 0) {
+      if (options.notifyNoUpdate) Toast.show({ content: '已是最新版本' });
+      return;
+    }
 
     const apkUrl = m.apkUrl.startsWith('http') ? m.apkUrl : origin + m.apkUrl;
     Dialog.confirm({

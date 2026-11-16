@@ -2,9 +2,11 @@ import { useContext, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Checkbox, Input, List, NavBar, Popup, Stepper, Switch, Toast } from 'antd-mobile';
+import { Capacitor } from '@capacitor/core';
 import api from '../api/client';
 import { ledgerApi } from '../api/ledger';
 import { settingsApi } from '../api/misc';
+import { checkAppUpdate } from '../lib/appUpdate';
 import { formatDate } from '../lib/format';
 import { TabActiveContext } from '../components/KeepAlive';
 import { useAuthStore } from '../stores/auth';
@@ -104,6 +106,11 @@ export default function Settings() {
           <span
             style={{ fontSize: 14, color: '#1677ff', cursor: 'pointer' }}
             onClick={() => {
+              // App 内：检测更新；Web/PWA：仍提供下载 App 入口
+              if (Capacitor.isNativePlatform()) {
+                checkAppUpdate({ notifyNoUpdate: true });
+                return;
+              }
               const a = document.createElement('a');
               a.href = 'https://bookkeeping.zhangyuning.xyz/app-update/bookkeeping-latest.apk';
               a.download = 'bookkeeping-latest.apk';
@@ -113,7 +120,7 @@ export default function Settings() {
               a.remove();
             }}
           >
-            下载 App
+            {Capacitor.isNativePlatform() ? '检测更新' : '下载 App'}
           </span>
         }
       >
