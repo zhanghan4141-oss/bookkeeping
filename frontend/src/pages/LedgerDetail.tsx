@@ -195,7 +195,7 @@ export default function LedgerDetail() {
     let income = 0;
     let expense = 0;
     let pendingExpense = 0;
-    for (const t of transactions) {
+    for (const t of filtered) {
       const occurred = new Date(t.occurredAt);
       if (t.type === 'income') {
         if (occurred < tomorrow) income += Number(t.amount);
@@ -211,7 +211,7 @@ export default function LedgerDetail() {
       pendingExpense,
       pendingSurplus: income - expense - pendingExpense,
     };
-  }, [transactions]);
+  }, [filtered]);
 
   const handleExport = async () => {
     try {
@@ -316,6 +316,12 @@ export default function LedgerDetail() {
     try {
       await transactionApi.remove(t.id);
       Toast.show({ content: '已删除' });
+      // 若该条在批量删除勾选集中，同步移出，避免「删除选中」再提交已删 id
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(t.id);
+        return next;
+      });
       refreshAll();
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '删除失败' });
@@ -544,13 +550,25 @@ export default function LedgerDetail() {
             )}
             {filtered.map((t) => {
               const isLoanTx = !!t.loanId;
-              return (
-                <div key={t.id} style={{ background: isLoanTx ? '#fafafa' : '#fff', marginBottom: 8, borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center' }}>
+              const content = (
+                <div
+                  onClick={() => !isLoanTx && !isViewer && openEdit(t)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    background: isLoanTx ? '#fafafa' : '#fff',
+                    cursor: isLoanTx || isViewer ? 'default' : 'pointer',
+                  }}
+                >
                   {!isViewer && !isLoanTx && (
                     <input
                       type="checkbox"
                       checked={selectedIds.has(t.id)}
                       onChange={() => toggleSelect(t.id)}
+                      // 停止冒泡，避免勾选操作同时触发行点击打开编辑
+                      onClick={(e) => e.stopPropagation()}
                       style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
                     />
                   )}
@@ -566,7 +584,7 @@ export default function LedgerDetail() {
                     </div>
                     <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                       {formatDateTime(new Date(t.occurredAt))}
-                      {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
+                      {t.note && <span style={{ marginLeft: 6, color: '#722ed1' }}>{t.note}</span>}
                       {isLoanTx && (
                         <span
                           onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }}
@@ -580,6 +598,46 @@ export default function LedgerDetail() {
                   <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
                     {t.type === 'income' ? '+' : '-'}¥{fmt(t.amount)}
                   </span>
+                </div>
+              );
+
+              // viewer：搜索出的流水同样只读（与普通列表一致）
+              if (isViewer) {
+                return <div key={t.id} style={{ marginBottom: 8 }}>{content}</div>;
+              }
+
+              // 非 viewer：贷款流水可复制、不可删除；普通流水：复制 + 删除
+              return (
+                <div key={t.id} style={{ marginBottom: 8 }}>
+                  <SwipeAction
+                    rightActions={
+                      isLoanTx
+                        ? [
+                            {
+                              key: 'copy',
+                              text: '复制',
+                              color: 'primary',
+                              onClick: () => handleCopy(t),
+                            },
+                          ]
+                        : [
+                            {
+                              key: 'copy',
+                              text: '复制',
+                              color: 'primary',
+                              onClick: () => handleCopy(t),
+                            },
+                            {
+                              key: 'delete',
+                              text: '删除',
+                              color: 'danger',
+                              onClick: () => handleDelete(t),
+                            },
+                          ]
+                    }
+                  >
+                    {content}
+                  </SwipeAction>
                 </div>
               );
             })}
@@ -643,7 +701,7 @@ export default function LedgerDetail() {
                       </div>
                       <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                         {formatDateTime(new Date(t.occurredAt))}
-                        {t.note && <span style={{ marginLeft: 6 }}>{t.note}</span>}
+                        {t.note && <span style={{ marginLeft: 6, color: '#722ed1' }}>{t.note}</span>}
                         {isLoanTx && (
                           <span
                             onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }}
