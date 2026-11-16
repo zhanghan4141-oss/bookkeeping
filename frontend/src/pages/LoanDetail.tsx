@@ -437,50 +437,49 @@ export default function LoanDetail() {
                         placeholder="金额"
                         value={p.totalAmount}
                         onChange={(v) => setRow({ totalAmount: v })}
-                        style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13 }}
+                        style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13, '--font-size': '13px' }}
                       />
                     </div>
                   </div>
                 );
               }
               return (
-                <div key={i} style={{ marginBottom: 12 }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ width: 56, fontSize: 13, color: '#666' }}>
-                      第{p.periodNo}期{isPaid ? '✓' : ''}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <DatePicker
-                        value={p.dueDate ? new Date(p.dueDate) : new Date()}
-                        onConfirm={(v) => {
-                          const date = formatDate(v);
-                          setRow({ dueDate: date });
-                        }}
-                      >
-                        {(_value, actions) => (
-                          <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
-                            {p.dueDate || '日期'}
-                          </div>
-                        )}
-                      </DatePicker>
-                    </div>
-                    <span style={{ fontSize: 12, color: '#666' }}>本金</span>
-                    <Input
-                      type="number"
-                      placeholder="本金"
-                      value={p.principal}
-                      onChange={(v) => setRow({ principal: v })}
-                      style={{ width: 70, background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13 }}
-                    />
-                    <span style={{ fontSize: 12, color: '#666' }}>利息</span>
-                    <Input
-                      type="number"
-                      placeholder="利息"
-                      value={p.interest}
-                      onChange={(v) => setRow({ interest: v })}
-                      style={{ width: 70, background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13 }}
-                    />
+                <div key={i} style={{ marginBottom: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {/* 单行：期号 + 缩窄日期 + 本金 + 利息 */}
+                  <span style={{ width: 56, fontSize: 13, color: '#666', flexShrink: 0 }}>
+                    第{p.periodNo}期{isPaid ? '✓' : ''}
+                  </span>
+                  <div style={{ width: 92, flexShrink: 0 }}>
+                    <DatePicker
+                      value={p.dueDate ? new Date(p.dueDate) : new Date()}
+                      onConfirm={(v) => {
+                        const date = formatDate(v);
+                        setRow({ dueDate: date });
+                      }}
+                    >
+                      {(_value, actions) => (
+                        <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
+                          {p.dueDate || '日期'}
+                        </div>
+                      )}
+                    </DatePicker>
                   </div>
+                  <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>本金</span>
+                  <Input
+                    type="number"
+                    placeholder="本金"
+                    value={p.principal}
+                    onChange={(v) => setRow({ principal: v })}
+                    style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                  />
+                  <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>利息</span>
+                  <Input
+                    type="number"
+                    placeholder="利息"
+                    value={p.interest}
+                    onChange={(v) => setRow({ interest: v })}
+                    style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                  />
                 </div>
               );
             })}
