@@ -323,6 +323,12 @@ export default function Stats() {
     try {
       await transactionApi.remove(t.id);
       Toast.show({ content: '已删除' });
+      // 若该条在批量删除勾选集中，同步移出，避免「删除选中」再提交已删 id
+      setSelectedTxIds((prev) => {
+        const next = new Set(prev);
+        next.delete(t.id);
+        return next;
+      });
       refreshCategoryTx();
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '删除失败' });
@@ -757,10 +763,27 @@ export default function Stats() {
               </div>
               {filteredCategoryTx.map((t) => {
                 const isLoanTx = !!t.loanId;
-                return (
-                  <div key={t.id} style={{ background: isLoanTx ? '#fafafa' : '#fff', marginBottom: 8, borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center' }}>
+                const content = (
+                  <div
+                    onClick={() => !isLoanTx && openEditTx(t)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      borderRadius: 12,
+                      background: isLoanTx ? '#fafafa' : '#fff',
+                      cursor: isLoanTx ? 'default' : 'pointer',
+                    }}
+                  >
                     {!isLoanTx ? (
-                      <input type="checkbox" checked={selectedTxIds.has(t.id)} onChange={() => toggleSelectTx(t.id)} style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }} />
+                      <input
+                        type="checkbox"
+                        checked={selectedTxIds.has(t.id)}
+                        onChange={() => toggleSelectTx(t.id)}
+                        // 停止冒泡，避免勾选操作同时触发行点击打开编辑
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
+                      />
                     ) : (
                       <span style={{ marginRight: 10, width: 18, flexShrink: 0 }} />
                     )}
@@ -777,6 +800,22 @@ export default function Stats() {
                       </div>
                     </div>
                     <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>{t.type === 'income' ? '+' : '-'}¥{formatMoney(t.amount)}</span>
+                  </div>
+                );
+                return (
+                  <div key={t.id} style={{ marginBottom: 8 }}>
+                    <SwipeAction
+                      rightActions={
+                        isLoanTx
+                          ? [{ key: 'copy', text: '复制', color: 'primary', onClick: () => handleCopyTx(t) }]
+                          : [
+                              { key: 'copy', text: '复制', color: 'primary', onClick: () => handleCopyTx(t) },
+                              { key: 'delete', text: '删除', color: 'danger', onClick: () => handleDeleteTx(t) },
+                            ]
+                      }
+                    >
+                      {content}
+                    </SwipeAction>
                   </div>
                 );
               })}
