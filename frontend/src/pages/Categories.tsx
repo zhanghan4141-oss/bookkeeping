@@ -13,6 +13,7 @@ export default function Categories() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState<Category | null>(null);
 
   const { data: categories = [], refetch } = useQuery({
     queryKey: ['categories', id],
@@ -56,6 +57,21 @@ export default function Categories() {
     }
   };
 
+  const handleUpdate = async (values: { name: string; type: string[] }) => {
+    if (!editing) return;
+    try {
+      // 原地 Update 同一 id：所有关联流水的 categoryId 不变，
+      // 历史流水自动跟随显示新类别（无需迁移流水记录）
+      await categoryApi.update(editing.id, { name: values.name, type: values.type[0] });
+      Toast.show({ content: '已保存' });
+      setEditing(null);
+      refetch();
+      invalidateFinancialData(queryClient);
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '保存失败' });
+    }
+  };
+
   const expense = categories.filter((c) => c.type === 'expense');
   const income = categories.filter((c) => c.type === 'income');
 
@@ -81,9 +97,14 @@ export default function Categories() {
               prefix={<span style={{ color: c.color || '#ff4d4f', fontSize: 20, marginRight: 8 }}>●</span>}
               extra={
                 !isViewer ? (
-                  <Button size="mini" fill="none" onClick={() => handleRemove(c)}>
-                    <DeleteOutline color="#999" />
-                  </Button>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <Button size="mini" fill="none" onClick={() => setEditing(c)}>
+                      编辑
+                    </Button>
+                    <Button size="mini" fill="none" onClick={() => handleRemove(c)}>
+                      <DeleteOutline color="#999" />
+                    </Button>
+                  </div>
                 ) : undefined
               }
             >
@@ -100,9 +121,14 @@ export default function Categories() {
               prefix={<span style={{ color: c.color || '#52c41a', fontSize: 20, marginRight: 8 }}>●</span>}
               extra={
                 !isViewer ? (
-                  <Button size="mini" fill="none" onClick={() => handleRemove(c)}>
-                    <DeleteOutline color="#999" />
-                  </Button>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <Button size="mini" fill="none" onClick={() => setEditing(c)}>
+                      编辑
+                    </Button>
+                    <Button size="mini" fill="none" onClick={() => handleRemove(c)}>
+                      <DeleteOutline color="#999" />
+                    </Button>
+                  </div>
                 ) : undefined
               }
             >
@@ -126,6 +152,51 @@ export default function Categories() {
             footer={
               <Button block type="submit" color="primary">
                 添加
+              </Button>
+            }
+          >
+            <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+              <Input placeholder="如：餐饮" />
+            </Form.Item>
+            <Form.Item name="type" label="类型" trigger="onConfirm">
+              <Picker
+                columns={[
+                  [
+                    { label: '支出', value: 'expense' },
+                    { label: '收入', value: 'income' },
+                  ],
+                ]}
+              >
+                {(items, actions) => (
+                  <div onClick={() => actions.open()}>
+                    <Input value={String(items[0]?.label ?? '支出')} readOnly />
+                  </div>
+                )}
+              </Picker>
+            </Form.Item>
+          </Form>
+        </div>
+      </Popup>
+
+      {/* 编辑分类弹窗 */}
+      <Popup
+        visible={!!editing}
+        onMaskClick={() => setEditing(null)}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 16 }}>编辑分类</h3>
+          <Form
+            layout="vertical"
+            onFinish={handleUpdate}
+            key={editing?.id ?? 'none'}
+            initialValues={{
+              name: editing?.name ?? '',
+              type: [editing?.type ?? 'expense'],
+            }}
+            footer={
+              <Button block type="submit" color="primary">
+                保存
               </Button>
             }
           >
