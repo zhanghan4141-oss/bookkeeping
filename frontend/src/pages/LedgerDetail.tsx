@@ -868,7 +868,7 @@ export default function LedgerDetail() {
               onChange={(v) => setEditForm((f) => ({ ...f, note: v }))}
               placeholder="备注"
               maxLength={191}
-              autoSize={{ minRows: 2 }}
+              autoSize={{ minRows: 2, maxRows: 6 }}
             />
           </div>
 
