@@ -7,6 +7,7 @@ import api from '../api/client';
 import { ledgerApi } from '../api/ledger';
 import { settingsApi } from '../api/misc';
 import { checkAppUpdate } from '../lib/appUpdate';
+import { downloadApk } from '../lib/downloadApk';
 import { formatDate } from '../lib/format';
 import { TabActiveContext } from '../components/KeepAlive';
 import { useAuthStore } from '../stores/auth';
@@ -111,13 +112,7 @@ export default function Settings() {
                 checkAppUpdate({ notifyNoUpdate: true });
                 return;
               }
-              const a = document.createElement('a');
-              a.href = 'https://bookkeeping.zhangyuning.xyz/app-update/bookkeeping-latest.apk';
-              a.download = 'bookkeeping-latest.apk';
-              a.rel = 'noopener';
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
+              downloadApk();
             }}
           >
             {Capacitor.isNativePlatform() ? '检测更新' : '下载 App'}

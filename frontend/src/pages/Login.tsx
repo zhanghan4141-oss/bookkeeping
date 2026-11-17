@@ -4,8 +4,7 @@ import { Button, Form, Input, Toast } from 'antd-mobile';
 import { Capacitor } from '@capacitor/core';
 import { authApi } from '../api/auth';
 import { useAuthStore } from '../stores/auth';
-
-const APK_URL = 'https://bookkeeping.zhangyuning.xyz/app-update/bookkeeping-latest.apk';
+import { downloadApk } from '../lib/downloadApk';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -50,14 +49,7 @@ export default function Login() {
   };
 
   const downloadApp = () => {
-    const a = document.createElement('a');
-    a.href = APK_URL;
-    // download 属性强制浏览器下载（而非导航跳转），否则移动端点击后只刷新不下载
-    a.download = 'bookkeeping-latest.apk';
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    downloadApk();
   };
 
   const onFinish = async (values: { email: string; password: string; nickname?: string }) => {
