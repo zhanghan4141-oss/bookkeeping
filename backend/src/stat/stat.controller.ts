@@ -46,8 +46,12 @@ export class StatController {
 
   /** 账本页顶部矩阵：当日/当月/当年/所有 四维度所有账本合计 */
   @Get('stats/overview')
-  overview(@CurrentUser() user: AuthUser) {
-    return this.statService.overview(user.id);
+  overview(
+    @CurrentUser() user: AuthUser,
+    // 排除的账本（账本页统计勾选：未勾选账本不统计；不传=全部）
+    @Query('excludeLedgerIds') excludeLedgerIds?: string,
+  ) {
+    return this.statService.overview(user.id, excludeLedgerIds);
   }
 
   /** 某类别在区间内的流水明细 */

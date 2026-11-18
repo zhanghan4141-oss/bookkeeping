@@ -26,7 +26,11 @@ export const statApi = {
     api.get('/stats/summary', { params }),
   ledgerSummaries: (period: string) =>
     api.get('/stats/ledgers', { params: { period } }),
-  overview: () => api.get('/stats/overview'),
+  // excludeLedgerIds：账本页统计勾选（未勾选账本从统计排除；不传=全部）
+  overview: (excludeIds?: string[]) =>
+    api.get('/stats/overview', {
+      params: { excludeLedgerIds: excludeIds?.length ? excludeIds.join(',') : undefined },
+    }),
   categoryTransactions: (params: Record<string, string>) =>
     api.get('/stats/category-transactions', { params }),
 };

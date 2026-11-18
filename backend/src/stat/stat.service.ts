@@ -170,6 +170,7 @@ export class StatService {
   async ledgerSummaries(
     userId: string,
     period: 'day' | 'month' | 'year' | 'all',
+    excludeLedgerIds?: string[],
   ) {
     const now = new Date();
     // 已发生口径：仅统计今天整天及之前（不含未来）
@@ -203,9 +204,13 @@ export class StatService {
       select: { ledgerId: true },
     });
     const accessibleIds = members.map((m) => m.ledgerId);
+    // 排除未勾选账本（账本页统计勾选），空 = 全部
+    const scopedIds = excludeLedgerIds?.length
+      ? accessibleIds.filter((id) => !excludeLedgerIds.includes(id))
+      : accessibleIds;
 
     const transactions = await this.prisma.transaction.findMany({
-      where: { ...where, ledgerId: { in: accessibleIds } },
+      where: { ...where, ledgerId: { in: scopedIds } },
       select: { ledgerId: true, type: true, amount: true },
     });
 
@@ -230,7 +235,10 @@ export class StatService {
   }
 
   /** 账本页顶部矩阵：当日/当月/当年/所有 四个维度的所有账本合计 */
-  async overview(userId: string): Promise<
+  async overview(
+    userId: string,
+    excludeLedgerIds?: string,
+  ): Promise<
     Record<'day' | 'month' | 'year' | 'all', { income: number; expense: number; surplus: number }>
   > {
     const round = (n: number) => Math.round(n * 100) / 100;
@@ -242,8 +250,9 @@ export class StatService {
       all: { income: 0, expense: 0, surplus: 0 },
     };
 
+    const exclude = excludeLedgerIds?.split(',').filter(Boolean) ?? [];
     for (const period of periods) {
-      const list = await this.ledgerSummaries(userId, period);
+      const list = await this.ledgerSummaries(userId, period, exclude);
       let income = 0;
       let expense = 0;
       for (const s of list) {

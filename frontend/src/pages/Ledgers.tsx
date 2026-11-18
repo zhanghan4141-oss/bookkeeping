@@ -7,6 +7,7 @@ import { ledgerApi } from '../api/ledger';
 import { statApi } from '../api/misc';
 import { invalidateFinancialData } from '../lib/invalidate';
 import { useLedgerSelectionStore } from '../stores/ledgerSelection';
+import { useHomeLedgerSelection } from '../stores/homeLedgerSelection';
 import { useLedgerPeriodStore } from '../stores/ledgerPeriod';
 import { TabActiveContext } from '../components/KeepAlive';
 import type { Ledger, LedgerSummary, StatOverview } from '../types';
@@ -53,9 +54,13 @@ export default function Ledgers() {
   }, [summaries]);
 
   // 顶部矩阵：当日/当月/当年/所有 四维度的所有账本合计
+  const statsDeselectedIds = useHomeLedgerSelection((s) => s.deselectedIds);
+  const toggleStatsCheck = useHomeLedgerSelection((s) => s.toggle);
+
   const { data: overview } = useQuery({
-    queryKey: ['stats', 'overview'],
-    queryFn: async () => (await statApi.overview()).data as StatOverview,
+    // queryKey 带勾选状态，勾选变化时自动重取
+    queryKey: ['stats', 'overview', statsDeselectedIds.join(',')],
+    queryFn: async () => (await statApi.overview(statsDeselectedIds)).data as StatOverview,
   });
 
   // 选中的账本排最上方
@@ -103,7 +108,7 @@ export default function Ledgers() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '36px repeat(3, minmax(84px, 1fr))',
+                gridTemplateColumns: '36px repeat(3, minmax(0, 1fr))',
                 alignItems: 'center',
                 rowGap: 8,
                 columnGap: 4,
@@ -122,13 +127,13 @@ export default function Ledgers() {
                 return (
                   <Fragment key={b.key}>
                     <div className="text-secondary" style={{ fontSize: 12 }}>{b.label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#52c41a', textAlign: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#52c41a', textAlign: 'center', whiteSpace: 'nowrap', overflowX: 'auto' }}>
                       ¥{formatMoney(s?.income ?? 0)}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#ff4d4f', textAlign: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#ff4d4f', textAlign: 'center', whiteSpace: 'nowrap', overflowX: 'auto' }}>
                       ¥{formatMoney(s?.expense ?? 0)}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1677ff', textAlign: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1677ff', textAlign: 'center', whiteSpace: 'nowrap', overflowX: 'auto' }}>
                       ¥{formatMoney(s?.surplus ?? 0)}
                     </div>
                   </Fragment>
@@ -185,9 +190,17 @@ export default function Ledgers() {
               <List.Item
                 key={l.id}
                 prefix={
-                  <span style={{ fontSize: 28, marginRight: 8 }}>
-                    {l.icon || LEDGER_TYPE_ICON[l.type] || '📒'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                      type="checkbox"
+                      checked={!statsDeselectedIds.includes(l.id)}
+                      readOnly
+                      style={{ width: 20, height: 20, pointerEvents: 'none' }}
+                    />
+                    <span style={{ fontSize: 28 }}>
+                      {l.icon || LEDGER_TYPE_ICON[l.type] || '📒'}
+                    </span>
+                  </div>
                 }
                 description={
                   <div>
@@ -204,7 +217,14 @@ export default function Ledgers() {
                     </div>
                   </div>
                 }
-                onClick={() => handleOpenLedger(l)}
+                onClick={(e) => {
+                  // 左侧 38px 内为勾选热区（整行高、贴左缘、止于图标附近）；
+                  // 统一在行自身点击里按坐标判定，不依赖额外覆盖层（避免事件被吞）
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  if (x <= 38) toggleStatsCheck(l.id);
+                  else handleOpenLedger(l);
+                }}
                 style={
                   isSelected
                     ? { background: '#e6f4ff' }
