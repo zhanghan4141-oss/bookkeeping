@@ -358,7 +358,7 @@ export default function Repayments() {
               </div>
               {isExpanded && d.items.map((it: any) => (
                 <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ color: '#1677ff' }}>{it.loanName}</span> 第{it.periodNo}期 · 剩余{' '}
+                  <span style={{ color: '#1677ff' }}>{it.loanName}</span> {it.kind === 'prepay' ? '提前还款' : `第${it.periodNo}期`} · 剩余{' '}
                   <span style={{ color: '#ff4d4f' }}>¥{formatMoney(it.remainingPrincipal)}</span>
                   /{it.remainingPeriods}期、本期{' '}
                   <span style={{ color: '#52c41a' }}>¥{formatMoney(it.totalAmount)}</span>

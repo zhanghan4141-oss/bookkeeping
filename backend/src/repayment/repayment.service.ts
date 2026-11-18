@@ -134,6 +134,7 @@ export class RepaymentService {
         loanName: r.loan.name,
         direction: r.loan.direction,
         periodNo: r.periodNo,
+        kind: r.kind,
         remain: Math.round(remain * 100) / 100,
         totalAmount: Math.round(Number(r.totalAmount) * 100) / 100,
         remainingPrincipal: Math.round(remaining.principal * 100) / 100,

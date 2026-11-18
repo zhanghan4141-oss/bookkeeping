@@ -147,6 +147,19 @@ export class LoanService {
     }
     const prepayEntries = entries.filter((e) => e.kind === 'prepay');
 
+    // 校验：计划本金总额（各期本金 + 提前还条目全额视本金）应等于借款金额
+    const totalPrincipal =
+      periodEntries.reduce((s, p) => {
+        // 历史合并期本金利息都为 0 时，全额当本金
+        const principal = p.principal !== undefined ? p.principal : (p.totalAmount ?? 0);
+        return s + (principal || 0);
+      }, 0) + prepayEntries.reduce((s, p) => s + (p.totalAmount ?? 0), 0);
+    if (Math.abs(totalPrincipal - Number(loan.principal)) > 0.01) {
+      throw new BadRequestException(
+        `还款计划本金总额 ¥${Math.round(totalPrincipal * 100) / 100} 与借款金额 ¥${Number(loan.principal)} 不一致`,
+      );
+    }
+
     // 保留已还期的状态映射（仅 period）
     const paidMap = new Map(
       loan.repayments
@@ -189,22 +202,26 @@ export class LoanService {
         }),
       });
 
-      // 重建提前还款条目（视为已还，paidAmount 跟随金额）
+      // 重建提前还款条目：时间未到（dueDate 在未来）→ 生成「待还的额外计划」；
+      // 当天/已过 → 记作已还
       if (prepayEntries.length > 0) {
         await tx.loanRepayment.createMany({
-          data: prepayEntries.map((p, i) => ({
-            loanId,
-            periodNo: 10000 + i + 1,
-            kind: 'prepay',
-            dueDate: p.dueDate,
-            principalAmount: new Prisma.Decimal(0),
-            interestAmount: new Prisma.Decimal(0),
-            totalAmount: new Prisma.Decimal(p.totalAmount),
-            paidAmount: new Prisma.Decimal(p.totalAmount),
-            status: 'paid',
-            paidDate: p.dueDate,
-            note: '提前还款',
-          })),
+          data: prepayEntries.map((p, i) => {
+            const isFuture = p.dueDate > new Date();
+            return {
+              loanId,
+              periodNo: 10000 + i + 1,
+              kind: 'prepay',
+              dueDate: p.dueDate,
+              principalAmount: new Prisma.Decimal(0),
+              interestAmount: new Prisma.Decimal(0),
+              totalAmount: new Prisma.Decimal(p.totalAmount),
+              paidAmount: new Prisma.Decimal(isFuture ? 0 : p.totalAmount),
+              status: isFuture ? 'pending' : 'paid',
+              paidDate: isFuture ? null : p.dueDate,
+              note: '提前还款',
+            };
+          }),
         });
       }
 
@@ -311,6 +328,9 @@ export class LoanService {
       }
       const prepayNo =
         10000 + loan.repayments.filter((r) => r.kind === 'prepay').length + 1;
+      // 时间未到（还款日仍在未来）→ 生成「待还的额外计划」，不做已还；
+      // 当天/已过 → 保持记作「已还」的提前还款
+      const isFuturePrepay = prepayDate > new Date();
       await this.prisma.$transaction(async (tx) => {
         await tx.loanRepayment.create({
           data: {
@@ -321,9 +341,9 @@ export class LoanService {
             principalAmount: new Prisma.Decimal(0),
             interestAmount: new Prisma.Decimal(0),
             totalAmount: new Prisma.Decimal(amount),
-            paidAmount: new Prisma.Decimal(amount),
-            status: 'paid',
-            paidDate: prepayDate,
+            paidAmount: new Prisma.Decimal(isFuturePrepay ? 0 : amount),
+            status: isFuturePrepay ? 'pending' : 'paid',
+            paidDate: isFuturePrepay ? null : prepayDate,
             note: '提前还款',
           },
         });

@@ -407,12 +407,8 @@ export default function LoanDetail() {
           <div style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
             {editPeriods.map((p, i) => {
               const orig = loan.repayments[i];
-              // 已还 / 已提前还（status=paid）的期不可编辑，置为只读展示
+              // 已还（status=paid）的期也可编辑：后端 updateRepayments 支持改已还期并校验下限
               const isPaid = orig ? orig.status === 'paid' : false;
-              const earlyPaidLabel =
-                isPaid && orig?.paidDate && new Date(orig.paidDate) < new Date(orig.dueDate)
-                  ? '已提前还'
-                  : '已还';
               const setRow = (patch: Partial<EditPlanRow>) =>
                 setEditPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, ...patch } : x) as EditPlanRow));
               if (p.kind === 'prepay') {
@@ -445,22 +441,6 @@ export default function LoanDetail() {
                         style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13, '--font-size': '13px' }}
                       />
                     </div>
-                  </div>
-                );
-              }
-              // 已还/已提前还的期：锁定不可编辑（只读展示、置灰）
-              if (isPaid) {
-                return (
-                  <div key={i} style={{ marginBottom: 8, display: 'flex', gap: 6, alignItems: 'center', opacity: 0.55 }}>
-                    <span style={{ width: 56, fontSize: 13, color: '#666', flexShrink: 0 }}>
-                      第{p.periodNo}期 ✓
-                    </span>
-                    <span style={{ fontSize: 13, color: '#666' }}>
-                      本金 ¥{p.principal ? formatMoney(Number(p.principal)) : '0.00'} · 利息 ¥{p.interest ? formatMoney(Number(p.interest)) : '0.00'}
-                    </span>
-                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#999' }}>
-                      {earlyPaidLabel} · 不可编辑
-                    </span>
                   </div>
                 );
               }
