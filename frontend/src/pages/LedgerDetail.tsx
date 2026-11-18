@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { TabActiveContext } from '../components/KeepAlive';
+import ExpandableNote from '../components/ExpandableNote';
 import {
   Button,
   DatePicker,
@@ -84,6 +86,8 @@ export default function LedgerDetail() {
       // ignore
     }
   };
+  const pageRef = useRef<HTMLDivElement>(null);
+  const isActive = useContext(TabActiveContext);
   const [searchField, setSearchField] = useState<'all' | 'category' | 'amount' | 'note'>('all');
   const [keyword, setKeyword] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -408,7 +412,7 @@ export default function LedgerDetail() {
   );
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar
         onBack={() => navigate(-1)}
         style={{ background: '#fff' }}
@@ -585,7 +589,7 @@ export default function LedgerDetail() {
                     </div>
                     <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                       {formatDateTime(new Date(t.occurredAt))}
-                      {t.note && <span style={{ marginLeft: 6, color: '#722ed1', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{t.note}</span>}
+                      {t.note && <ExpandableNote text={t.note} />}
                       {isLoanTx && (
                         <span
                           onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }}
@@ -702,7 +706,7 @@ export default function LedgerDetail() {
                       </div>
                       <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                         {formatDateTime(new Date(t.occurredAt))}
-                        {t.note && <span style={{ marginLeft: 6, color: '#722ed1', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{t.note}</span>}
+                        {t.note && <ExpandableNote text={t.note} />}
                         {isLoanTx && (
                           <span
                             onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }}
@@ -783,6 +787,8 @@ export default function LedgerDetail() {
       <Popup
         visible={!!editing}
         onMaskClick={() => setEditing(null)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
         <div style={{ padding: 24 }}>
@@ -880,6 +886,8 @@ export default function LedgerDetail() {
       <Popup
         visible={showImport}
         onMaskClick={() => setShowImport(false)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
         <div style={{ padding: 16 }}>

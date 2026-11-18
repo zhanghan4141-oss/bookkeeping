@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Dialog, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
 import { AddOutline } from 'antd-mobile-icons';
+import { TabActiveContext } from '../components/KeepAlive';
 import { ledgerApi } from '../api/ledger';
 import { useAuthStore } from '../stores/auth';
 import type { Ledger, LedgerMember } from '../types';
@@ -29,6 +30,8 @@ export default function Members() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const pageRef = useRef<HTMLDivElement>(null);
+  const isActive = useContext(TabActiveContext);
   const currentUser = useAuthStore((s) => s.user);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -100,7 +103,7 @@ export default function Members() {
   };
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
         成员管理
       </NavBar>
@@ -149,6 +152,7 @@ export default function Members() {
                       <Picker
                         columns={[ROLE_OPTIONS]}
                         value={[m.role]}
+                        getContainer={() => pageRef.current ?? document.body}
                         onConfirm={(v) => handleChangeRole(m, String(v[0]))}
                       >
                         {(items, actions) => (
@@ -201,6 +205,8 @@ export default function Members() {
       <Popup
         visible={showInvite}
         onMaskClick={() => setShowInvite(false)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
         <div style={{ padding: 24 }}>

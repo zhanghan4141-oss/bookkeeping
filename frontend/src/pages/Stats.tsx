@@ -8,6 +8,7 @@ import { statApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
 import { transactionApi } from '../api/transaction';
 import Chart from '../components/Chart';
+import ExpandableNote from '../components/ExpandableNote';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
 import { useStatLedgerSelection } from '../stores/statLedgerSelection';
 import { TabActiveContext } from '../components/KeepAlive';
@@ -792,7 +793,7 @@ export default function Stats() {
                       <div style={{ fontSize: 15 }}>{t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}</div>
                       <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                         {formatDateTime(new Date(t.occurredAt))}
-                        {t.note && <span style={{ marginLeft: 6, color: '#722ed1', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{t.note}</span>}
+                        {t.note && <ExpandableNote text={t.note} />}
                         {isLoanTx && (
                           <span onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }} style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}>〔{t.loan?.name ?? '贷款'}〕</span>
                         )}
@@ -862,7 +863,7 @@ export default function Stats() {
                             <div style={{ fontSize: 15 }}>{t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}</div>
                             <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                               {formatDateTime(new Date(t.occurredAt))}
-                              {t.note && <span style={{ marginLeft: 6, color: '#722ed1', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{t.note}</span>}
+                              {t.note && <ExpandableNote text={t.note} />}
                               {isLoanTx && (
                                 <span
                                   onClick={(e) => {

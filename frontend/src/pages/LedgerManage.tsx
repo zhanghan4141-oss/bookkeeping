@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Dialog, Input, List, NavBar, Popup, Toast } from 'antd-mobile';
+import { TabActiveContext } from '../components/KeepAlive';
 import { ledgerApi } from '../api/ledger';
 import type { Ledger } from '../types';
 
@@ -17,6 +18,8 @@ const TYPE_LABEL: Record<string, string> = {
 export default function LedgerManage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const pageRef = useRef<HTMLDivElement>(null);
+  const isActive = useContext(TabActiveContext);
   const [editing, setEditing] = useState<Ledger | null>(null);
   const [editName, setEditName] = useState('');
   const [editIcon, setEditIcon] = useState('📒');
@@ -78,7 +81,7 @@ export default function LedgerManage() {
   };
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
         账本管理
       </NavBar>
@@ -142,6 +145,8 @@ export default function LedgerManage() {
       <Popup
         visible={!!editing}
         onMaskClick={() => setEditing(null)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
         <div style={{ padding: 24 }}>
