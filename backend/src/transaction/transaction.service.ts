@@ -47,7 +47,7 @@ export class TransactionService {
         loan: { select: { id: true, name: true } },
       },
       orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }],
-      take: 500,
+      // 「所有」周期需展示全部流水，不再做数量截断（前端按分组折叠渲染）
     });
 
     return transactions;
