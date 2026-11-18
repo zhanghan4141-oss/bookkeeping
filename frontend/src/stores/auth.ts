@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { resetUserSession } from '../lib/resetSession';
 
 export interface User {
   id: string;
@@ -26,7 +27,11 @@ export const useAuthStore = create<AuthState>()(
       setAuth: ({ accessToken, refreshToken, user }) =>
         set({ accessToken, refreshToken, user }),
       setUser: (user) => set({ user }),
-      logout: () => set({ accessToken: null, refreshToken: null, user: null }),
+      logout: () => {
+        set({ accessToken: null, refreshToken: null, user: null });
+        // 清除 query 缓存与选择类持久化，避免切换账号后短暂显示上一个账号的数据
+        resetUserSession();
+      },
     }),
     {
       name: 'bookkeeping-auth',

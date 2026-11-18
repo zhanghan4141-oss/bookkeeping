@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { authApi } from '../api/auth';
 import { useAuthStore } from '../stores/auth';
 import { downloadApk } from '../lib/downloadApk';
+import { resetUserSession } from '../lib/resetSession';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -63,6 +64,8 @@ export default function Login() {
           })
         : await authApi.login({ email: values.email, password: values.password });
       setAuth(res.data);
+      // 登录新账号：清空上一个账号的 query 缓存与选择状态，避免短暂显示旧数据
+      resetUserSession();
       Toast.show({ content: isRegister ? '注册成功' : '登录成功' });
       navigate('/ledgers', { replace: true });
     } catch (e: any) {
