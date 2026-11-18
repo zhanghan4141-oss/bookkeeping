@@ -77,7 +77,7 @@ export async function checkAppUpdate(options: CheckAppUpdateOptions = {}) {
     const installed = info?.version;
     if (!installed || cmpVersion(m.version, installed) <= 0) {
       if (options.notifyNoUpdate) {
-        Toast.show({ content: installed ? `已是最新版本 v${installed}` : '已是最新版本' });
+        Toast.show({ content: `已是最新版本 v${m.version}` });
       }
       return;
     }
