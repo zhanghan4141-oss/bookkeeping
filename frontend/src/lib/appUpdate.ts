@@ -76,7 +76,9 @@ export async function checkAppUpdate(options: CheckAppUpdateOptions = {}) {
     const info = await CapacitorApp.getInfo();
     const installed = info?.version;
     if (!installed || cmpVersion(m.version, installed) <= 0) {
-      if (options.notifyNoUpdate) Toast.show({ content: '已是最新版本' });
+      if (options.notifyNoUpdate) {
+        Toast.show({ content: installed ? `已是最新版本 v${installed}` : '已是最新版本' });
+      }
       return;
     }
 
@@ -84,7 +86,7 @@ export async function checkAppUpdate(options: CheckAppUpdateOptions = {}) {
     const fileName = `bookkeeping-${m.version}.apk`;
     Dialog.confirm({
       title: `发现新版本 v${m.version}`,
-      content: m.note || '是否立即下载更新？',
+      content: `${installed ? `当前版本 v${installed} → ` : ''}${m.note || '是否立即下载更新？'}`,
       confirmText: '立即下载',
       cancelText: '稍后再说',
       onConfirm: async () => {
