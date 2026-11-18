@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, List, NavBar, ProgressBar } from 'antd-mobile';
@@ -15,6 +16,7 @@ function progress(loan: Loan) {
 export default function Loans() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const { data: loans = [] } = useQuery({
     queryKey: ['loans', id],
@@ -22,7 +24,7 @@ export default function Loans() {
   });
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
         贷款管理
       </NavBar>

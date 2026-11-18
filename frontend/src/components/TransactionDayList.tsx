@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Transaction } from '../types';
 import { formatMoney } from '../lib/format';
+import ExpandableNote from './ExpandableNote';
 
 function groupByDate(list: Transaction[]) {
   const map = new Map<string, Transaction[]>();
@@ -99,7 +100,7 @@ export default function TransactionDayList({
                     </div>
                     <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                       {formatDateTime(new Date(t.occurredAt))}
-                      {t.note && <span style={{ marginLeft: 6, color: '#722ed1', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{t.note}</span>}
+                      {t.note && <ExpandableNote text={t.note} />}
                       {showLedgerName && t.ledger?.name && (
                         <span style={{ marginLeft: 6, color: '#1677ff' }}>
                           〔{t.ledger.name}〕

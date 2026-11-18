@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, DatePicker, Dialog, Input, List, NavBar, Popup, Radio, Toast } from 'antd-mobile';
+import { TabActiveContext } from '../components/KeepAlive';
 import { loanApi } from '../api/loan';
 import { ledgerApi } from '../api/ledger';
 import { invalidateFinancialData } from '../lib/invalidate';
@@ -24,6 +25,8 @@ export default function LoanDetail() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const pageRef = useRef<HTMLDivElement>(null);
+  const isActive = useContext(TabActiveContext);
   const [paying, setPaying] = useState<LoanRepayment | null>(null);
   const [payAmount, setPayAmount] = useState('');
   // 提前还款状态
@@ -335,7 +338,7 @@ export default function LoanDetail() {
   const remainingInterest = Number(loan.remainingInterest ?? 0);
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
         {loan.name}
       </NavBar>
@@ -420,6 +423,7 @@ export default function LoanDetail() {
                     <div style={{ flex: 1 }}>
                       <DatePicker
                         value={p.dueDate ? new Date(p.dueDate) : new Date()}
+                        getContainer={() => pageRef.current ?? document.body}
                         onConfirm={(v) => {
                           const date = formatDate(v);
                           setRow({ dueDate: date });
@@ -586,6 +590,8 @@ export default function LoanDetail() {
       <Popup
         visible={!!paying}
         onMaskClick={() => setPaying(null)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
         <div style={{ padding: 24 }}>
@@ -608,6 +614,8 @@ export default function LoanDetail() {
       <Popup
         visible={showPrepay}
         onMaskClick={() => setShowPrepay(false)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
         <div style={{ padding: 24 }}>

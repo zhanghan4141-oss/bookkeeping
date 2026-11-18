@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { NavBar, Picker } from 'antd-mobile';
@@ -92,6 +92,7 @@ function formatDiff(
 
 export default function AuditLogs() {
   const navigate = useNavigate();
+  const pageRef = useRef<HTMLDivElement>(null);
   const [ledgerId, setLedgerId] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -150,7 +151,7 @@ export default function AuditLogs() {
   };
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
         日志查询
       </NavBar>
@@ -160,6 +161,7 @@ export default function AuditLogs() {
           <Picker
             columns={ledgerOptions}
             value={activeLedgerId ? [activeLedgerId] : []}
+            getContainer={() => pageRef.current ?? document.body}
             onConfirm={(v) => setLedgerId(String(v[0]))}
           >
             {(_items, actions) => (

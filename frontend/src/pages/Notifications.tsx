@@ -1,9 +1,11 @@
+import { useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Button, List, NavBar, Toast } from 'antd-mobile';
 import { notificationApi } from '../api/misc';
 import type { Notification } from '../types';
 
 export default function Notifications() {
+  const pageRef = useRef<HTMLDivElement>(null);
   const { data, refetch } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => (await notificationApi.list()).data,
@@ -24,7 +26,7 @@ export default function Notifications() {
   };
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <NavBar
         back={null}
         style={{ background: '#fff' }}
