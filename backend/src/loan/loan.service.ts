@@ -712,6 +712,43 @@ export class LoanService {
     return t ? `${base}（${t}）`.slice(0, 191) : base;
   }
 
+  /** 贷款备注变更后，同步所有贷款流水备注：把旧的「（旧备注）」后缀替换为新备注 */
+  private async syncLoanNoteToTransactions(
+    tx: Prisma.TransactionClient,
+    loanId: string,
+    oldNote: string | null | undefined,
+    newNote: string | undefined,
+  ) {
+    const oldSuffix = oldNote?.trim();
+    const txs = await tx.transaction.findMany({
+      where: { loanId },
+      select: { id: true, note: true },
+    });
+    for (const t of txs) {
+      const note = t.note ?? '';
+      let base: string | null = null;
+      if (oldSuffix) {
+        // 旧备注非空：去掉末尾「（旧备注）」还原 base
+        const suffix = `（${oldSuffix}）`;
+        if (note.endsWith(suffix)) {
+          base = note.slice(0, note.length - suffix.length);
+        }
+        // 被截断（>191 才 slice）或手工改写过的备注不再精确匹配 → 保持现状
+      } else {
+        // 之前无备注：整段备注即 base，直接追加新备注
+        base = note;
+      }
+      if (base === null) continue;
+      const rebuilt = this.noteWithLoan(base, newNote);
+      if (rebuilt !== note) {
+        await tx.transaction.update({
+          where: { id: t.id },
+          data: { note: rebuilt },
+        });
+      }
+    }
+  }
+
   /**
    * 写贷款相关流水：放款收入 + 每期本金/利息支出。
    * @param tx 可选，事务客户端
@@ -1060,6 +1097,11 @@ export class LoanService {
     await this.prisma.$transaction(async (tx) => {
       await tx.loan.update({ where: { id }, data });
 
+      // 修改备注 → 同步所有贷款流水备注（把旧的「（旧备注）」后缀替换为新备注）
+      if (dto.note !== undefined) {
+        await this.syncLoanNoteToTransactions(tx, id, existing.note, dto.note);
+      }
+
       // 非自定义 → 自定义：保留每期原有本金/利息拆分。
       // 早期版本曾把 principal/interest 清零做「归一化」，但 withDerived 已改为
       // 按 repaymentMethod + 贷款本金锚定计算，归一化不再必要；清零反而把
@@ -1153,11 +1195,15 @@ export class LoanService {
 
       // 手动标记已还（还款页）：把该期本金/利息流水时间同步为该「当日 00:00」，
       // 账本统计在标记当日即计入「已支出」；取消标记时由 undo 按 paidDate 精确匹配恢复。
+      // 备注前缀匹配（贷款有备注时为「还款本金（备注）」等），与 noteWithLoan 拼接口径一致。
       if (dto.syncTransactionsToPaidAt && repayment.dueDate) {
         await tx.transaction.updateMany({
           where: {
             loanId,
-            note: { in: ['还款本金', '还款利息'] },
+            OR: [
+              { note: { startsWith: '还款本金' } },
+              { note: { startsWith: '还款利息' } },
+            ],
             occurredAt: repayment.dueDate,
           },
           data: { occurredAt: flowOccurredAt },
@@ -1193,7 +1239,10 @@ export class LoanService {
         await tx.transaction.updateMany({
           where: {
             loanId,
-            note: { in: ['还款本金', '还款利息'] },
+            OR: [
+              { note: { startsWith: '还款本金' } },
+              { note: { startsWith: '还款利息' } },
+            ],
             occurredAt: repayment.paidDate,
           },
           data: { occurredAt: repayment.dueDate },

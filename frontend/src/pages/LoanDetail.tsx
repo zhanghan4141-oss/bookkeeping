@@ -514,6 +514,8 @@ export default function LoanDetail() {
             </List.Item>
             {loan.repayments.map((r) => {
               if (r.kind === 'prepay') {
+                // 时间未到（未来日期）的提前还款为 pending → 显示「待还」，与各期状态口径一致
+                const st = STATUS_MAP[r.status] ?? STATUS_MAP.pending;
                 return (
                   <List.Item
                     key={r.id}
@@ -528,7 +530,7 @@ export default function LoanDetail() {
                         <div style={{ fontWeight: 600, color: '#a855f7' }}>
                           ¥{formatMoney(Number(r.totalAmount))}
                         </div>
-                        <div style={{ fontSize: 12, color: '#a855f7' }}>已还</div>
+                        <div style={{ fontSize: 12, color: st.color }}>{st.label}</div>
                       </div>
                     }
                   >
