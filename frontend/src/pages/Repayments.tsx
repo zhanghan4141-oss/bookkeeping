@@ -13,38 +13,85 @@ import type { Ledger } from '../types';
 import { formatDate, formatMoney } from '../lib/format';
 import { Lunar, LunarMonth, Solar } from 'lunar-javascript';
 
-/** 公历今年年底（12-31）→ YYYY-MM-DD */
-function solarYearEnd(): string {
-  const now = new Date();
-  return formatDate(new Date(now.getFullYear(), 11, 31));
+/** 公历某年底（12-31）→ YYYY-MM-DD */
+function solarYearEndOf(year: number): string {
+  return formatDate(new Date(year, 11, 31));
 }
 
-/** 公历本月底（当月最后一天）→ YYYY-MM-DD */
-function monthEnd(): string {
-  const now = new Date();
-  // 日传 0 = 下月第 0 天，即本月最后一天
-  return formatDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+/** 从 date 推进 months 个月；目标月无同日则取月末（保证含末日整天） */
+function addMonthsToEnd(d: Date, months: number): string {
+  const total = d.getFullYear() * 12 + d.getMonth() + months;
+  const y2 = Math.floor(total / 12);
+  const m2 = total % 12;
+  const lastDay = new Date(y2, m2 + 1, 0).getDate();
+  return formatDate(new Date(y2, m2, Math.min(d.getDate(), lastDay)));
 }
 
-/** 农历今年年底（腊月最后一天）→ YYYY-MM-DD */
-function lunarYearEnd(): string {
+/** 当前月份 + offset 月之后的那个月末 */
+function monthEndOffset(offsetMonths: number): string {
   const now = new Date();
-  const lunarYear = Solar.fromDate(now).getLunar().getYear();
+  return formatDate(new Date(now.getFullYear(), now.getMonth() + offsetMonths + 1, 0));
+}
+
+/** 当前季度最后一天（3/6/9/12 月末） */
+function quarterEndNow(): string {
+  const now = new Date();
+  const qEndMonth = (Math.floor(now.getMonth() / 3) + 1) * 3;
+  return formatDate(new Date(now.getFullYear(), qEndMonth, 0));
+}
+
+/** 农历某年底（腊月最后一天）→ YYYY-MM-DD */
+function lunarYearEndOfYear(lunarYear: number): string {
   const dayCount = LunarMonth.fromYm(lunarYear, 12).getDayCount();
   const solar = Lunar.fromYmd(lunarYear, 12, dayCount).getSolar();
   return formatDate(new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay()));
 }
 
-/** 统计截止日期快捷预设 */
-const END_DATE_PRESETS = [
-  { key: 'monthend', label: '本月底' },
-  { key: '30', label: '30天后' },
-  { key: '60', label: '60天后' },
-  { key: '90', label: '90天后' },
-  { key: '180', label: '180天后' },
-  { key: 'yearend', label: '今年底' },
-  { key: 'lunaryearend', label: '到农历年底' },
+/** 统计截止日期快捷预设（分组） */
+const END_DATE_GROUPS = [
+  {
+    title: '按月份',
+    buttons: [
+      { key: 'm1', label: '1个月后' },
+      { key: 'm2', label: '2个月后' },
+      { key: 'm3', label: '3个月后' },
+      { key: 'm6', label: '半年后' },
+      { key: 'm12', label: '一年后' },
+    ],
+  },
+  {
+    title: '月末',
+    buttons: [
+      { key: 'me0', label: '本月末' },
+      { key: 'me1', label: '下月末' },
+      { key: 'me2', label: '+2月末' },
+      { key: 'me3', label: '+3月末' },
+      { key: 'me4', label: '+4月末' },
+      { key: 'me5', label: '+5月末' },
+    ],
+  },
+  {
+    title: '季末·年末',
+    buttons: [
+      { key: 'q0', label: '本季末' },
+      { key: 'y0', label: '本年末' },
+      { key: 'y1', label: '明年末' },
+      { key: 'y2', label: '后年末' },
+      { key: 'y3', label: '+3年末' },
+    ],
+  },
+  {
+    title: '农历年末',
+    buttons: [
+      { key: 'ly0', label: '今年农历年底' },
+      { key: 'ly1', label: '明年农历年底' },
+      { key: 'ly2', label: '后年农历年底' },
+    ],
+  },
 ];
+
+/** 「所有」：截止到 2099-12-31，覆盖全部时间 */
+const END_DATE_ALL = { key: 'all', label: '所有' };
 
 /** 按尺度（日/月/年）合并按日分组的数据，并把原始日期注入每个 item（dueDate） */
 function groupByScale(
@@ -111,21 +158,47 @@ export default function Repayments() {
 
   // 预设按钮：填入待定态，点「确定」再生效
   const applyEndPreset = (key: string) => {
-    if (key === 'monthend') {
-      setTempEnd(monthEnd());
-      return;
+    const now = new Date();
+    switch (key) {
+      case END_DATE_ALL.key:
+        // 所有：覆盖全部时间
+        setTempEnd('2099-12-31');
+        return;
+      case 'me0':
+      case 'me1':
+      case 'me2':
+      case 'me3':
+      case 'me4':
+      case 'me5':
+        setTempEnd(monthEndOffset(Number(key.slice(-1))));
+        return;
+      case 'm1':
+      case 'm2':
+      case 'm3':
+      case 'm6':
+      case 'm12':
+        setTempEnd(addMonthsToEnd(now, Number(key.slice(1))));
+        return;
+      case 'q0':
+        setTempEnd(quarterEndNow());
+        return;
+      case 'y0':
+      case 'y1':
+      case 'y2':
+      case 'y3':
+        setTempEnd(solarYearEndOf(now.getFullYear() + Number(key.slice(1))));
+        return;
+      case 'ly0':
+      case 'ly1':
+      case 'ly2':
+        {
+          const ly = Solar.fromDate(now).getLunar().getYear();
+          setTempEnd(lunarYearEndOfYear(ly + Number(key.slice(2))));
+        }
+        return;
+      default:
+        return;
     }
-    if (key === 'yearend') {
-      setTempEnd(solarYearEnd());
-      return;
-    }
-    if (key === 'lunaryearend') {
-      setTempEnd(lunarYearEnd());
-      return;
-    }
-    const d = new Date();
-    d.setDate(d.getDate() + Number(key));
-    setTempEnd(formatDate(d));
   };
 
   const confirmEndDate = () => {
@@ -510,13 +583,25 @@ export default function Repayments() {
         <div style={{ padding: 24 }}>
           <h3 style={{ marginBottom: 16 }}>设置统计截止日期</h3>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-            {END_DATE_PRESETS.map((b) => (
-              <Button key={b.key} size="mini" fill="outline" onClick={() => applyEndPreset(b.key)}>
-                {b.label}
-              </Button>
-            ))}
+          {/* 所有：覆盖全部时间 */}
+          <div style={{ marginBottom: 12 }}>
+            <Button size="mini" color="primary" fill="outline" onClick={() => applyEndPreset(END_DATE_ALL.key)}>
+              {END_DATE_ALL.label}
+            </Button>
           </div>
+
+          {END_DATE_GROUPS.map((g) => (
+            <div key={g.title} style={{ marginBottom: 10 }}>
+              <div className="text-secondary" style={{ fontSize: 12, marginBottom: 4 }}>{g.title}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {g.buttons.map((b) => (
+                  <Button key={b.key} size="mini" fill="outline" onClick={() => applyEndPreset(b.key)}>
+                    {b.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
 
           <div style={{ marginBottom: 16 }}>
             <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>截止日期</div>

@@ -62,6 +62,97 @@ function formatDateTime(d: Date) {
 /** 稳定的空数组引用，避免 useQuery 默认值每次渲染都新建导致依赖不稳定（引发无限循环） */
 const EMPTY_TX: Transaction[] = [];
 
+/** 快捷区间类型（新增 all / cq 本季 / ny 明年 / mo1-12 月份） */
+type QuickRangeKey =
+  | 'year'
+  | 'month'
+  | 'q1'
+  | 'q2'
+  | 'q3'
+  | 'q4'
+  | 'tmom'
+  | 'tye'
+  | 'tlye'
+  | 'all'
+  | 'cq'
+  | 'ny'
+  | `mo${number}`;
+
+/** 公历某月区间（含月末整天） */
+function solarMonthSpan(year: number, month: number): { start: string; end: string } {
+  return { start: fmtDate(new Date(year, month - 1, 1)), end: fmtDate(new Date(year, month, 0)) };
+}
+
+/** 公历当前季度区间（首日 ~ 季末最后一天） */
+function solarQuarterSpan(d: Date): { start: string; end: string } {
+  const q = Math.floor(d.getMonth() / 3);
+  return {
+    start: fmtDate(new Date(d.getFullYear(), q * 3, 1)),
+    end: fmtDate(new Date(d.getFullYear(), (q + 1) * 3, 0)),
+  };
+}
+
+/** 公历某年区间 */
+function solarYearSpan(year: number): { start: string; end: string } {
+  return { start: `${year}-01-01`, end: `${year}-12-31` };
+}
+
+/** 农历某月区间（农历月整月，公历首/末日） */
+function lunarMonthSpan(year: number, month: number): { start: string; end: string } {
+  const dayCount = LunarMonth.fromYm(year, month).getDayCount();
+  const s = Lunar.fromYmd(year, month, 1).getSolar().toYmd();
+  const e = Lunar.fromYmd(year, month, dayCount).getSolar().toYmd();
+  return { start: s, end: e };
+}
+
+/** 农历某年区间（正月首日 ~ 腊月末最后一天） */
+function lunarYearSpan(lunarYear: number): { start: string; end: string } {
+  const dayCount = LunarMonth.fromYm(lunarYear, 12).getDayCount();
+  const s = Lunar.fromYmd(lunarYear, 1, 1).getSolar().toYmd();
+  const e = Lunar.fromYmd(lunarYear, 12, dayCount).getSolar().toYmd();
+  return { start: s, end: e };
+}
+
+/** 快捷区间分组按钮 */
+const QUICK_GROUPS: { title: string; buttons: { key: QuickRangeKey; label: string }[] }[] = [
+  {
+    title: '月份',
+    buttons: Array.from({ length: 12 }, (_, i) => ({
+      key: `mo${i + 1}` as QuickRangeKey,
+      label: `${i + 1}月`,
+    })),
+  },
+  {
+    title: '日历单位',
+    buttons: [
+      { key: 'month', label: '本月' },
+      { key: 'cq', label: '本季' },
+      { key: 'year', label: '本年' },
+      { key: 'ny', label: '明年' },
+    ],
+  },
+  {
+    title: '季度',
+    buttons: [
+      { key: 'q1', label: 'Q1' },
+      { key: 'q2', label: 'Q2' },
+      { key: 'q3', label: 'Q3' },
+      { key: 'q4', label: 'Q4' },
+    ],
+  },
+  {
+    title: '截止',
+    buttons: [
+      { key: 'tmom', label: '明日-月底' },
+      { key: 'tye', label: '明日-年底' },
+      { key: 'tlye', label: '明日-农历年底' },
+    ],
+  },
+];
+
+/** 「所有」：1900-01-01 ~ 2099-12-31，覆盖全部时间 */
+const QUICK_ALL: { key: QuickRangeKey; label: string } = { key: 'all', label: '所有' };
+
 /** 快捷区间：当年/当月/季 + 明日到月底/年底/农历年底，跟随当前历法 */
 function quickRange(
   key: 'year' | 'month' | 'q1' | 'q2' | 'q3' | 'q4' | 'tmom' | 'tye' | 'tlye',
@@ -198,6 +289,16 @@ export default function Stats() {
   const [tempEnd, setTempEnd] = useState('');
   // 是否为自定义区间（false = 按当前历法的「月」导航）
   const [isCustom, setIsCustom] = useState(false);
+  // 自定义区间周期语义（左右切换按对应周期推进）：month / quarter / year / all / range
+  const [rangeMeta, setRangeMeta] = useState<{
+    kind: 'month' | 'quarter' | 'year' | 'all' | 'range';
+    y: number;
+  }>({ kind: 'range', y: new Date().getFullYear() });
+  // 快捷按钮选择时的待定周期（「确定」时写入 rangeMeta）
+  const [pendingMeta, setPendingMeta] = useState<{
+    kind: 'month' | 'quarter' | 'year' | 'all' | 'range';
+    y: number;
+  } | null>(null);
   const selectedIds = useStatLedgerSelection((s) => s.selectedIds);
   const deselectedIds = useStatLedgerSelection((s) => s.deselectedIds);
   const selectOne = useStatLedgerSelection((s) => s.selectOne);
@@ -437,11 +538,36 @@ export default function Stats() {
     setShowCategoryTx(true);
   };
 
-  // 左右箭头：按月导航（自定义区间则整体平移）
+  // 左右箭头：整月/整季/整年区间按日历周期推进；普通自定义整体平移；「所有」不推进
   const shift = (delta: number) => {
     setRange((prev) => {
       if (!isCustom) {
         return monthRangeOf(parseDate(prev.start), calendar, delta);
+      }
+      if (rangeMeta.kind === 'month') {
+        return monthRangeOf(parseDate(prev.start), calendar, delta);
+      }
+      if (rangeMeta.kind === 'quarter') {
+        const s = parseDate(prev.start);
+        const totalQ = s.getFullYear() * 4 + Math.floor(s.getMonth() / 3) + delta;
+        const y2 = Math.floor(totalQ / 4);
+        const q2 = totalQ % 4;
+        return {
+          start: fmtDate(new Date(y2, q2 * 3, 1)),
+          end: fmtDate(new Date(y2, (q2 + 1) * 3, 0)),
+        };
+      }
+      if (rangeMeta.kind === 'year') {
+        // 农历历法下按农历年推进（正月首日~腊月末）
+        if (calendar === 'lunar') {
+          const ly = Solar.fromDate(parseDate(prev.start)).getLunar().getYear();
+          return lunarYearSpan(ly + delta);
+        }
+        const y = parseDate(prev.start).getFullYear() + delta;
+        return { start: fmtDate(new Date(y, 0, 1)), end: fmtDate(new Date(y, 11, 31)) };
+      }
+      if (rangeMeta.kind === 'all') {
+        return prev; // 「所有」不前后推进
       }
       const start = parseDate(prev.start);
       const end = parseDate(prev.end);
@@ -478,15 +604,77 @@ export default function Stats() {
       const b = parseDate(tempEnd);
       setRange(a <= b ? { start: tempStart, end: tempEnd } : { start: tempEnd, end: tempStart });
       setIsCustom(true);
+      // 写入快捷按钮的周期语义（未选快捷 = 普通自定义区间）
+      setRangeMeta({
+        kind: pendingMeta?.kind ?? 'range',
+        y: pendingMeta?.y ?? new Date().getFullYear(),
+      });
+      setPendingMeta(null);
     }
     setShowRangePicker(false);
   };
 
-  // 快捷区间按钮：只填入起止日期，用户点「确定」后生效
-  const applyQuickRange = (key: 'year' | 'month' | 'q1' | 'q2' | 'q3' | 'q4' | 'tmom' | 'tye' | 'tlye') => {
-    const r = quickRange(key, calendar);
+  // 快捷区间按钮：只填入起止日期，用户点「确定」后生效；同时记录周期语义供左右切换
+  const applyQuickRange = (key: QuickRangeKey) => {
+    const now = new Date();
+    let r: { start: string; end: string };
+    let kind: 'month' | 'quarter' | 'year' | 'all' | 'range' = 'range';
+
+    if (key === 'all') {
+      r = { start: '1900-01-01', end: '2099-12-31' };
+      kind = 'all';
+    } else if (key === 'cq') {
+      // 农历历法下「本季」按农历季（与 Q1~Q4 一致：正月~三月 / 四月~六月 / 七月~九月 / 十月~腊月）
+      if (calendar === 'lunar') {
+        const lunar = Solar.fromDate(now).getLunar();
+        const q = Math.floor((Math.abs(lunar.getMonth()) - 1) / 3);
+        const from = q * 3 + 1;
+        const to = q * 3 + 3;
+        const endDay = LunarMonth.fromYm(lunar.getYear(), to).getDayCount();
+        r = {
+          start: Lunar.fromYmd(lunar.getYear(), from, 1).getSolar().toYmd(),
+          end: Lunar.fromYmd(lunar.getYear(), to, endDay).getSolar().toYmd(),
+        };
+      } else {
+        r = solarQuarterSpan(now);
+      }
+      kind = 'quarter';
+    } else if (key === 'ny') {
+      if (calendar === 'lunar') {
+        r = lunarYearSpan(Solar.fromDate(now).getLunar().getYear() + 1);
+      } else {
+        r = solarYearSpan(now.getFullYear() + 1);
+      }
+      kind = 'year';
+    } else if (/^mo\d+$/.test(key)) {
+      const n = Number(key.slice(2));
+      if (calendar === 'lunar') {
+        r = lunarMonthSpan(Solar.fromDate(now).getLunar().getYear(), n);
+      } else {
+        r = solarMonthSpan(now.getFullYear(), n);
+      }
+      kind = 'month';
+    } else {
+      // else 分支必然落在原有 9 键（TS 无法自动收窄，显式断言）
+      r = quickRange(
+        key as 'year' | 'month' | 'q1' | 'q2' | 'q3' | 'q4' | 'tmom' | 'tye' | 'tlye',
+        calendar,
+      );
+      if (key === 'year') kind = 'year';
+      else if (key === 'month') kind = 'month';
+      else if (key.startsWith('q')) kind = 'quarter';
+      else kind = 'range';
+    }
+
     setTempStart(r.start);
     setTempEnd(r.end);
+    // 快捷按钮直接生效：立即应用区间 + 周期语义（供左右切换按周期推进 / 农历标识显示），
+    // 不再需要再点「确定」；手选起止日期仍走 confirmRange
+    setRange(r);
+    setIsCustom(true);
+    setRangeMeta({ kind, y: now.getFullYear() });
+    setPendingMeta(null);
+    setShowRangePicker(false);
   };
 
   // 行内队列顺序：选中（按选中顺序）→ 最近取消选中（最新在前）→ 其余（原顺序）
@@ -531,6 +719,19 @@ export default function Stats() {
       ],
     };
   }, [summary]);
+
+  const lunarRangeText = useMemo(() => {
+    /** 农历日期 → yyyy-mm-dd（闰月月位用 r 前缀，避免与平月混淆） */
+    const lunarYmd = (l: any) => {
+      const m = l.getMonth();
+      const mm = String(Math.abs(m)).padStart(2, '0');
+      const dd = String(l.getDay()).padStart(2, '0');
+      return m < 0 ? `${l.getYear()}-r${mm}-${dd}` : `${l.getYear()}-${mm}-${dd}`;
+    };
+    const s = lunarYmd(Solar.fromDate(parseDate(range.start)).getLunar());
+    const e = lunarYmd(Solar.fromDate(parseDate(range.end)).getLunar());
+    return `（${s} ~ ${e}）`;
+  }, [range.start, range.end]);
 
   const trendOption = useMemo(() => {
     const trend = summary?.trend ?? [];
@@ -587,8 +788,10 @@ export default function Stats() {
           <div onClick={() => shift(-1)} style={{ padding: '4px 8px', cursor: 'pointer' }}>
             <LeftOutline />
           </div>
-          <div onClick={openRangePicker} style={{ fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
-            {range.start} ~ {range.end}
+          <div onClick={openRangePicker} style={{ fontWeight: 700, fontSize: 15, cursor: 'pointer', textAlign: 'center' }}>
+            <div>{range.start} ~ {range.end}</div>
+            {/* 周期文字下方：公历对应的农历日期 */}
+            <div style={{ fontSize: 12, color: '#a855f7', marginTop: 2 }}>{lunarRangeText}</div>
           </div>
           <div onClick={() => shift(1)} style={{ padding: '4px 8px', cursor: 'pointer' }}>
             <RightOutline />
@@ -702,23 +905,25 @@ export default function Stats() {
         <div style={{ padding: 24 }}>
           <h3 style={{ marginBottom: 16 }}>设置统计区间</h3>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-            {([
-              { key: 'year', label: '当年' },
-              { key: 'month', label: '当月' },
-              { key: 'q1', label: 'Q1' },
-              { key: 'q2', label: 'Q2' },
-              { key: 'q3', label: 'Q3' },
-              { key: 'q4', label: 'Q4' },
-              { key: 'tmom', label: '明日-月底' },
-              { key: 'tye', label: '明日-年底' },
-              { key: 'tlye', label: '到农历年底' },
-            ] as const).map((b) => (
-              <Button key={b.key} size="mini" fill="outline" onClick={() => applyQuickRange(b.key)}>
-                {b.label}
-              </Button>
-            ))}
+          {/* 所有：覆盖全部时间 */}
+          <div style={{ marginBottom: 12 }}>
+            <Button size="mini" color="primary" fill="outline" onClick={() => applyQuickRange(QUICK_ALL.key)}>
+              {QUICK_ALL.label}
+            </Button>
           </div>
+
+          {QUICK_GROUPS.map((g) => (
+            <div key={g.title} style={{ marginBottom: 10 }}>
+              <div className="text-secondary" style={{ fontSize: 12, marginBottom: 4 }}>{g.title}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {g.buttons.map((b) => (
+                  <Button key={b.key} size="mini" fill="outline" onClick={() => applyQuickRange(b.key)}>
+                    {b.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
 
           <div style={{ marginBottom: 16 }}>
             <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>起始日期</div>
