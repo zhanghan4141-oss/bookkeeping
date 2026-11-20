@@ -481,7 +481,7 @@ export default function Repayments() {
                     <span style={{ color: '#ff8f1f', marginRight: 6 }}>{it.dueDate}</span>
                   )}
                   {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#52c41a' }}>¥{formatMoney(it.amount)}</span>
-                  {it.note && <ExpandableNote text={it.note} bracketed />}
+                  {it.note && <ExpandableNote text={it.note} />}
                 </div>
               ))}
             </div>
