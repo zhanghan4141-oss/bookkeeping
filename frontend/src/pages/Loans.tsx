@@ -137,15 +137,17 @@ export default function Loans() {
                   style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600 }}>{loan.name}</div>
-                  <div style={{ fontSize: 12, marginTop: 2 }}>
-                    <span style={{ color: '#ff8f1f' }}>贷款日期 {loan.startDate?.slice(0, 10)}</span>
+                  <div style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'baseline' }}>
+                    <span>{loan.name}</span>
+                    <span style={{ fontSize: 12, color: '#ff8f1f', marginLeft: 8 }}>
+                      贷款日期 {loan.startDate?.slice(0, 10)}
+                    </span>
                   </div>
                   <div className="text-secondary" style={{ fontSize: 12 }}>
-                    本金 <span style={{ fontWeight: 600 }}>¥{formatMoney(Number(loan.principal))}</span> · 年利率 <span style={{ fontWeight: 600 }}>{loan.annualRate}%</span> · <span style={{ fontWeight: 600 }}>{loan.termMonths}期</span>
+                    本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(loan.principal))}</span> · 年利率 <span style={{ fontWeight: 600, color: '#000' }}>{loan.annualRate}%</span> · <span style={{ fontWeight: 600, color: '#000' }}>{loan.termMonths}期</span>
                   </div>
                   <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
-                    剩余本金 <span style={{ fontWeight: 600 }}>¥{formatMoney(loan.remainingPrincipal ?? 0)}</span> · 剩余利息 <span style={{ fontWeight: 600 }}>¥{formatMoney(loan.remainingInterest ?? 0)}</span>
+                    剩余本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(loan.remainingPrincipal ?? 0)}</span> · 剩余利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(loan.remainingInterest ?? 0)}</span>
                   </div>
                   <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
                 </div>
