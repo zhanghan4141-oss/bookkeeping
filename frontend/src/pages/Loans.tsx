@@ -60,6 +60,11 @@ export default function Loans() {
   };
   const selectedSet = selected ?? new Set<string>();
 
+  // 按贷款日期排序：新的在最上（startDate 降序）
+  const sortedLoans = [...loans].sort((a, b) =>
+    (b.startDate ?? '').localeCompare(a.startDate ?? ''),
+  );
+
   const totals = computeTotals(loans.filter((l) => selectedSet.has(l.id)));
 
   return (
@@ -125,7 +130,7 @@ export default function Loans() {
           </Button>
         </div>
 
-        {loans.map((loan) => {
+        {sortedLoans.map((loan) => {
             const p = progress(loan);
             return (
               <div

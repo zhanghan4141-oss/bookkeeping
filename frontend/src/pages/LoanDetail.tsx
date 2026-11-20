@@ -507,7 +507,7 @@ export default function LoanDetail() {
               description={
                 <div style={{ fontSize: 12, marginTop: 2 }}>
                   贷款
-                  <span style={{ marginLeft: 8 }}>{loan.startDate.slice(0, 10)}</span>
+                  <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{loan.startDate.slice(0, 10)}</span>
                 </div>
               }
               extra={
@@ -528,7 +528,7 @@ export default function LoanDetail() {
                     description={
                       <div style={{ fontSize: 12, marginTop: 2 }}>
                         提前还本金
-                        <span style={{ marginLeft: 8 }}>{r.dueDate.slice(0, 10)}</span>
+                        <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
                       </div>
                     }
                     extra={
@@ -557,11 +557,11 @@ export default function LoanDetail() {
                 <List.Item
                   key={r.periodNo}
                   description={
-                    <div style={{ fontSize: 12, marginTop: 2 }}>
+                    <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
                       {isMerged
-                        ? <>合计 ¥{formatMoney(Number(r.totalAmount))}</>
-                        : <>本金 ¥{formatMoney(Number(r.principalAmount))} · 利息 ¥{formatMoney(Number(r.interestAmount))}</>}
-                      <span style={{ marginLeft: 8 }}>{r.dueDate.slice(0, 10)}</span>
+                        ? <>合计 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.totalAmount))}</span></>
+                        : <>本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.principalAmount))}</span> · 利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.interestAmount))}</span></>}
+                      <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
                     </div>
                   }
                   extra={
