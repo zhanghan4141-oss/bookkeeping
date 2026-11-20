@@ -23,10 +23,12 @@ function computeTotals(loans: Loan[]) {
     totalRemainingPrincipal += Number(l.remainingPrincipal ?? 0);
     totalRemainingInterest += Number(l.remainingInterest ?? 0);
   }
+  const round = (n: number) => Math.round(n * 100) / 100;
   return {
-    totalLoan: Math.round(totalLoan * 100) / 100,
-    totalRemainingPrincipal: Math.round(totalRemainingPrincipal * 100) / 100,
-    totalRemainingInterest: Math.round(totalRemainingInterest * 100) / 100,
+    totalLoan: round(totalLoan),
+    totalRemaining: round(totalRemainingPrincipal + totalRemainingInterest),
+    totalRemainingPrincipal: round(totalRemainingPrincipal),
+    totalRemainingInterest: round(totalRemainingInterest),
   };
 }
 
@@ -67,7 +69,7 @@ export default function Loans() {
       </NavBar>
 
       <div style={{ padding: 16 }}>
-        {/* 统计栏：总贷款余额 / 总待还本金 / 总待还利息 + 小字统计勾选 */}
+        {/* 统计栏：总贷款金额 / 总待还 / 总待还本金 / 总待还利息（各色数字） */}
         <div
           style={{
             background: '#fff',
@@ -78,13 +80,14 @@ export default function Loans() {
         >
           <div style={{ display: 'flex' }}>
             {[
-              { label: '总贷款余额', value: totals.totalLoan },
-              { label: '总待还本金', value: totals.totalRemainingPrincipal },
-              { label: '总待还利息', value: totals.totalRemainingInterest },
+              { label: '总贷款金额', value: totals.totalLoan, color: '#1677ff' },
+              { label: '总待还', value: totals.totalRemaining, color: '#ff8f1f' },
+              { label: '总待还本金', value: totals.totalRemainingPrincipal, color: '#52c41a' },
+              { label: '总待还利息', value: totals.totalRemainingInterest, color: '#faad14' },
             ].map((s) => (
-              <div key={s.label} style={{ width: '33.3%', textAlign: 'center' }}>
+              <div key={s.label} style={{ width: '25%', textAlign: 'center' }}>
                 <div className="text-secondary" style={{ fontSize: 12 }}>{s.label}</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#1677ff' }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: s.color }}>
                   ¥{formatMoney(s.value)}
                 </div>
               </div>
