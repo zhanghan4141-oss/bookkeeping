@@ -595,7 +595,9 @@ export default function LedgerDetail() {
                       {t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}
                     </div>
                     <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                      {formatDateTime(new Date(t.occurredAt))}
+                      {isLoanTx ? (
+                      <span style={{ color: '#ff8f1f' }}>{formatDateTime(new Date(t.occurredAt))}</span>
+                    ) : formatDateTime(new Date(t.occurredAt))}
                       {t.note && <ExpandableNote text={t.note} />}
                       {isLoanTx && (
                         <span
@@ -718,7 +720,9 @@ export default function LedgerDetail() {
                         {t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}
                       </div>
                       <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                        {formatDateTime(new Date(t.occurredAt))}
+                        {isLoanTx ? (
+                      <span style={{ color: '#ff8f1f' }}>{formatDateTime(new Date(t.occurredAt))}</span>
+                    ) : formatDateTime(new Date(t.occurredAt))}
                         {t.note && <ExpandableNote text={t.note} />}
                         {isLoanTx && (
                           <span

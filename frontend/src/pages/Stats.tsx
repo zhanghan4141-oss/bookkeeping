@@ -850,7 +850,9 @@ export default function Stats() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 15 }}>{t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}</div>
                       <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                        {formatDateTime(new Date(t.occurredAt))}
+                        {isLoanTx ? (
+                        <span style={{ color: '#ff8f1f' }}>{formatDateTime(new Date(t.occurredAt))}</span>
+                      ) : formatDateTime(new Date(t.occurredAt))}
                         {t.note && <ExpandableNote text={t.note} />}
                         {isLoanTx && (
                           <span onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }} style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}>〔{t.loan?.name ?? '贷款'}〕</span>
@@ -920,7 +922,9 @@ export default function Stats() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 15 }}>{t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}</div>
                             <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                              {formatDateTime(new Date(t.occurredAt))}
+                              {isLoanTx ? (
+                        <span style={{ color: '#ff8f1f' }}>{formatDateTime(new Date(t.occurredAt))}</span>
+                      ) : formatDateTime(new Date(t.occurredAt))}
                               {t.note && <ExpandableNote text={t.note} />}
                               {isLoanTx && (
                                 <span
