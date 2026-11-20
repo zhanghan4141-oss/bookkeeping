@@ -18,12 +18,12 @@ export const loanApi = {
     id: string,
     customPeriods: (
       | { kind?: 'period'; dueDate: string; principal: number; interest: number }
-      | { kind: 'prepay'; dueDate: string; totalAmount: number }
+      | { kind: 'prepay'; dueDate: string; principal: number; interest: number }
     )[],
   ) => api.patch(`/loans/${id}/repayments`, { customPeriods }),
   prepay: (
     id: string,
-    data: { amount: number; prepayDate: string; mode?: 'reduce_payment' | 'reduce_term' },
+    data: { amount: number; interest?: number; prepayDate: string; mode?: 'reduce_payment' | 'reduce_term' },
   ) => api.post(`/loans/${id}/prepay`, data),
   exportPlan: (id: string) => api.get(`/loans/${id}/export`, { responseType: 'blob' }),
 };

@@ -22,20 +22,21 @@ export class CustomPeriodDto {
   @IsDateString()
   dueDate!: string;
 
-  // 分账（kind=period）：本金 / 利息，合计 = 本金 + 利息
+  // 本金：kind=period 的分账本金；kind=prepay 的提前还本金
   @IsOptional()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
   principal?: number;
 
+  // 利息：kind=period 的分账利息；kind=prepay 的提前还利息（缺省 0）
   @IsOptional()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
   interest?: number;
 
-  // 合计（kind=prepay，或历史合并期仅给总额）
+  // 合计：历史合并期仅给总额（本金/利息都缺省时，全额当本金）
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -175,6 +176,12 @@ export class PrepayDto {
   @Min(0)
   @Type(() => Number)
   amount!: number; // 提前还的本金金额
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  interest?: number; // 提前还的利息金额（缺省 0，仅自定义贷款有意义）
 
   @IsDateString()
   prepayDate!: string; // 提前还款日期

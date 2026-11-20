@@ -97,7 +97,11 @@ export class RepaymentService {
         const total = Number(r.totalAmount);
         const ratio = Number(r.paidAmount) / Math.max(total, 1);
         if (r.kind === 'prepay') {
-          entry.principal += total;
+          // 提前还款：本金部分 × 已还比例（历史仅总额的全额当本金；未还 pending 的 paidAmount=0 不参与）
+          const ratio = total > 0 ? Number(r.paidAmount) / total : 0;
+          const P = Number(r.principalAmount);
+          const I = Number(r.interestAmount);
+          entry.principal += (P === 0 && I === 0 ? total : P) * ratio;
         } else if (total > 0) {
           const P = Number(r.principalAmount);
           const I = Number(r.interestAmount);

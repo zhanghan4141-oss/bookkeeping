@@ -17,10 +17,10 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   overdue: { label: '逾期', color: '#ff4d4f' },
 };
 
-/** 编辑还款计划时的一行：普通期编辑本金/利息，提前还款只编辑金额 */
+/** 编辑还款计划时的一行：普通期与提前还款都编辑本金/利息 */
 type EditPlanRow =
   | { kind: 'period'; periodNo?: number; dueDate: string; principal: string; interest: string }
-  | { kind: 'prepay'; periodNo?: number; dueDate: string; totalAmount: string };
+  | { kind: 'prepay'; periodNo?: number; dueDate: string; principal: string; interest: string };
 
 export default function LoanDetail() {
   const { id = '' } = useParams();
@@ -33,6 +33,7 @@ export default function LoanDetail() {
   // 提前还款状态
   const [showPrepay, setShowPrepay] = useState(false);
   const [prepayAmount, setPrepayAmount] = useState('');
+  const [prepayInterest, setPrepayInterest] = useState('');
   const [prepayDate, setPrepayDate] = useState(() => formatDate(new Date()));
   const [prepayMode, setPrepayMode] = useState<'reduce_payment' | 'reduce_term'>('reduce_payment');
   // 编辑还款计划状态
@@ -201,11 +202,13 @@ export default function LoanDetail() {
         Toast.show({ content: `提前还款金额不能超过未还本金 ¥${formatMoney(remainingP)}` });
         return;
       }
+      const interest = Number(prepayInterest) || 0;
       try {
-        await loanApi.prepay(id, { amount, prepayDate, mode: prepayMode });
+        await loanApi.prepay(id, { amount, interest, prepayDate, mode: prepayMode });
         Toast.show({ content: '已提前还款' });
         setShowPrepay(false);
         setPrepayAmount('');
+        setPrepayInterest('');
         invalidateFinancialData(queryClient);
       } catch (e: any) {
         Toast.show({ content: e.response?.data?.message ?? '提前还款失败' });
@@ -265,7 +268,13 @@ export default function LoanDetail() {
       setEditPeriods(
         loan.repayments.map((r): EditPlanRow => {
           if (r.kind === 'prepay') {
-            return { kind: 'prepay', dueDate: r.dueDate.slice(0, 10), totalAmount: r.totalAmount };
+            const P = Number(r.principalAmount);
+            const I = Number(r.interestAmount);
+            // 历史提前还款（本金/利息都为 0 仅总额）→ 全额当本金回填
+            if (P === 0 && I === 0) {
+              return { kind: 'prepay', dueDate: r.dueDate.slice(0, 10), principal: r.totalAmount, interest: '0' };
+            }
+            return { kind: 'prepay', dueDate: r.dueDate.slice(0, 10), principal: r.principalAmount, interest: r.interestAmount };
           }
           const P = Number(r.principalAmount);
           const I = Number(r.interestAmount);
@@ -315,8 +324,8 @@ export default function LoanDetail() {
         Toast.show({ content: '请完整填写每期本金和利息' });
         return;
       }
-      if (p.kind === 'prepay' && p.totalAmount === '') {
-        Toast.show({ content: '请完整填写提前还款金额' });
+      if (p.kind === 'prepay' && p.principal === '') {
+        Toast.show({ content: '请完整填写提前还款本金' });
         return;
       }
     }
@@ -325,7 +334,7 @@ export default function LoanDetail() {
         id,
         editPeriods.map((p) =>
           p.kind === 'prepay'
-            ? { kind: 'prepay' as const, dueDate: p.dueDate, totalAmount: Number(p.totalAmount) }
+            ? { kind: 'prepay' as const, dueDate: p.dueDate, principal: Number(p.principal), interest: Number(p.interest || 0) }
             : { kind: 'period' as const, dueDate: p.dueDate, principal: Number(p.principal), interest: Number(p.interest) },
         ),
       );
@@ -422,35 +431,41 @@ export default function LoanDetail() {
                 setEditPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, ...patch } : x) as EditPlanRow));
               if (p.kind === 'prepay') {
                 return (
-                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ width: 56, fontSize: 13, color: '#a855f7' }}>
+                  <div key={i} style={{ marginBottom: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ width: 56, fontSize: 13, color: '#a855f7', flexShrink: 0 }}>
                       提前还款
                     </span>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ width: 92, flexShrink: 0 }}>
                       <DatePicker
                         value={p.dueDate ? new Date(p.dueDate) : new Date()}
-                        getContainer={() => pageRef.current ?? document.body}
                         onConfirm={(v) => {
                           const date = formatDate(v);
                           setRow({ dueDate: date });
                         }}
                       >
                         {(_value, actions) => (
-                          <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '8px 10px', fontSize: 13 }}>
+                          <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
                             {p.dueDate || '日期'}
                           </div>
                         )}
                       </DatePicker>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <Input
-                        type="number"
-                        placeholder="金额"
-                        value={p.totalAmount}
-                        onChange={(v) => setRow({ totalAmount: v })}
-                        style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 13, '--font-size': '13px' }}
-                      />
-                    </div>
+                    <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>本金</span>
+                    <Input
+                      type="number"
+                      placeholder="本金"
+                      value={p.principal}
+                      onChange={(v) => setRow({ principal: v })}
+                      style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                    />
+                    <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>利息</span>
+                    <Input
+                      type="number"
+                      placeholder="利息"
+                      value={p.interest}
+                      onChange={(v) => setRow({ interest: v })}
+                      style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                    />
                   </div>
                 );
               }
@@ -527,7 +542,8 @@ export default function LoanDetail() {
                     key={r.id}
                     description={
                       <div style={{ fontSize: 12, marginTop: 2 }}>
-                        提前还本金
+                        提前还本金 {formatMoney(Number(r.principalAmount))}
+                        {Number(r.interestAmount) > 0 && <> · 提前还息 {formatMoney(Number(r.interestAmount))}</>}
                         <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
                       </div>
                     }
@@ -643,7 +659,7 @@ export default function LoanDetail() {
             </DatePicker>
           </div>
           <div style={{ marginBottom: 16 }}>
-            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>提前还款金额{isCustom ? '' : '（本金）'}</div>
+            <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>提前还款金额（本金）</div>
             <Input
               type="number"
               placeholder="提前还的本金金额"
@@ -652,6 +668,18 @@ export default function LoanDetail() {
               style={{ fontSize: 20 }}
             />
           </div>
+          {isCustom && (
+            <div style={{ marginBottom: 16 }}>
+              <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>提前还息（选填，不填为 0）</div>
+              <Input
+                type="number"
+                placeholder="提前还的利息金额"
+                value={prepayInterest}
+                onChange={setPrepayInterest}
+                style={{ fontSize: 20 }}
+              />
+            </div>
+          )}
           {showPrepayMode && (
             <div style={{ marginBottom: 16 }}>
               <div className="text-secondary" style={{ fontSize: 13, marginBottom: 8 }}>提前还款方式</div>
