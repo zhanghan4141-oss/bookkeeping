@@ -1,14 +1,25 @@
 import { useEffect, useState } from 'react';
 import { SpinLoading } from 'antd-mobile';
+import { useIsFetching } from '@tanstack/react-query';
 import { getPending, onPendingChange } from '../lib/requestPending';
 
-/** 全局加载覆盖层：写请求在途时显示极浅转圈，作为按钮级 loading 之外的兜底 */
+/**
+ * 全局加载覆盖层：读请求「首次加载」（尚无缓存数据）或写请求在途时显示转圈。
+ * - 读数据：仅 status=pending（无数据）且正在 fetch 时显示，后台刷新（有旧数据）不闪圈
+ * - 写数据：axios 拦截器计数的 pending 数
+ */
 export default function GlobalLoading() {
-  const [show, setShow] = useState(false);
+  // 首次加载中的读请求数（useIsFetching 只统计 fetchStatus=fetching 的 query，再用 predicate 过滤无数据态）
+  const pendingReads = useIsFetching({
+    predicate: (q) => q.state.status === 'pending',
+  });
+  const [writePending, setWritePending] = useState(getPending());
   useEffect(() => {
-    const off = onPendingChange(() => setShow(getPending() > 0));
-    return off;
+    setWritePending(getPending());
+    return onPendingChange(() => setWritePending(getPending()));
   }, []);
+
+  const show = pendingReads > 0 || writePending > 0;
   if (!show) return null;
   return (
     <div
