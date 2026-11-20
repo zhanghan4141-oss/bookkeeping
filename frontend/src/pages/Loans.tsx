@@ -78,20 +78,34 @@ export default function Loans() {
             marginBottom: 8,
           }}
         >
+          {/* 统计栏分两行：上排 总贷款金额/总待还，下排 总待还本金/总待还利息 */}
           <div style={{ display: 'flex' }}>
-            {[
-              { label: '总贷款金额', value: totals.totalLoan, color: '#1677ff' },
-              { label: '总待还', value: totals.totalRemaining, color: '#ff8f1f' },
-              { label: '总待还本金', value: totals.totalRemainingPrincipal, color: '#52c41a' },
-              { label: '总待还利息', value: totals.totalRemainingInterest, color: '#faad14' },
-            ].map((s) => (
-              <div key={s.label} style={{ width: '25%', textAlign: 'center' }}>
-                <div className="text-secondary" style={{ fontSize: 12 }}>{s.label}</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: s.color }}>
-                  ¥{formatMoney(s.value)}
-                </div>
+            <div style={{ width: '50%', textAlign: 'center' }}>
+              <div className="text-secondary" style={{ fontSize: 12 }}>总贷款金额</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#1677ff' }}>
+                ¥{formatMoney(totals.totalLoan)}
               </div>
-            ))}
+            </div>
+            <div style={{ width: '50%', textAlign: 'center' }}>
+              <div className="text-secondary" style={{ fontSize: 12 }}>总待还</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#ff8f1f' }}>
+                ¥{formatMoney(totals.totalRemaining)}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', marginTop: 8 }}>
+            <div style={{ width: '50%', textAlign: 'center' }}>
+              <div className="text-secondary" style={{ fontSize: 12 }}>总待还本金</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#52c41a' }}>
+                ¥{formatMoney(totals.totalRemainingPrincipal)}
+              </div>
+            </div>
+            <div style={{ width: '50%', textAlign: 'center' }}>
+              <div className="text-secondary" style={{ fontSize: 12 }}>总待还利息</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#ff4d4f' }}>
+                ¥{formatMoney(totals.totalRemainingInterest)}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -137,14 +151,14 @@ export default function Loans() {
                   style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'baseline' }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center' }}>
                     <span>{loan.name}</span>
                     <span style={{ fontSize: 12, color: '#ff8f1f', marginLeft: 8 }}>
                       （{loan.startDate?.slice(0, 10)}）
                     </span>
                   </div>
                   <div className="text-secondary" style={{ fontSize: 12 }}>
-                    本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(loan.principal))}</span> · 年利率 <span style={{ fontWeight: 600, color: '#000' }}>{loan.annualRate}%</span> · <span style={{ fontWeight: 600, color: '#000' }}>{loan.termMonths}期</span>
+                    本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(loan.principal))}</span> · 年利率 <span style={{ fontWeight: 600, color: '#000' }}>{loan.annualRate}%</span> · <span style={{ fontWeight: 600, color: '#000' }}>{loan.termMonths}</span>期
                   </div>
                   <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
                     剩余本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(loan.remainingPrincipal ?? 0)}</span> · 剩余利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(loan.remainingInterest ?? 0)}</span>
