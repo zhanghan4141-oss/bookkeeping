@@ -57,9 +57,6 @@ export default function Loans() {
     });
   };
   const selectedSet = selected ?? new Set<string>();
-  const allSelected = loans.length > 0 && selectedSet.size === loans.length;
-  const toggleAll = () =>
-    setSelected(allSelected ? new Set() : new Set(loans.map((l) => l.id)));
 
   const totals = computeTotals(loans.filter((l) => selectedSet.has(l.id)));
 
@@ -94,19 +91,9 @@ export default function Loans() {
           ))}
         </div>
 
-        {/* 筛选行（账本页同款勾选格式） */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 8,
-          }}
-        >
-          <span style={{ fontSize: 13, color: '#666' }}>统计 {selectedSet.size}/{loans.length} 笔贷款</span>
-          <Button size="mini" fill="outline" onClick={toggleAll}>
-            {allSelected ? '取消全选' : '全选'}
-          </Button>
+        {/* 筛选行（账本页同款勾选格式，默认全选） */}
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
+          统计 {selectedSet.size}/{loans.length} 笔贷款
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
