@@ -46,6 +46,25 @@ const END_DATE_PRESETS = [
   { key: 'lunaryearend', label: '到农历年底' },
 ];
 
+/** 按尺度（日/月/年）合并按日分组的数据，并把原始日期注入每个 item（dueDate） */
+function groupByScale(
+  daily: { date: string; total: number; items: any[] }[],
+  scale: 'day' | 'month' | 'year',
+): { date: string; total: number; items: any[] }[] {
+  const map = new Map<string, { date: string; total: number; items: any[] }>();
+  for (const g of daily) {
+    const key =
+      scale === 'day' ? g.date : scale === 'month' ? g.date.slice(0, 7) : g.date.slice(0, 4);
+    if (!map.has(key)) map.set(key, { date: key, total: 0, items: [] });
+    const entry = map.get(key)!;
+    entry.total += g.total;
+    for (const it of g.items) {
+      entry.items.push({ ...it, dueDate: g.date });
+    }
+  }
+  return Array.from(map.values());
+}
+
 export default function Repayments() {
   const selectedIds = useRepaymentLedgerSelection((s) => s.selectedIds);
   const deselectedIds = useRepaymentLedgerSelection((s) => s.deselectedIds);
@@ -65,6 +84,9 @@ export default function Repayments() {
       return formatDate(d);
     },
   );
+
+  // 待还款/待支出列表的合并显示尺度：日/月/年（共用，同步切换）
+  const [repayScale, setRepayScale] = useState<'day' | 'month' | 'year'>('day');
 
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],
@@ -198,19 +220,29 @@ export default function Repayments() {
 
   const pendingExpense = data?.pendingExpense;
 
+  // 按尺度合并分组（注入每笔原始日期 dueDate 供明细展示与标记已还使用）
+  const groupedRepay = useMemo(
+    () => groupByScale(data?.daily ?? [], repayScale),
+    [data?.daily, repayScale],
+  );
+  const groupedExpense = useMemo(
+    () => groupByScale(pendingExpense?.daily ?? [], repayScale),
+    [pendingExpense?.daily, repayScale],
+  );
+
   // 折叠展示：默认展开最近一天，其余折叠（待还款 / 待支出各自独立）
   const [expandedRepay, setExpandedRepay] = useState<Set<string>>(new Set());
   const [expandedExpense, setExpandedExpense] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const first = data?.daily?.[0]?.date;
+    const first = groupedRepay[0]?.date;
     if (first) setExpandedRepay(new Set([first]));
-  }, [data?.daily?.[0]?.date]);
+  }, [groupedRepay[0]?.date]);
 
   useEffect(() => {
-    const first = pendingExpense?.daily?.[0]?.date;
+    const first = groupedExpense[0]?.date;
     if (first) setExpandedExpense(new Set([first]));
-  }, [pendingExpense?.daily?.[0]?.date]);
+  }, [groupedExpense[0]?.date]);
 
   const toggleRepay = (date: string) => {
     setExpandedRepay((prev) => {
@@ -340,8 +372,22 @@ export default function Repayments() {
         </div>
 
         {/* 待还款列表 */}
-        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8 }}>待还款</div>
-        {data?.daily?.map((d: any) => {
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontWeight: 600, fontSize: 15 }}>待还款</span>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {(['day', 'month', 'year'] as const).map((k) => (
+              <Button
+                key={k}
+                size="mini"
+                color={repayScale === k ? 'primary' : 'default'}
+                onClick={() => setRepayScale(k)}
+              >
+                {k === 'day' ? '按日' : k === 'month' ? '按月' : '按年'}
+              </Button>
+            ))}
+          </div>
+        </div>
+        {groupedRepay.map((d: any) => {
           const isExpanded = expandedRepay.has(d.date);
           return (
             <div key={d.date} style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
@@ -367,6 +413,9 @@ export default function Repayments() {
               </div>
               {isExpanded && d.items.map((it: any) => (
                 <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {repayScale !== 'day' && (
+                    <span style={{ color: '#ff8f1f', marginRight: 6 }}>{it.dueDate}</span>
+                  )}
                   <span style={{ color: '#1677ff' }}>{it.loanName}</span> {it.kind === 'prepay' ? '提前还款' : `第${it.periodNo}期`} · 剩余{' '}
                   <span style={{ color: '#ff4d4f' }}>¥{formatMoney(it.remainingPrincipal)}</span>
                   /{it.remainingPeriods}期、本期{' '}
@@ -374,7 +423,7 @@ export default function Repayments() {
                   <span style={{ marginLeft: 6, color: it.status === 'overdue' ? '#ff4d4f' : '#999' }}>
                     {it.status === 'overdue' ? '逾期' : it.status === 'partial' ? '部分还' : '待还'}
                   </span>
-                  <Button size="mini" color="primary" fill="outline" style={{ marginLeft: 8 }} onClick={() => handleMarkClick(it, d.date)}>
+                  <Button size="mini" color="primary" fill="outline" style={{ marginLeft: 8 }} onClick={() => handleMarkClick(it, it.dueDate)}>
                     标记已还
                   </Button>
                 </div>
@@ -382,13 +431,27 @@ export default function Repayments() {
             </div>
           );
         })}
-        {!data?.daily?.length && (
+        {!groupedRepay.length && (
           <div style={{ textAlign: 'center', padding: 16, color: '#999', marginBottom: 16 }}>未来 30 天暂无待还款</div>
         )}
 
         {/* 待支出列表 */}
-        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, marginTop: 16 }}>待支出</div>
-        {pendingExpense?.daily?.map((d: any) => {
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 16 }}>
+          <span style={{ fontWeight: 600, fontSize: 15 }}>待支出</span>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {(['day', 'month', 'year'] as const).map((k) => (
+              <Button
+                key={k}
+                size="mini"
+                color={repayScale === k ? 'primary' : 'default'}
+                onClick={() => setRepayScale(k)}
+              >
+                {k === 'day' ? '按日' : k === 'month' ? '按月' : '按年'}
+              </Button>
+            ))}
+          </div>
+        </div>
+        {groupedExpense.map((d: any) => {
           const isExpanded = expandedExpense.has(d.date);
           return (
             <div key={d.date} style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
@@ -414,6 +477,9 @@ export default function Repayments() {
               </div>
               {isExpanded && d.items.map((it: any) => (
                 <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa' }}>
+                  {repayScale !== 'day' && (
+                    <span style={{ color: '#ff8f1f', marginRight: 6 }}>{it.dueDate}</span>
+                  )}
                   {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#52c41a' }}>¥{formatMoney(it.amount)}</span>
                   {it.note && <ExpandableNote text={it.note} bracketed />}
                 </div>
@@ -421,7 +487,7 @@ export default function Repayments() {
             </div>
           );
         })}
-        {!pendingExpense?.daily?.length && (
+        {!groupedExpense.length && (
           <div style={{ textAlign: 'center', padding: 16, color: '#999' }}>未来 30 天暂无待支出</div>
         )}
       </div>
