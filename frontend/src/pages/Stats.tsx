@@ -841,18 +841,34 @@ export default function Stats() {
           <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
         </div>
 
-        {/* 收支总览 */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          {[
-            { label: '收入', value: summary?.totalIncome ?? 0, color: '#52c41a' },
-            { label: '支出', value: summary?.totalExpense ?? 0, color: '#ff4d4f' },
-            { label: '盈余', value: summary?.surplus ?? 0, color: '#1677ff' },
-          ].map((s) => (
-            <div key={s.label} style={{ flex: 1, background: '#fff', borderRadius: 12, padding: 12, textAlign: 'center' }}>
-              <div className="text-secondary" style={{ fontSize: 12 }}>{s.label}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: s.color }}>¥{formatMoney(s.value)}</div>
-            </div>
-          ))}
+        {/* 收支总览：金额过大时整体横向滑动查看 */}
+        <div style={{ overflowX: 'auto', marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[
+              { label: '收入', value: summary?.totalIncome ?? 0, color: '#52c41a' },
+              { label: '支出', value: summary?.totalExpense ?? 0, color: '#ff4d4f' },
+              { label: '盈余', value: summary?.surplus ?? 0, color: '#1677ff' },
+            ].map((s) => (
+              <div
+                key={s.label}
+                style={{
+                  flexGrow: 1,
+                  flexShrink: 0,
+                  flexBasis: 'auto',
+                  minWidth: 120,
+                  background: '#fff',
+                  borderRadius: 12,
+                  padding: 12,
+                  textAlign: 'center',
+                }}
+              >
+                <div className="text-secondary" style={{ fontSize: 12 }}>{s.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: s.color, whiteSpace: 'nowrap' }}>
+                  ¥{formatMoney(s.value)}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div style={{ background: '#fff', borderRadius: 12, padding: 8, marginBottom: 12 }}>
