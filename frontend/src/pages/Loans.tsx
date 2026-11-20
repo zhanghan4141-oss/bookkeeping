@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Button, List, NavBar, ProgressBar } from 'antd-mobile';
+import { Button, NavBar, ProgressBar } from 'antd-mobile';
 import { AddOutline } from 'antd-mobile-icons';
 import { loanApi } from '../api/loan';
 import type { Loan } from '../types';
@@ -67,33 +67,32 @@ export default function Loans() {
       </NavBar>
 
       <div style={{ padding: 16 }}>
-        {/* 统计栏：总贷款余额 / 总待还本金 / 总待还利息 */}
+        {/* 统计栏：总贷款余额 / 总待还本金 / 总待还利息 + 小字统计勾选 */}
         <div
           style={{
-            display: 'flex',
             background: '#fff',
             borderRadius: 12,
             padding: '12px 0',
             marginBottom: 8,
           }}
         >
-          {[
-            { label: '总贷款余额', value: totals.totalLoan },
-            { label: '总待还本金', value: totals.totalRemainingPrincipal },
-            { label: '总待还利息', value: totals.totalRemainingInterest },
-          ].map((s) => (
-            <div key={s.label} style={{ width: '33.3%', textAlign: 'center' }}>
-              <div className="text-secondary" style={{ fontSize: 12 }}>{s.label}</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#1677ff' }}>
-                ¥{formatMoney(s.value)}
+          <div style={{ display: 'flex' }}>
+            {[
+              { label: '总贷款余额', value: totals.totalLoan },
+              { label: '总待还本金', value: totals.totalRemainingPrincipal },
+              { label: '总待还利息', value: totals.totalRemainingInterest },
+            ].map((s) => (
+              <div key={s.label} style={{ width: '33.3%', textAlign: 'center' }}>
+                <div className="text-secondary" style={{ fontSize: 12 }}>{s.label}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#1677ff' }}>
+                  ¥{formatMoney(s.value)}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* 筛选行（账本页同款勾选格式，默认全选） */}
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
-          统计 {selectedSet.size}/{loans.length} 笔贷款
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: '#999', textAlign: 'center', marginTop: 4 }}>
+            统计 {selectedSet.size}/{loans.length} 笔贷款
+          </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
@@ -102,48 +101,60 @@ export default function Loans() {
           </Button>
         </div>
 
-        <List style={{ borderRadius: 12, overflow: 'hidden' }}>
-          {loans.map((loan) => {
+        {loans.map((loan) => {
             const p = progress(loan);
             return (
-              <List.Item
+              <div
                 key={loan.id}
                 onClick={() => navigate(`/loans/${loan.id}`)}
-                prefix={
-                  <input
-                    type="checkbox"
-                    checked={selectedSet.has(loan.id)}
-                    onChange={() => toggle(loan.id)}
-                    // 停止冒泡，避免勾选操作同时触发行点击进入详情
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
-                  />
-                }
-                description={
-                  <div style={{ marginTop: 4 }}>
-                    <div className="text-secondary" style={{ fontSize: 12 }}>
-                      本金 ¥{formatMoney(Number(loan.principal))} · 年利率 {loan.annualRate}% · {loan.termMonths}期
-                    </div>
-                    <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
-                      剩余本金 ¥{formatMoney(loan.remainingPrincipal ?? 0)} · 剩余利息 ¥{formatMoney(loan.remainingInterest ?? 0)}
-                    </div>
-                    <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
-                  </div>
-                }
-                extra={
-                  <span style={{ color: loan.status === 'paid_off' ? '#52c41a' : loan.status === 'closed' ? '#999' : '#1677ff' }}>
-                    {loan.status === 'paid_off' ? '已还清' : loan.status === 'closed' ? '已关闭' : '进行中'}
-                  </span>
-                }
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  background: '#fff',
+                  cursor: 'pointer',
+                  marginBottom: 8,
+                }}
               >
-                {loan.name}
-              </List.Item>
+                {/* 与账本页一致的勾选框：贴行左上，点击范围覆盖勾选框本身 */}
+                <input
+                  type="checkbox"
+                  checked={selectedSet.has(loan.id)}
+                  onChange={() => toggle(loan.id)}
+                  // 停止冒泡，避免勾选操作同时触发行点击进入详情
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>{loan.name}</div>
+                  <div className="text-secondary" style={{ fontSize: 12 }}>
+                    本金 ¥{formatMoney(Number(loan.principal))} · 年利率 {loan.annualRate}% · {loan.termMonths}期
+                  </div>
+                  <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
+                    剩余本金 ¥{formatMoney(loan.remainingPrincipal ?? 0)} · 剩余利息 ¥{formatMoney(loan.remainingInterest ?? 0)}
+                  </div>
+                  <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
+                </div>
+                <span style={{ color: loan.status === 'paid_off' ? '#52c41a' : loan.status === 'closed' ? '#999' : '#1677ff' }}>
+                  {loan.status === 'paid_off' ? '已还清' : loan.status === 'closed' ? '已关闭' : '进行中'}
+                </span>
+              </div>
             );
           })}
           {loans.length === 0 && (
-            <List.Item description="点击右上角添加第一笔贷款">暂无贷款</List.Item>
+            <div
+              style={{
+                textAlign: 'center',
+                padding: 24,
+                color: '#999',
+                borderRadius: 12,
+                background: '#fff',
+              }}
+            >
+              点击右上角添加第一笔贷款
+            </div>
           )}
-        </List>
       </div>
     </div>
   );
