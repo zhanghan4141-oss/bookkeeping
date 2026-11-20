@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // 不自动注入 registerSW.js：网页端由 main.tsx 手动注册（保持 PWA），
+      // App（Capacitor WebView）不注册 SW，避免本地资源被 SW 缓存旧版本导致覆盖安装不生效
+      injectRegister: false,
       includeAssets: ['favicon.svg'],
       manifest: {
         name: '记账本',
