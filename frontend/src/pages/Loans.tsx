@@ -90,12 +90,19 @@ export default function Loans() {
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: '#999', textAlign: 'center', marginTop: 4 }}>
-            统计 {selectedSet.size}/{loans.length} 笔贷款
-          </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 8,
+          }}
+        >
+          <span style={{ fontSize: 13, color: '#999' }}>
+            统计 <span style={{ color: '#1677ff', fontWeight: 600 }}>{selectedSet.size}</span>/{loans.length} 笔贷款
+          </span>
           <Button size="mini" color="primary" onClick={() => navigate(`/ledgers/${id}/loans/new`)}>
             <AddOutline /> 添加贷款
           </Button>
