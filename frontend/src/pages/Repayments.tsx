@@ -7,6 +7,8 @@ import { ledgerApi } from '../api/ledger';
 import { useRepaymentLedgerSelection } from '../stores/repaymentLedgerSelection';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
 import ExpandableNote from '../components/ExpandableNote';
+import { usePersistedState } from '../hooks/usePersistedState';
+import { useBusy } from '../hooks/useBusy';
 import type { Ledger } from '../types';
 import { formatDate, formatMoney } from '../lib/format';
 import { Lunar, LunarMonth, Solar } from 'lunar-javascript';
@@ -54,12 +56,15 @@ export default function Repayments() {
   const [showEndPicker, setShowEndPicker] = useState(false);
   // 弹窗内待定的截止日期（点预设/改日期后，点「确定」才生效；打开时同步为当前值）
   const [tempEnd, setTempEnd] = useState('');
-  // 截止日期（默认未来 30 天）
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return formatDate(d);
-  });
+  // 截止日期（默认未来 30 天，持久化记住上次选择；切账号会重置）
+  const [endDate, setEndDate] = usePersistedState(
+    'bookkeeping-repayment-enddate',
+    () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 30);
+      return formatDate(d);
+    },
+  );
 
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],
@@ -145,28 +150,31 @@ export default function Repayments() {
     openMark();
   };
 
-  const submitMark = async () => {
+  const { busy: markBusy, run: runMark } = useBusy();
+  const submitMark = () => {
     if (!markItem) return;
-    const amount = Number(markAmount);
-    if (!markAmount || amount <= 0) {
-      Toast.show({ content: '请输入金额' });
-      return;
-    }
-    try {
-      const payload: { amount: number; paidDate?: string; syncTransactionsToPaidAt: boolean } = {
-        amount,
-        syncTransactionsToPaidAt: true,
-      };
-      // 默认今天 → 不传 paidDate，后端按标记时刻（精确时间）记录流水；
-      // 显式选到其它日期才传 paidDate。
-      if (markDate && markDate !== formatDate(new Date())) payload.paidDate = markDate;
-      await loanApi.pay(markItem.loanId, markItem.periodNo, payload);
-      Toast.show({ content: '已标记已还' });
-      setMarkItem(null);
-      refetch();
-    } catch (e: any) {
-      Toast.show({ content: e.response?.data?.message ?? '标记失败' });
-    }
+    runMark(async () => {
+      const amount = Number(markAmount);
+      if (!markAmount || amount <= 0) {
+        Toast.show({ content: '请输入金额' });
+        return;
+      }
+      try {
+        const payload: { amount: number; paidDate?: string; syncTransactionsToPaidAt: boolean } = {
+          amount,
+          syncTransactionsToPaidAt: true,
+        };
+        // 默认今天 → 不传 paidDate，后端按标记时刻（精确时间）记录流水；
+        // 显式选到其它日期才传 paidDate。
+        if (markDate && markDate !== formatDate(new Date())) payload.paidDate = markDate;
+        await loanApi.pay(markItem.loanId, markItem.periodNo, payload);
+        Toast.show({ content: '已标记已还' });
+        setMarkItem(null);
+        refetch();
+      } catch (e: any) {
+        Toast.show({ content: e.response?.data?.message ?? '标记失败' });
+      }
+    });
   };
 
   // 行内队列顺序：选中（按选中顺序）→ 最近取消选中（最新在前）→ 其余（原顺序）
@@ -496,7 +504,7 @@ export default function Repayments() {
               )}
             </DatePicker>
           </div>
-          <Button block color="primary" onClick={submitMark}>确认标记</Button>
+          <Button block color="primary" loading={markBusy} onClick={submitMark}>确认标记</Button>
         </div>
       </Popup>
     </div>

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/auth';
+import { beginRequest, endRequest } from '../lib/requestPending';
 
 // Capacitor App 内 origin 是 https://localhost，API 必须走绝对地址；
 // 网页端走相对路径 /api（Vite 代理 / nginx 反代）。
@@ -26,6 +27,8 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  // 写请求计入全局 pending（GET 查询不闪圈）
+  if (config.method && config.method.toLowerCase() !== 'get') beginRequest();
   const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -34,8 +37,12 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    if (res.config.method && res.config.method.toLowerCase() !== 'get') endRequest();
+    return res;
+  },
   async (error) => {
+    if (error.config?.method && error.config.method.toLowerCase() !== 'get') endRequest();
     const original = error.config;
     const status = error.response?.status;
     const store = useAuthStore.getState();

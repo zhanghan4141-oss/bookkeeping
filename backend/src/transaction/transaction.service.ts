@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CreateTransactionDto,
   QueryTransactionDto,
+  TransferTransactionDto,
   UpdateTransactionDto,
 } from './dto/transaction.dto.js';
 
@@ -94,6 +99,40 @@ export class TransactionService {
   async remove(id: string) {
     await this.prisma.transaction.delete({ where: { id } });
     return { success: true };
+  }
+
+  /** 转移流水到其它账本：校验贷款流水不可转、目标账本非当前、分类归属与类型一致 */
+  async transfer(id: string, dto: TransferTransactionDto) {
+    const tx = await this.prisma.transaction.findUnique({ where: { id } });
+    if (!tx) throw new NotFoundException('流水不存在');
+    if (tx.loanId) throw new BadRequestException('贷款流水不可转移');
+    if (dto.ledgerId === tx.ledgerId) {
+      throw new BadRequestException('目标账本不能是当前账本');
+    }
+    if (dto.categoryId) {
+      const cat = await this.prisma.category.findFirst({
+        where: { id: dto.categoryId, ledgerId: dto.ledgerId },
+      });
+      if (!cat) throw new BadRequestException('目标分类不属于该账本');
+      if (cat.type !== tx.type) {
+        throw new BadRequestException('流水类型与目标分类类型不一致');
+      }
+    }
+
+    return this.prisma.transaction.update({
+      where: { id },
+      data: {
+        ledger: { connect: { id: dto.ledgerId } },
+        category: dto.categoryId
+          ? { connect: { id: dto.categoryId } }
+          : { disconnect: true },
+      },
+      include: {
+        category: { select: { id: true, name: true, icon: true, color: true, type: true } },
+        user: { select: { id: true, nickname: true, avatarUrl: true } },
+        loan: { select: { id: true, name: true } },
+      },
+    });
   }
 
   async findLedgerIds(ids: string[]): Promise<string[]> {

@@ -15,6 +15,7 @@ import {
   CreateTransactionDto,
   QueryTransactionDto,
   RemoveManyTransactionDto,
+  TransferTransactionDto,
   UpdateTransactionDto,
 } from './dto/transaction.dto.js';
 import { TransactionService } from './transaction.service.js';
@@ -54,6 +55,19 @@ export class TransactionController {
     const tx = await this.transactionService.findOne(id);
     await this.access.assertWritable(tx.ledgerId, user.id);
     return this.transactionService.update(id, dto);
+  }
+
+  @Patch('transactions/:id/transfer')
+  async transfer(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: TransferTransactionDto,
+  ) {
+    const tx = await this.transactionService.findOne(id);
+    // 源账本与目标账本都必须可写（viewer 会被拒绝）
+    await this.access.assertWritable(tx.ledgerId, user.id);
+    await this.access.assertWritable(dto.ledgerId, user.id);
+    return this.transactionService.transfer(id, dto);
   }
 
   @Delete('transactions/:id')

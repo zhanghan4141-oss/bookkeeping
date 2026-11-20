@@ -11,6 +11,7 @@ import { downloadApk } from '../lib/downloadApk';
 import { formatDate } from '../lib/format';
 import { TabActiveContext } from '../components/KeepAlive';
 import { useAuthStore } from '../stores/auth';
+import { useBusy } from '../hooks/useBusy';
 import type { Ledger, ReminderSetting } from '../types';
 
 export default function Settings() {
@@ -22,6 +23,8 @@ export default function Settings() {
   const [showExport, setShowExport] = useState(false);
   const [exportLedgerIds, setExportLedgerIds] = useState<string[]>([]);
   const [exportFormat, setExportFormat] = useState<'excel' | 'json'>('excel');
+  // 全量导出耗时较长，按钮转圈防重复点击
+  const { busy: exportBusy, run: runExport } = useBusy();
 
   const { data: setting, refetch } = useQuery({
     queryKey: ['settings', 'reminder'],
@@ -261,7 +264,7 @@ export default function Settings() {
             ))}
           </div>
 
-          <Button block color="primary" onClick={doExport}>
+          <Button block color="primary" loading={exportBusy} onClick={() => runExport(doExport)}>
             导出
           </Button>
         </div>

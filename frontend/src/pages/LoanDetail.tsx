@@ -7,6 +7,7 @@ import { loanApi } from '../api/loan';
 import { ledgerApi } from '../api/ledger';
 import { invalidateFinancialData } from '../lib/invalidate';
 import { formatDate, formatMoney } from '../lib/format';
+import { useBusy } from '../hooks/useBusy';
 import type { Ledger, Loan, LoanRepayment } from '../types';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -37,6 +38,11 @@ export default function LoanDetail() {
   // 编辑还款计划状态
   const [editingPlan, setEditingPlan] = useState(false);
   const [editPeriods, setEditPeriods] = useState<EditPlanRow[]>([]);
+  // 耗时操作按钮 loading
+  const { busy: exportPlanBusy, run: runExportPlan } = useBusy();
+  const { busy: deleteLoanBusy, run: runDeleteLoan } = useBusy();
+  const { busy: editPlanBusy, run: runEditPlan } = useBusy();
+  const { busy: prepayBusy, run: runPrepay } = useBusy();
 
   const { data: loan } = useQuery({
     queryKey: ['loan', id],
@@ -390,9 +396,9 @@ export default function LoanDetail() {
             {!isViewer && (
               <Button size="mini" fill="outline" onClick={() => navigate(`/loans/${id}/edit`)}>编辑贷款信息</Button>
             )}
-            <Button size="mini" fill="outline" onClick={handleExportPlan}>导出计划</Button>
+            <Button size="mini" fill="outline" loading={exportPlanBusy} onClick={() => runExportPlan(handleExportPlan)}>导出计划</Button>
             {!isViewer && (
-              <Button size="mini" fill="outline" color="danger" onClick={handleDeleteLoan}>删除</Button>
+              <Button size="mini" fill="outline" color="danger" loading={deleteLoanBusy} onClick={() => runDeleteLoan(handleDeleteLoan)}>删除</Button>
             )}
           </div>
         </div>
@@ -490,7 +496,7 @@ export default function LoanDetail() {
             })}
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <Button block fill="outline" onClick={() => setEditingPlan(false)}>取消</Button>
-              <Button block color="primary" onClick={saveEditPlan}>保存</Button>
+              <Button block color="primary" loading={editPlanBusy} onClick={() => runEditPlan(saveEditPlan)}>保存</Button>
             </div>
           </div>
         ) : (
@@ -682,7 +688,7 @@ export default function LoanDetail() {
               </>
             )}
           </div>
-          <Button block color="primary" onClick={handlePrepay}>确认提前还款</Button>
+          <Button block color="primary" loading={prepayBusy} onClick={() => runPrepay(handlePrepay)}>确认提前还款</Button>
         </div>
       </Popup>
     </div>

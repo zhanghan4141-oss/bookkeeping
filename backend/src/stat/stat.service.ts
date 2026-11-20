@@ -60,7 +60,8 @@ export class StatService {
       const end = new Date(`${query.endDate}T00:00:00`);
       end.setDate(end.getDate() + 1);
       where.occurredAt = { gte: start, lt: end };
-      period = determineGranularity(query.startDate, query.endDate, calendar);
+      // forcePeriod 传了则强制使用指定粒度（柱状图日/月/年切换）；否则按区间跨度自动推断
+      period = query.forcePeriod ?? determineGranularity(query.startDate, query.endDate, calendar);
     } else if (query.date && calendar === 'solar') {
       // 旧逻辑：按月/按年 + 参考日期
       if (period === 'month' && /^\d{4}-\d{2}$/.test(query.date)) {

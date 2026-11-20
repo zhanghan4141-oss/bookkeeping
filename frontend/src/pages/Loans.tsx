@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, List, NavBar, ProgressBar } from 'antd-mobile';
@@ -13,6 +13,23 @@ function progress(loan: Loan) {
   return total > 0 ? Math.round((paid / total) * 100) : 0;
 }
 
+/** 勾选贷款的汇总（默认全选统计所有贷款） */
+function computeTotals(loans: Loan[]) {
+  let totalLoan = 0;
+  let totalRemainingPrincipal = 0;
+  let totalRemainingInterest = 0;
+  for (const l of loans) {
+    totalLoan += Number(l.principal ?? 0);
+    totalRemainingPrincipal += Number(l.remainingPrincipal ?? 0);
+    totalRemainingInterest += Number(l.remainingInterest ?? 0);
+  }
+  return {
+    totalLoan: Math.round(totalLoan * 100) / 100,
+    totalRemainingPrincipal: Math.round(totalRemainingPrincipal * 100) / 100,
+    totalRemainingInterest: Math.round(totalRemainingInterest * 100) / 100,
+  };
+}
+
 export default function Loans() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
@@ -23,6 +40,29 @@ export default function Loans() {
     queryFn: async () => (await loanApi.list(id)).data as Loan[],
   });
 
+  // 勾选统计的贷款：默认全选，不持久化（null = 尚未初始化）
+  const [selected, setSelected] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (selected === null && loans.length > 0) {
+      setSelected(new Set(loans.map((l) => l.id)));
+    }
+  }, [selected, loans]);
+
+  const toggle = (loanId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev ?? loans.map((l) => l.id));
+      if (next.has(loanId)) next.delete(loanId);
+      else next.add(loanId);
+      return next;
+    });
+  };
+  const selectedSet = selected ?? new Set<string>();
+  const allSelected = loans.length > 0 && selectedSet.size === loans.length;
+  const toggleAll = () =>
+    setSelected(allSelected ? new Set() : new Set(loans.map((l) => l.id)));
+
+  const totals = computeTotals(loans.filter((l) => selectedSet.has(l.id)));
+
   return (
     <div className="page" ref={pageRef}>
       <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
@@ -30,6 +70,45 @@ export default function Loans() {
       </NavBar>
 
       <div style={{ padding: 16 }}>
+        {/* 统计栏：总贷款余额 / 总待还本金 / 总待还利息 */}
+        <div
+          style={{
+            display: 'flex',
+            background: '#fff',
+            borderRadius: 12,
+            padding: '12px 0',
+            marginBottom: 8,
+          }}
+        >
+          {[
+            { label: '总贷款余额', value: totals.totalLoan },
+            { label: '总待还本金', value: totals.totalRemainingPrincipal },
+            { label: '总待还利息', value: totals.totalRemainingInterest },
+          ].map((s) => (
+            <div key={s.label} style={{ width: '33.3%', textAlign: 'center' }}>
+              <div className="text-secondary" style={{ fontSize: 12 }}>{s.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#1677ff' }}>
+                ¥{formatMoney(s.value)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 筛选行（账本页同款勾选格式） */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 8,
+          }}
+        >
+          <span style={{ fontSize: 13, color: '#666' }}>统计 {selectedSet.size}/{loans.length} 笔贷款</span>
+          <Button size="mini" fill="outline" onClick={toggleAll}>
+            {allSelected ? '取消全选' : '全选'}
+          </Button>
+        </div>
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
           <Button size="mini" color="primary" onClick={() => navigate(`/ledgers/${id}/loans/new`)}>
             <AddOutline /> 添加贷款
@@ -43,6 +122,16 @@ export default function Loans() {
               <List.Item
                 key={loan.id}
                 onClick={() => navigate(`/loans/${loan.id}`)}
+                prefix={
+                  <input
+                    type="checkbox"
+                    checked={selectedSet.has(loan.id)}
+                    onChange={() => toggle(loan.id)}
+                    // 停止冒泡，避免勾选操作同时触发行点击进入详情
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
+                  />
+                }
                 description={
                   <div style={{ marginTop: 4 }}>
                     <div className="text-secondary" style={{ fontSize: 12 }}>

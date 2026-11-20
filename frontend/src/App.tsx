@@ -20,6 +20,7 @@ import Members from './pages/Members';
 import LedgerManage from './pages/LedgerManage';
 import AuditLogs from './pages/AuditLogs';
 import TabBar from './components/TabBar';
+import GlobalLoading from './components/GlobalLoading';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { accessToken } = useAuthStore();
@@ -56,34 +57,37 @@ export default function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <TabBar />
-          </RequireAuth>
-        }
-      >
-        <Route index element={<Navigate to="/ledgers" replace />} />
-        <Route path="ledgers" element={<Ledgers />} />
-        <Route path="ledgers/:id" element={<LedgerDetail />} />
-        <Route path="ledgers/:id/record" element={<TransactionForm />} />
-        <Route path="ledgers/:id/categories" element={<Categories />} />
-        <Route path="ledgers/:id/members" element={<Members />} />
-        <Route path="ledgers/:id/loans" element={<Loans />} />
-        <Route path="ledgers/:ledgerId/loans/new" element={<LoanForm />} />
-        <Route path="loans/:id" element={<LoanDetail />} />
-        <Route path="loans/:id/edit" element={<LoanForm />} />
-        <Route path="repayments" element={<Repayments />} />
-        <Route path="notifications" element={<Notifications />} />
-        <Route path="stats" element={<Stats />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="settings/ledgers" element={<LedgerManage />} />
-        <Route path="settings/audit-logs" element={<AuditLogs />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <TabBar />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<Navigate to="/ledgers" replace />} />
+          <Route path="ledgers" element={<Ledgers />} />
+          <Route path="ledgers/:id" element={<LedgerDetail />} />
+          <Route path="ledgers/:id/record" element={<TransactionForm />} />
+          <Route path="ledgers/:id/categories" element={<Categories />} />
+          <Route path="ledgers/:id/members" element={<Members />} />
+          <Route path="ledgers/:id/loans" element={<Loans />} />
+          <Route path="ledgers/:ledgerId/loans/new" element={<LoanForm />} />
+          <Route path="loans/:id" element={<LoanDetail />} />
+          <Route path="loans/:id/edit" element={<LoanForm />} />
+          <Route path="repayments" element={<Repayments />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="stats" element={<Stats />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="settings/ledgers" element={<LedgerManage />} />
+          <Route path="settings/audit-logs" element={<AuditLogs />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <GlobalLoading />
+    </>
   );
 }

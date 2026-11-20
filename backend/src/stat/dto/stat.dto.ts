@@ -24,6 +24,10 @@ export class SummaryQueryDto {
   @IsOptional()
   @IsDateString()
   endDate?: string; // 自定义区间结束（YYYY-MM-DD，含当天）
+
+  @IsOptional()
+  @IsIn(['day', 'month', 'year'])
+  forcePeriod?: 'day' | 'month' | 'year'; // 传 startDate/endDate 时强制趋势粒度；不传则按区间跨度自动推断
 }
 
 export class LedgerSummaryQueryDto {

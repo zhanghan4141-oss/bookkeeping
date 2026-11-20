@@ -62,6 +62,17 @@ export class UpdateTransactionDto {
   occurredAt?: string;
 }
 
+/** 转移流水到其它账本（categoryId 可省略/空 = 未分类） */
+export class TransferTransactionDto {
+  @IsString()
+  @IsNotEmpty({ message: '目标账本不能为空' })
+  ledgerId!: string;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string | null;
+}
+
 export class QueryTransactionDto {
   @IsOptional()
   @IsString()

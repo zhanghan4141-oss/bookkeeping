@@ -160,23 +160,108 @@ export class LoanService {
       );
     }
 
-    // 保留已还期的状态映射（仅 period）
-    const paidMap = new Map(
+    // 本地日期键（YYYY-MM-DD）：DATE/归一化 DATETIME 用 toISOString 同日，与现有口径一致
+    const fmtDay = (d: Date | string) => {
+      const x = typeof d === 'string' ? new Date(`${d}T00:00:00`) : d;
+      return x.toISOString().slice(0, 10);
+    };
+
+    // 已还期按日期键映射（支持期号平移/末尾追加，不再依赖 periodNo）
+    const paidByDate = new Map<string, (typeof loan.repayments)[number]>();
+    for (const r of loan.repayments) {
+      if (r.kind === 'period' && Number(r.paidAmount) > 0) {
+        const k = fmtDay(r.dueDate);
+        if (!paidByDate.has(k)) paidByDate.set(k, r);
+      }
+    }
+    // 已发生的提前还款（paidAmount>0）日期集
+    const paidPrepayDates = new Set(
       loan.repayments
-        .filter((r) => r.kind === 'period' && Number(r.paidAmount) > 0)
-        .map((r) => [r.periodNo, r]),
+        .filter((r) => r.kind === 'prepay' && Number(r.paidAmount) > 0)
+        .map((r) => fmtDay(r.dueDate)),
+    );
+    const oldPrepayByDate = new Map(
+      loan.repayments
+        .filter((r) => r.kind === 'prepay' && Number(r.paidAmount) > 0)
+        .map((r) => [fmtDay(r.dueDate), r]),
     );
 
+    // ===== 一致性校验：已还期/已发生提前还款不允许删除、改日期、改金额 =====
+    // （其流水保留原样，计划若被改会造成计划与流水不一致）
+    const newPeriodByDate = new Map(periodEntries.map((p) => [fmtDay(p.dueDate), p]));
+    for (const k of paidByDate.keys()) {
+      const n = newPeriodByDate.get(k);
+      if (!n) {
+        throw new BadRequestException(
+          `已标记还款的期不能删除或修改还款日期，请先撤销还款再编辑`,
+        );
+      }
+      if (Math.abs(Number(n.totalAmount) - Number(paidByDate.get(k)!.totalAmount)) > 0.005) {
+        throw new BadRequestException(
+          `已标记还款的期修改金额需先撤销还款后再编辑`,
+        );
+      }
+    }
+    const newPrepayByDate = new Map(prepayEntries.map((p) => [fmtDay(p.dueDate), p]));
+    for (const k of paidPrepayDates) {
+      if (!newPrepayByDate.has(k)) {
+        throw new BadRequestException(
+          '已发生的提前还款不能删除或修改日期，请先撤销还款再编辑',
+        );
+      }
+      const old = oldPrepayByDate.get(k)!;
+      if (Math.abs(Number(newPrepayByDate.get(k)!.totalAmount) - Number(old.totalAmount)) > 0.005) {
+        throw new BadRequestException(
+          '已发生的提前还款修改金额需先撤销还款后再编辑',
+        );
+      }
+    }
+
     await this.prisma.$transaction(async (tx) => {
-      // 删除旧流水 + 旧计划（period 与 prepay 一并重建）
-      await tx.transaction.deleteMany({ where: { loanId } });
+      // 保留已还期/已发生提前还款对应的流水（原 id/日期/金额），其余删除重建
+      const existingTx = await tx.transaction.findMany({
+        where: { loanId },
+        select: {
+          id: true,
+          ledgerId: true,
+          categoryId: true,
+          userId: true,
+          type: true,
+          amount: true,
+          note: true,
+          occurredAt: true,
+        },
+      });
+      const preservedIds = new Set<string>();
+      const isRepayNote = (note: string | null) =>
+        ['还款本金', '还款利息', '还款'].some((p) => note?.startsWith(p)) ||
+        note?.includes('提前还款');
+      for (const [k, r] of paidByDate) {
+        for (const t of existingTx) {
+          if (preservedIds.has(t.id) || t.type !== 'expense' || !isRepayNote(t.note)) continue;
+          const at = new Set([k]);
+          if (r.paidDate) at.add(fmtDay(r.paidDate));
+          if (at.has(fmtDay(t.occurredAt))) preservedIds.add(t.id);
+        }
+      }
+      for (const k of paidPrepayDates) {
+        for (const t of existingTx) {
+          if (preservedIds.has(t.id) || t.type !== 'expense' || !isRepayNote(t.note)) continue;
+          if (fmtDay(t.occurredAt) === k) preservedIds.add(t.id);
+        }
+      }
+
+      // 删除其余流水 + 全部旧计划（period 与 prepay 一并重建）
+      await tx.transaction.deleteMany({
+        where: { loanId, id: { notIn: [...preservedIds] } },
+      });
       await tx.loanRepayment.deleteMany({ where: { loanId } });
 
-      // 重建各期（保留已还期状态）
+      // 重建各期（已还期按日期键继承 paidAmount/status/paidDate；金额变更已被校验拦截）
       await tx.loanRepayment.createMany({
         data: periodEntries.map((p, i) => {
           const periodNo = i + 1;
-          const paid = paidMap.get(periodNo);
+          const paid = paidByDate.get(fmtDay(p.dueDate));
           const totalAmount = p.totalAmount;
           // 若该期已还，且新的总额小于已还金额，则报错
           if (paid && Number(paid.paidAmount) > totalAmount + 0.005) {
@@ -203,7 +288,7 @@ export class LoanService {
       });
 
       // 重建提前还款条目：时间未到（dueDate 在未来）→ 生成「待还的额外计划」；
-      // 当天/已过 → 记作已还
+      // 当天/已过 → 记作已还（已发生条目经校验后日期/金额不变）
       if (prepayEntries.length > 0) {
         await tx.loanRepayment.createMany({
           data: prepayEntries.map((p, i) => {
@@ -225,7 +310,11 @@ export class LoanService {
         });
       }
 
-      // 写流水：放款收入 + 每期还款总额
+      // 写流水：放款收入 + 每期还款总额（跳过已还期——其流水已保留，避免重写回计划日期）
+      const paidNos = new Set<number>();
+      periodEntries.forEach((p, i) => {
+        if (paidByDate.has(fmtDay(p.dueDate))) paidNos.add(i + 1);
+      });
       await this.writeLoanTransactions(
         userId,
         loanId,
@@ -241,11 +330,12 @@ export class LoanService {
             totalAmount: p.totalAmount,
           })),
           loanNote: loan.note,
+          skipPeriodNos: paidNos,
         },
         tx,
       );
 
-      // 写提前还款流水
+      // 写提前还款流水：已发生的旧 prepay 流水已保留，跳过重写；新增条目正常写
       if (prepayEntries.length > 0) {
         const principalCategory = await this.findOrCreateCategory(
           tx,
@@ -255,6 +345,7 @@ export class LoanService {
         );
         if (principalCategory) {
           for (const p of prepayEntries) {
+            if (paidPrepayDates.has(fmtDay(p.dueDate))) continue;
             await tx.transaction.create({
               data: {
                 ledgerId: loan.ledgerId,
@@ -763,6 +854,8 @@ export class LoanService {
       plan: { dueDate: Date; principalAmount: number; interestAmount: number; totalAmount: number }[];
       /** 是否写「贷款」收入流水，默认 true；提前还款重算时传 false，避免多记一笔放款 */
       writeIncome?: boolean;
+      /** 跳过这些期号的还款流水（编辑计划时传已还期集，已还期的原流水已被保留） */
+      skipPeriodNos?: Set<number>;
       /** 贷款备注：非空时追加到每笔流水备注 */
       loanNote?: string | null;
     },
@@ -790,7 +883,9 @@ export class LoanService {
     }
 
     // 每期还款支出
-    for (const p of params.plan) {
+    for (const [i, p] of params.plan.entries()) {
+      // 已还期：原流水已被保留，不重建
+      if (params.skipPeriodNos?.has(i + 1)) continue;
       // 自定义方式：本金利息都为0，只写一条总额流水
       if (p.principalAmount === 0 && p.interestAmount === 0 && p.totalAmount > 0) {
         if (principalCategory) {

@@ -34,10 +34,20 @@ function shortAxisKey(key: string, period: 'day' | 'month' | 'year'): string {
   return key;
 }
 
-function groupByDate(list: Transaction[]) {
+/** 类别流水按统计粒度分组：day→日 / month→月 / year→年（农历年粒度用农历年号） */
+function groupByKey(
+  list: Transaction[],
+  period: 'day' | 'month' | 'year',
+  calendar: 'solar' | 'lunar',
+): [string, Transaction[]][] {
   const map = new Map<string, Transaction[]>();
   for (const t of list) {
-    const key = t.occurredAt.slice(0, 10);
+    const d = new Date(t.occurredAt);
+    let key: string;
+    if (period === 'day') key = t.occurredAt.slice(0, 10);
+    else if (period === 'month') key = t.occurredAt.slice(0, 7);
+    else if (calendar === 'lunar') key = `农历${Solar.fromDate(d).getLunar().getYear()}年`;
+    else key = String(d.getFullYear());
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(t);
   }
@@ -52,12 +62,17 @@ function formatDateTime(d: Date) {
 /** 稳定的空数组引用，避免 useQuery 默认值每次渲染都新建导致依赖不稳定（引发无限循环） */
 const EMPTY_TX: Transaction[] = [];
 
-/** 快捷区间：当年 / 当月 / 四个季度，跟随当前历法（公历/农历） */
+/** 快捷区间：当年/当月/季 + 明日到月底/年底/农历年底，跟随当前历法 */
 function quickRange(
-  key: 'year' | 'month' | 'q1' | 'q2' | 'q3' | 'q4',
+  key: 'year' | 'month' | 'q1' | 'q2' | 'q3' | 'q4' | 'tmom' | 'tye' | 'tlye',
   calendar: 'solar' | 'lunar',
 ): { start: string; end: string } {
   const now = new Date();
+  const tomorrow = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d;
+  };
 
   if (calendar === 'lunar') {
     const lunar = Solar.fromDate(now).getLunar();
@@ -82,7 +97,13 @@ function quickRange(
     if (key === 'q1') return quarter(1, 3);
     if (key === 'q2') return quarter(4, 6);
     if (key === 'q3') return quarter(7, 9);
-    return quarter(10, 12);
+    if (key === 'q4') return quarter(10, 12);
+    // 明日到农历月底 / 农历年底（农历日历下月底=农历月末、年底=腊月末）
+    if (key === 'tmom') return { start: fmtDate(tomorrow()), end: monthRange(ly, lm).end };
+    return {
+      start: fmtDate(tomorrow()),
+      end: Lunar.fromYmd(ly, 12, LunarMonth.fromYm(ly, 12).getDayCount()).getSolar().toYmd(),
+    };
   }
 
   const y = now.getFullYear();
@@ -102,7 +123,14 @@ function quickRange(
   if (key === 'q1') return quarter(1, 3);
   if (key === 'q2') return quarter(4, 6);
   if (key === 'q3') return quarter(7, 9);
-  return quarter(10, 12);
+  if (key === 'q4') return quarter(10, 12);
+  // 明日到月底 / 年底 / 农历年底
+  if (key === 'tmom') return { start: fmtDate(tomorrow()), end: monthRange(y, m).end };
+  if (key === 'tye') return { start: fmtDate(tomorrow()), end: `${y}-12-31` };
+  const lunar = Solar.fromDate(now).getLunar();
+  const ly = lunar.getYear();
+  const end = Lunar.fromYmd(ly, 12, LunarMonth.fromYm(ly, 12).getDayCount()).getSolar().toYmd();
+  return { start: fmtDate(tomorrow()), end };
 }
 
 /** 类别列表（统计页饼图下方）：一行一个类别，可点击查看流水 */
@@ -178,6 +206,9 @@ export default function Stats() {
   // 统计日期范围（默认当前公历月）
   const [range, setRange] = useState(() => monthRangeOf(new Date(), 'solar'));
 
+  // 柱状图聚合粒度：auto=按区间自动推断；或强制 日/月/年
+  const [trendMode, setTrendMode] = useState<'auto' | 'day' | 'month' | 'year'>('auto');
+
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],
     queryFn: async () => (await ledgerApi.list()).data as Ledger[],
@@ -204,13 +235,15 @@ export default function Stats() {
   }, [latestLedger, selectedIds.length, selectOne]);
 
   const { data: summary } = useQuery({
-    queryKey: ['stats', 'summary', selectedIds, calendar, range.start, range.end],
+    queryKey: ['stats', 'summary', selectedIds, calendar, range.start, range.end, trendMode],
     queryFn: async () => {
       const params: Record<string, string> = {
         calendar,
         startDate: range.start,
         endDate: range.end,
       };
+      // 手动切换日/月/年 → 强制趋势粒度（后端 forcePeriod）
+      if (trendMode !== 'auto') params.forcePeriod = trendMode;
       if (selectedIds.length) params.ledgerIds = selectedIds.join(',');
       return (await statApi.summary(params)).data as StatSummary;
     },
@@ -275,7 +308,12 @@ export default function Stats() {
   const [editForm, setEditForm] = useState({ type: 'expense', amount: '', note: '' });
   const [expandedCategoryDates, setExpandedCategoryDates] = useState<Set<string>>(new Set());
 
-  const categoryGroups = useMemo(() => groupByDate(filteredCategoryTx), [filteredCategoryTx]);
+  // 类别流水分组跨度跟随柱状图切换（auto 用后端推断的周期）
+  const detailPeriod = trendMode === 'auto' ? summary?.period ?? 'day' : trendMode;
+  const categoryGroups = useMemo(
+    () => groupByKey(filteredCategoryTx, detailPeriod as 'day' | 'month' | 'year', calendar),
+    [filteredCategoryTx, detailPeriod, calendar],
+  );
 
   useEffect(() => {
     setExpandedCategoryDates(categoryGroups.length > 0 ? new Set([categoryGroups[0][0]]) : new Set());
@@ -445,7 +483,7 @@ export default function Stats() {
   };
 
   // 快捷区间按钮：只填入起止日期，用户点「确定」后生效
-  const applyQuickRange = (key: 'year' | 'month' | 'q1' | 'q2' | 'q3' | 'q4') => {
+  const applyQuickRange = (key: 'year' | 'month' | 'q1' | 'q2' | 'q3' | 'q4' | 'tmom' | 'tye' | 'tlye') => {
     const r = quickRange(key, calendar);
     setTempStart(r.start);
     setTempEnd(r.end);
@@ -615,6 +653,23 @@ export default function Stats() {
         </div>
 
         <div style={{ background: '#fff', borderRadius: 12, padding: 8, marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4, gap: 4 }}>
+            {([
+              ['auto', '自动'],
+              ['day', '按日'],
+              ['month', '按月'],
+              ['year', '按年'],
+            ] as const).map(([k, label]) => (
+              <Button
+                key={k}
+                size="mini"
+                color={trendMode === k ? 'primary' : 'default'}
+                onClick={() => setTrendMode(k)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
           <Chart option={trendOption} height={240} />
         </div>
 
@@ -655,6 +710,9 @@ export default function Stats() {
               { key: 'q2', label: 'Q2' },
               { key: 'q3', label: 'Q3' },
               { key: 'q4', label: 'Q4' },
+              { key: 'tmom', label: '明日-月底' },
+              { key: 'tye', label: '明日-年底' },
+              { key: 'tlye', label: '到农历年底' },
             ] as const).map((b) => (
               <Button key={b.key} size="mini" fill="outline" onClick={() => applyQuickRange(b.key)}>
                 {b.label}

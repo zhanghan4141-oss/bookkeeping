@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { TabActiveContext } from '../components/KeepAlive';
 import ExpandableNote from '../components/ExpandableNote';
+import TransferLedgerPopup from '../components/TransferLedgerPopup';
+import { useBusy } from '../hooks/useBusy';
 import {
   Button,
   DatePicker,
@@ -97,6 +99,8 @@ export default function LedgerDetail() {
     errors: { row: number; message: string }[];
   } | null>(null);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  // 转移流水弹窗状态
+  const [transferTx, setTransferTx] = useState<Transaction | null>(null);
   // 展开的日期集合（默认展开最近一天，其余折叠）
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const [editForm, setEditForm] = useState({
@@ -112,6 +116,9 @@ export default function LedgerDetail() {
     queryFn: async () => (await ledgerApi.get(id)).data,
   });
   const isViewer = ledger?.role === 'viewer';
+  // 耗时操作按钮 loading（全局盖层之外的按钮级指示）
+  const { busy: exportBusy, run: runExport } = useBusy();
+  const { busy: batchBusy, run: runBatch } = useBusy();
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', id],
@@ -463,7 +470,7 @@ export default function LedgerDetail() {
               )}
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button size="mini" fill="outline" onClick={handleExport}>导出</Button>
+              <Button size="mini" fill="outline" loading={exportBusy} onClick={() => runExport(handleExport)}>导出</Button>
               {!isViewer && (
                 <Button size="mini" fill="outline" onClick={openImport}>导入</Button>
               )}
@@ -547,7 +554,7 @@ export default function LedgerDetail() {
                   <Button size="mini" fill="outline" onClick={toggleSelectAll}>
                     {selectedIds.size === deletableFiltered.length ? '取消全选' : '全选'}
                   </Button>
-                  <Button size="mini" color="danger" onClick={handleBatchDelete} disabled={selectedIds.size === 0}>
+                  <Button size="mini" color="danger" loading={batchBusy} onClick={() => runBatch(handleBatchDelete)} disabled={selectedIds.size === 0}>
                     删除选中
                   </Button>
                 </div>
@@ -626,6 +633,12 @@ export default function LedgerDetail() {
                             },
                           ]
                         : [
+                            {
+                              key: 'transfer',
+                              text: '转移',
+                              color: 'warning',
+                              onClick: () => setTransferTx(t),
+                            },
                             {
                               key: 'copy',
                               text: '复制',
@@ -742,6 +755,12 @@ export default function LedgerDetail() {
                           ]
                         : [
                             {
+                              key: 'transfer',
+                              text: '转移',
+                              color: 'warning',
+                              onClick: () => setTransferTx(t),
+                            },
+                            {
                               key: 'copy',
                               text: '复制',
                               color: 'primary',
@@ -782,6 +801,16 @@ export default function LedgerDetail() {
           <AddOutline fontSize={24} />
         </FloatingBubble>
       )}
+
+      {/* 转移流水弹窗 */}
+      <TransferLedgerPopup
+        visible={!!transferTx}
+        txId={transferTx?.id ?? ''}
+        currentLedgerId={id}
+        txType={(transferTx?.type as 'expense' | 'income' | 'transfer') ?? 'expense'}
+        getContainer={() => pageRef.current ?? document.body}
+        onClose={() => setTransferTx(null)}
+      />
 
       {/* 编辑流水弹窗 */}
       <Popup

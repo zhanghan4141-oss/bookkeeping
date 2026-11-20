@@ -17,4 +17,5 @@ export function resetUserSession() {
   useRepaymentLedgerSelection.setState({ selectedIds: [], deselectedIds: [] });
   useLedgerPeriodStore.setState({ period: 'month' });
   localStorage.removeItem('ledger-detail-period');
+  localStorage.removeItem('bookkeeping-repayment-enddate');
 }
