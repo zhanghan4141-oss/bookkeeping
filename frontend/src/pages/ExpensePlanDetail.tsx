@@ -212,6 +212,9 @@ export default function ExpensePlanDetail() {
         <List style={{ borderRadius: 12, overflow: 'hidden' }}>
           {plan.periods.map((period) => {
             const isPaid = period.status === 'paid';
+            // 今天之前的未支出期 → 「未支出」（提醒色）；今天及之后 → 「待支出」
+            const todayStr = formatDate(new Date());
+            const isOverdue = !isPaid && period.dueDate.slice(0, 10) < todayStr;
             return (
               <List.Item
                 key={period.id}
@@ -227,8 +230,13 @@ export default function ExpensePlanDetail() {
                 extra={
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 600 }}>¥{formatMoney(Number(period.amount))}</div>
-                    <div style={{ fontSize: 12, color: isPaid ? '#52c41a' : '#1677ff' }}>
-                      {isPaid ? '已支出' : '待支出'}
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: isPaid ? '#52c41a' : isOverdue ? '#ff8f1f' : '#1677ff',
+                      }}
+                    >
+                      {isPaid ? '已支出' : isOverdue ? '未支出' : '待支出'}
                     </div>
                   </div>
                 }
