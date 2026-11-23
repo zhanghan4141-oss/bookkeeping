@@ -2,8 +2,9 @@ import { useContext, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Dialog, Input, Popup, Toast } from 'antd-mobile';
 import { TabActiveContext } from './KeepAlive';
+import SpaceLedgerPopup from './SpaceLedgerPopup';
 import { spaceApi } from '../api/space';
-import type { UserSpace } from '../types';
+import type { Ledger, UserSpace } from '../types';
 
 interface SpaceDrawerProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface SpaceDrawerProps {
   defaultCount: number;
   currentSpaceId: string | null;
   onSelect: (id: string | null) => void;
+  ledgers: Ledger[];
 }
 
 /**
@@ -27,6 +29,7 @@ export default function SpaceDrawer({
   defaultCount,
   currentSpaceId,
   onSelect,
+  ledgers,
 }: SpaceDrawerProps) {
   const queryClient = useQueryClient();
   const pageRef = useRef<HTMLDivElement>(null);
@@ -35,6 +38,7 @@ export default function SpaceDrawer({
   const [createName, setCreateName] = useState('');
   const [editing, setEditing] = useState<UserSpace | null>(null);
   const [editName, setEditName] = useState('');
+  const [showLedgerGroup, setShowLedgerGroup] = useState(false);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['ledgers'] });
@@ -189,6 +193,9 @@ export default function SpaceDrawer({
           <Button block fill="outline" style={{ marginTop: 4 }} onClick={() => setShowCreate(true)}>
             ＋ 新建空间
           </Button>
+          <Button block fill="outline" style={{ marginTop: 8 }} onClick={() => setShowLedgerGroup(true)}>
+            账本分组
+          </Button>
         </div>
       </div>
 
@@ -247,6 +254,16 @@ export default function SpaceDrawer({
           <Button block color="primary" onClick={handleUpdate}>保存</Button>
         </div>
       </Popup>
+
+      {/* 账本分组管理 */}
+      <SpaceLedgerPopup
+        open={showLedgerGroup}
+        onClose={() => setShowLedgerGroup(false)}
+        ledgers={ledgers}
+        spaces={spaces}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
+      />
     </>
   );
 }

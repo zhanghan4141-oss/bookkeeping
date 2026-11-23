@@ -371,6 +371,7 @@ export default function Ledgers() {
         spaces={spaces}
         defaultCount={defaultCount}
         currentSpaceId={effSpaceId}
+        ledgers={ledgers}
         onSelect={(id) => {
           setSpace(id);
           setDrawerOpen(false);
