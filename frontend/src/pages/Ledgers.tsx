@@ -143,7 +143,7 @@ export default function Ledgers() {
         style={{ background: '#fff' }}
         left={
           <div
-            onClick={() => setDrawerOpen(true)}
+            onClick={() => setDrawerOpen((v) => !v)}
             style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
           >
             <span style={{ fontSize: 16 }}>{currentSpaceIcon}</span>
