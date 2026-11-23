@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
 import { LedgerAccessService } from '../common/access/ledger-access.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -13,6 +14,7 @@ import type { AuthUser } from '../common/decorators/current-user.decorator.js';
 import {
   AddMemberDto,
   CreateLedgerDto,
+  MoveLedgerDto,
   UpdateLedgerDto,
   UpdateMemberDto,
 } from './dto/ledger.dto.js';
@@ -55,6 +57,17 @@ export class LedgerController {
   async remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     await this.access.assertOwner(id, user.id);
     return this.ledgerService.remove(id);
+  }
+
+  /** 移动账本归属空间（仅账本 owner；共享账本 → 403） */
+  @Put(':id/space')
+  async moveSpace(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: MoveLedgerDto,
+  ) {
+    await this.access.assertOwner(id, user.id);
+    return this.ledgerService.moveSpace(user.id, id, dto.spaceId ?? null);
   }
 
   // ---- 成员管理 ----

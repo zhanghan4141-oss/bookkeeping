@@ -21,6 +21,8 @@ model User {
   transactions      Transaction[]
   notifications     Notification[]
   reminderSetting   ReminderSetting?
+  spaces            UserSpace[]
+  ledgerSpaces      LedgerSpace[]
 }
 
 // 账本
@@ -39,6 +41,7 @@ model Ledger {
   transactions Transaction[]
   loans        Loan[]
   expensePlans ExpensePlan[]
+  ledgerSpaces LedgerSpace[]
 }
 
 // 账本成员（家人共享）
@@ -191,6 +194,39 @@ model ExpensePlanPeriod {
 
   @@unique([planId, periodNo])
   @@index([dueDate])
+}
+
+// 用户空间（个人私有分组；默认分组 = 无 LedgerSpace 记录）
+model UserSpace {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  icon      String?
+  color     String?
+  createdAt DateTime @default(now())
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgerSpaces LedgerSpace[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+// 用户把某账本归到某空间（每用户每账本唯一；共享账本不产生记录，恒默认分组）
+model LedgerSpace {
+  id        String   @id @default(cuid())
+  userId    String
+  ledgerId  String
+  spaceId   String
+  createdAt DateTime @default(now())
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledger Ledger     @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  space  UserSpace  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ledgerId])
+  @@index([userId])
+  @@index([ledgerId])
 }
 
 // 站内通知

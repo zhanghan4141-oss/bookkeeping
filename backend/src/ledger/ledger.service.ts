@@ -37,6 +37,15 @@ export class LedgerService {
       });
 
       await this.seedCategories(ledger.id, dto.type, tx);
+
+      // 创建时可选归属空间（用户自己的空间；缺省 = 默认分组）
+      if (dto.spaceId) {
+        const sp = await tx.userSpace.findUnique({ where: { id: dto.spaceId } });
+        if (!sp || sp.userId !== userId) throw new BadRequestException('空间不存在');
+        await tx.ledgerSpace.create({
+          data: { userId, ledgerId: ledger.id, spaceId: dto.spaceId },
+        });
+      }
       return ledger;
     });
   }
@@ -49,10 +58,18 @@ export class LedgerService {
       },
       orderBy: { createdAt: 'asc' },
     });
+    // 我拥有的账本 → 空间映射（共享账本不产生记录，恒默认分组）
+    const spaceRows = await this.prisma.ledgerSpace.findMany({
+      where: { userId },
+      select: { ledgerId: true, spaceId: true },
+    });
+    const spaceByLedger = new Map(spaceRows.map((s) => [s.ledgerId, s.spaceId]));
     return members.map((m) => ({
       ...m.ledger,
       role: m.role,
       memberCount: m.ledger._count.members,
+      // 仅自己拥有（可归类）的账本带空间；共享账本恒 null
+      spaceId: m.role === 'owner' ? (spaceByLedger.get(m.ledger.id) ?? null) : null,
     }));
   }
 
@@ -75,6 +92,27 @@ export class LedgerService {
   async remove(ledgerId: string) {
     await this.prisma.ledger.delete({ where: { id: ledgerId } });
     return { success: true };
+  }
+
+  /**
+   * 移动账本归属空间（仅账本 owner；controller 已 assertOwner，共享账本在此被拒绝）。
+   * spaceId 为空 = 移回默认分组（删除归类记录）。
+   */
+  async moveSpace(userId: string, ledgerId: string, spaceId?: string | null) {
+    await this.prisma.$transaction(async (tx) => {
+      if (spaceId) {
+        const sp = await tx.userSpace.findUnique({ where: { id: spaceId } });
+        if (!sp || sp.userId !== userId) throw new BadRequestException('空间不存在');
+        await tx.ledgerSpace.upsert({
+          where: { userId_ledgerId: { userId, ledgerId } },
+          update: { spaceId },
+          create: { userId, ledgerId, spaceId },
+        });
+      } else {
+        await tx.ledgerSpace.deleteMany({ where: { userId, ledgerId } });
+      }
+    });
+    return { success: true, spaceId: spaceId ?? null };
   }
 
   // ---- 成员管理 ----
@@ -149,6 +187,12 @@ export class LedgerService {
       await tx.ledgerMember.update({
         where: { id: target.id },
         data: { role: 'owner' },
+      });
+
+      // 转让后旧 owner 不再拥有账本（恒默认分组），清理其归类记录，
+      // 防止未来再次转让回时陈旧 spaceId「复活」
+      await tx.ledgerSpace.deleteMany({
+        where: { userId: owner.userId, ledgerId },
       });
 
       // 明确的转让审计记录（比两条 generic member update 更可追溯账本易主历史）

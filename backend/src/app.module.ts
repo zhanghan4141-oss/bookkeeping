@@ -19,6 +19,7 @@ import { NotificationModule } from './notification/notification.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RepaymentModule } from './repayment/repayment.module.js';
 import { SettingsModule } from './settings/settings.module.js';
+import { SpaceModule } from './space/space.module.js';
 import { StatModule } from './stat/stat.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
 import { TransactionModule } from './transaction/transaction.module.js';
@@ -39,6 +40,7 @@ import { TransactionModule } from './transaction/transaction.module.js';
     RepaymentModule,
     NotificationModule,
     SettingsModule,
+    SpaceModule,
     StatModule,
     ImportExportModule,
     TasksModule,

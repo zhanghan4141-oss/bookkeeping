@@ -9,6 +9,17 @@ export interface Ledger {
   memberCount?: number;
   updatedAt?: string;
   createdAt?: string;
+  /** 所属空间（仅我拥有的账本有值；共享账本恒 null = 默认分组） */
+  spaceId?: string | null;
+}
+
+export interface UserSpace {
+  id: string;
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+  createdAt?: string;
+  ledgerCount?: number;
 }
 
 export interface LedgerMember {

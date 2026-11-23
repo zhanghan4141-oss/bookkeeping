@@ -3,6 +3,7 @@ import { useLedgerSelectionStore } from '../stores/ledgerSelection';
 import { useStatLedgerSelection } from '../stores/statLedgerSelection';
 import { useRepaymentLedgerSelection } from '../stores/repaymentLedgerSelection';
 import { useLedgerPeriodStore } from '../stores/ledgerPeriod';
+import { useSpaceSelection } from '../stores/spaceSelection';
 
 /**
  * 切换账号时重置所有用户相关的内存/持久化状态：
@@ -16,6 +17,7 @@ export function resetUserSession() {
   useStatLedgerSelection.setState({ selectedIds: [], deselectedIds: [] });
   useRepaymentLedgerSelection.setState({ selectedIds: [], deselectedIds: [] });
   useLedgerPeriodStore.setState({ period: 'month' });
+  useSpaceSelection.setState({ selectedSpaceId: null });
   localStorage.removeItem('ledger-detail-period');
   localStorage.removeItem('bookkeeping-repayment-enddate');
 }

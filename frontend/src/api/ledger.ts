@@ -18,4 +18,6 @@ export const ledgerApi = {
   transfer: (id: string, userId: string) =>
     api.post(`/ledgers/${id}/members/${userId}/transfer`),
   leave: (id: string) => api.post(`/ledgers/${id}/members/leave`),
+  moveSpace: (id: string, spaceId?: string | null) =>
+    api.put(`/ledgers/${id}/space`, { spaceId }),
 };

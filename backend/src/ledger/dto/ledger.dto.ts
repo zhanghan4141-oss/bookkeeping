@@ -24,6 +24,18 @@ export class CreateLedgerDto {
   @IsOptional()
   @IsString()
   currency?: string;
+
+  /** 归属空间（用户自己的空间）；缺省 = 默认分组 */
+  @IsOptional()
+  @IsString()
+  spaceId?: string;
+}
+
+export class MoveLedgerDto {
+  /** 目标空间 id；null/缺省 = 移回默认分组 */
+  @IsOptional()
+  @IsString()
+  spaceId?: string | null;
 }
 
 export class UpdateLedgerDto {
