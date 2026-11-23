@@ -8,12 +8,6 @@ import { ledgerApi } from '../api/ledger';
 import { useAuthStore } from '../stores/auth';
 import type { Ledger, LedgerMember } from '../types';
 
-const ROLE_OPTIONS = [
-  { label: '所有者', value: 'owner' },
-  { label: '可编辑', value: 'editor' },
-  { label: '只读', value: 'viewer' },
-];
-
 // 可分配的成员角色：owner 不能通过邀请/改角色设置，只能转让产生（账本恒一名 owner）
 const ASSIGNABLE_ROLES = [
   { label: '可编辑', value: 'editor' },

@@ -3,7 +3,7 @@ import api from './client';
 export const ledgerApi = {
   list: () => api.get('/ledgers'),
   get: (id: string) => api.get(`/ledgers/${id}`),
-  create: (data: { name: string; type: string; icon?: string; color?: string; currency?: string }) =>
+  create: (data: { name: string; type: string; icon?: string; color?: string; currency?: string; spaceId?: string }) =>
     api.post('/ledgers', data),
   update: (id: string, data: Record<string, unknown>) =>
     api.patch(`/ledgers/${id}`, data),

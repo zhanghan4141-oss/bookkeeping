@@ -8,7 +8,7 @@ interface SpaceLedgerPopupProps {
   onClose: () => void;
   ledgers: Ledger[];
   spaces: UserSpace[];
-  getContainer: () => HTMLElement | null;
+  getContainer: () => HTMLElement;
   disableBodyScroll?: boolean;
 }
 

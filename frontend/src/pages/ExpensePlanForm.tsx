@@ -89,6 +89,9 @@ export default function ExpensePlanForm() {
     }
   }, [form, isEdit]);
 
+  // 编辑模式：回填时记录计划所属账本（先声明，供下方取类别使用）
+  const [editLedgerId, setEditLedgerId] = useState<string | null>(null);
+
   // 账本支出类别（必选；编辑模式先拿到计划的 ledgerId 再取类别）
   const categoriesLedgerId =
     (isEdit ? editLedgerId : ledgerIdFinal) ?? ledgerIdFinal;
@@ -106,7 +109,6 @@ export default function ExpensePlanForm() {
     queryFn: async () => (await expensePlanApi.get(planIdForQuery)).data as ExpensePlan,
     enabled: isEdit,
   });
-  const [editLedgerId, setEditLedgerId] = useState<string | null>(null);
   useEffect(() => {
     if (existingPlan && editLedgerId !== existingPlan.ledgerId) {
       setForm({

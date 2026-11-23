@@ -58,7 +58,7 @@ export default function ExpensePlanDetail() {
       // 实际支出与计划金额不同 → 询问是否同步后续未支出期（计划金额跟随实际）
       let applyToFuture = false;
       if (amount !== Number(paying.amount)) {
-        const ok = await new Promise((resolve) => {
+        const ok = await new Promise<boolean>((resolve) => {
           Dialog.confirm({
             content: `实际支出 ¥${formatMoney(amount)} 与计划 ¥${formatMoney(Number(paying.amount))} 不同，是否将该金额同步到后续未支出期？`,
             cancelText: '仅本期',
@@ -80,7 +80,7 @@ export default function ExpensePlanDetail() {
   };
 
   const handleUndo = async (period: ExpensePlanPeriod) => {
-    const ok = await new Promise((resolve) => {
+    const ok = await new Promise<boolean>((resolve) => {
       Dialog.confirm({
         content: `撤销第${period.periodNo}期支出？撤销后该期流水将恢复为待支出。`,
         onConfirm: () => resolve(true),
@@ -120,7 +120,7 @@ export default function ExpensePlanDetail() {
 
   // 删除支出计划（二次确认）
   const handleDelete = async () => {
-    const ok = await new Promise((resolve) => {
+    const ok = await new Promise<boolean>((resolve) => {
       Dialog.confirm({
         content: '确定删除该支出计划？删除后计划及其全部支出流水将删除，不可恢复。',
         onConfirm: () => resolve(true),
