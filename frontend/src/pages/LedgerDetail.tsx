@@ -48,6 +48,16 @@ function groupByMonth(list: Transaction[]) {
   return Array.from(map.entries());
 }
 
+function groupByYear(list: Transaction[]) {
+  const map = new Map<string, Transaction[]>();
+  for (const t of list) {
+    const key = t.occurredAt.slice(0, 4);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(t);
+  }
+  return Array.from(map.entries());
+}
+
 function fmt(n: string | number) {
   return formatMoney(n);
 }
@@ -78,9 +88,8 @@ export default function LedgerDetail() {
     }
   });
 
-  // 右上角循环切换：按月 → 按年 → 所有 → 按月（切换后记住）
-  const cyclePeriod = () => {
-    const next = period === 'month' ? 'year' : period === 'year' ? 'all' : 'month';
+  // 周期切换按钮（在顶部卡右；切换后记住）
+  const choosePeriod = (next: 'month' | 'year' | 'all') => {
     setPeriod(next);
     try {
       localStorage.setItem('ledger-detail-period', next);
@@ -160,8 +169,10 @@ export default function LedgerDetail() {
   );
 
   const groups = useMemo(() => {
+    // 按月→按日聚合、按年→按月聚合、所有→按年聚合
     if (period === 'month') return groupByDate(filtered);
-    return groupByMonth(filtered);
+    if (period === 'year') return groupByMonth(filtered);
+    return groupByYear(filtered);
   }, [filtered, period]);
 
   // 切换月/年/周期时默认展开最近一个分组；删除流水时不重置（修复删除后聚合收起）
@@ -424,9 +435,16 @@ export default function LedgerDetail() {
         onBack={() => navigate(-1)}
         style={{ background: '#fff' }}
         right={
-          <span style={{ fontSize: 14, color: '#1677ff' }} onClick={cyclePeriod}>
-            {{ month: '按月', year: '按年', all: '所有' }[period]}
-          </span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Button size="mini" fill="outline" loading={exportBusy} onClick={() => runExport(handleExport)}>
+              导出
+            </Button>
+            {!isViewer && (
+              <Button size="mini" fill="outline" onClick={openImport}>
+                导入
+              </Button>
+            )}
+          </div>
         }
       >
         {ledger?.name ?? '账本'}
@@ -469,11 +487,17 @@ export default function LedgerDetail() {
                 </>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button size="mini" fill="outline" loading={exportBusy} onClick={() => runExport(handleExport)}>导出</Button>
-              {!isViewer && (
-                <Button size="mini" fill="outline" onClick={openImport}>导入</Button>
-              )}
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              {(['month', 'year', 'all'] as const).map((p) => (
+                <Button
+                  key={p}
+                  size="mini"
+                  color={period === p ? 'primary' : 'default'}
+                  onClick={() => choosePeriod(p)}
+                >
+                  {{ month: '按月', year: '按年', all: '所有' }[p]}
+                </Button>
+              ))}
             </div>
           </div>
           <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
