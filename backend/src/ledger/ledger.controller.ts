@@ -95,4 +95,25 @@ export class LedgerController {
     await this.access.assertOwner(id, user.id);
     return this.ledgerService.removeMember(id, userId);
   }
+
+  /** 转让所有权：仅当前 owner 可发起；原 owner 自动变为 editor */
+  @Post(':id/members/:userId/transfer')
+  async transferOwner(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+  ) {
+    await this.access.assertOwner(id, user.id);
+    return this.ledgerService.transferOwner(id, userId, user.id);
+  }
+
+  /** 成员自行退出账本（非 owner） */
+  @Post(':id/members/leave')
+  async leave(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    await this.access.assertMember(id, user.id);
+    return this.ledgerService.leaveLedger(id, user.id);
+  }
 }

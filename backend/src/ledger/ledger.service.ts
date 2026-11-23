@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -103,6 +103,9 @@ export class LedgerService {
   }
 
   async updateMember(ledgerId: string, userId: string, role: string) {
+    if (role === 'owner') {
+      throw new BadRequestException('所有权只能通过转让产生，不能直接设置 owner');
+    }
     return this.prisma.ledgerMember.update({
       where: { ledgerId_userId: { ledgerId, userId } },
       data: { role },
@@ -110,9 +113,74 @@ export class LedgerService {
   }
 
   async removeMember(ledgerId: string, userId: string) {
-    await this.prisma.ledgerMember.delete({
+    const member = await this.prisma.ledgerMember.findUnique({
       where: { ledgerId_userId: { ledgerId, userId } },
     });
+    if (!member) throw new NotFoundException('成员不存在');
+    if (member.role === 'owner') {
+      throw new BadRequestException('账本所有者不能被移除，请先转让所有权');
+    }
+    await this.prisma.ledgerMember.delete({ where: { ledgerId_userId: { ledgerId, userId } } });
+    return { success: true };
+  }
+
+  /**
+   * 转让所有权（原子双写，账本始终恰一名 owner；原 owner 自动变为 editor）。
+   * @param operatorUserId 操作者（当前 owner），用于审计记录
+   */
+  async transferOwner(ledgerId: string, newOwnerUserId: string, operatorUserId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      const owner = await tx.ledgerMember.findFirst({
+        where: { ledgerId, role: 'owner' },
+      });
+      if (!owner) throw new NotFoundException('账本不存在或暂无所有者');
+      if (owner.userId === newOwnerUserId) {
+        throw new BadRequestException('不能转让给自己');
+      }
+      const target = await tx.ledgerMember.findUnique({
+        where: { ledgerId_userId: { ledgerId, userId: newOwnerUserId } },
+      });
+      if (!target) throw new BadRequestException('目标用户不是该账本成员');
+
+      await tx.ledgerMember.update({
+        where: { id: owner.id },
+        data: { role: 'editor' },
+      });
+      await tx.ledgerMember.update({
+        where: { id: target.id },
+        data: { role: 'owner' },
+      });
+
+      // 明确的转让审计记录（比两条 generic member update 更可追溯账本易主历史）
+      try {
+        await tx.auditLog.create({
+          data: {
+            ledgerId,
+            userId: operatorUserId,
+            action: 'transfer_owner',
+            entity: 'LedgerMember',
+            entityId: ledgerId,
+            summary: `转让账本所有权：${owner.userId} → ${newOwnerUserId}`,
+            before: JSON.stringify({ from: owner.userId, to: newOwnerUserId }),
+          },
+        });
+      } catch {
+        // 审计失败不影响转让
+      }
+    });
+    return this.listMembers(ledgerId);
+  }
+
+  /** 成员自行退出账本（owner 不可退出，需先转让所有权） */
+  async leaveLedger(ledgerId: string, userId: string) {
+    const member = await this.prisma.ledgerMember.findUnique({
+      where: { ledgerId_userId: { ledgerId, userId } },
+    });
+    if (!member) throw new NotFoundException('不在该账本中');
+    if (member.role === 'owner') {
+      throw new BadRequestException('账本所有者不能退出账本，请先转让所有权');
+    }
+    await this.prisma.ledgerMember.delete({ where: { id: member.id } });
     return { success: true };
   }
 

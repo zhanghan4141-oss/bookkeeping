@@ -42,4 +42,15 @@ export class LedgerAccessService {
       throw new ForbiddenException('仅账本创建者可操作');
     }
   }
+
+  /** 必须是成员且不是仅查看（viewer 禁止导出，防数据完整副本外泄） */
+  async assertNotViewer(ledgerId: string, userId: string): Promise<void> {
+    const role = await this.getRole(ledgerId, userId);
+    if (!role) {
+      throw new NotFoundException('账本不存在或无权访问');
+    }
+    if (role === 'viewer') {
+      throw new ForbiddenException('仅查看成员不可导出账本数据');
+    }
+  }
 }

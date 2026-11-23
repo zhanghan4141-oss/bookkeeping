@@ -29,7 +29,7 @@ export class ImportExportController {
     @Query('month') month: string,
     @Res() res: Response,
   ) {
-    await this.access.assertMember(ledgerId, user.id);
+    await this.access.assertNotViewer(ledgerId, user.id);
     const { buffer, filename } = await this.service.exportTransactions(
       ledgerId,
       month,

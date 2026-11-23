@@ -49,11 +49,12 @@ export class AddMemberDto {
   @IsNotEmpty({ message: '邮箱不能为空' })
   email!: string;
 
-  @IsIn(['owner', 'editor', 'viewer'])
-  role!: 'owner' | 'editor' | 'viewer';
+  // 不能添加 owner（所有权只能通过转让产生，账本恒一名 owner）
+  @IsIn(['editor', 'viewer'])
+  role!: 'editor' | 'viewer';
 }
 
 export class UpdateMemberDto {
-  @IsIn(['owner', 'editor', 'viewer'])
-  role!: 'owner' | 'editor' | 'viewer';
+  @IsIn(['editor', 'viewer'])
+  role!: 'editor' | 'viewer';
 }

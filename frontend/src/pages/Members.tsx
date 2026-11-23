@@ -14,6 +14,12 @@ const ROLE_OPTIONS = [
   { label: '只读', value: 'viewer' },
 ];
 
+// 可分配的成员角色：owner 不能通过邀请/改角色设置，只能转让产生（账本恒一名 owner）
+const ASSIGNABLE_ROLES = [
+  { label: '可编辑', value: 'editor' },
+  { label: '只读', value: 'viewer' },
+];
+
 const ROLE_LABEL: Record<string, string> = {
   owner: '所有者',
   editor: '可编辑',
@@ -36,6 +42,9 @@ export default function Members() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('editor');
+  // 转让所有权
+  const [transferTarget, setTransferTarget] = useState<LedgerMember | null>(null);
+  const [transferText, setTransferText] = useState('');
 
   const { data: ledger } = useQuery({
     queryKey: ['ledger', id],
@@ -102,6 +111,47 @@ export default function Members() {
     }
   };
 
+  // 转让所有权（二次确认：输入「转让所有权」文案）+ 转让后本页角色刷新
+  const handleTransfer = async () => {
+    if (!transferTarget) return;
+    if (transferText.trim() !== '转让所有权') {
+      Toast.show({ content: '请输入「转让所有权」确认' });
+      return;
+    }
+    try {
+      await ledgerApi.transfer(id, transferTarget.userId);
+      Toast.show({ content: '所有权已转让' });
+      setTransferTarget(null);
+      setTransferText('');
+      refetch();
+      refreshLedgers();
+      queryClient.invalidateQueries({ queryKey: ['ledger', id] });
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '转让失败' });
+    }
+  };
+
+  // 成员自行退出账本（owner 不可退出）
+  const handleLeave = async () => {
+    const ok = await new Promise((resolve) => {
+      Dialog.confirm({
+        content: '退出账本后你将无法查看该账本的数据，确定退出？',
+        onConfirm: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+    if (!ok) return;
+    try {
+      await ledgerApi.leave(id);
+      Toast.show({ content: '已退出账本' });
+      refreshLedgers();
+      queryClient.invalidateQueries({ queryKey: ['ledger', id] });
+      navigate(-1);
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '退出失败' });
+    }
+  };
+
   return (
     <div className="page" ref={pageRef}>
       <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
@@ -150,7 +200,7 @@ export default function Members() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {canManage ? (
                       <Picker
-                        columns={[ROLE_OPTIONS]}
+                        columns={[ASSIGNABLE_ROLES]}
                         value={[m.role]}
                         getContainer={() => pageRef.current ?? document.body}
                         onConfirm={(v) => handleChangeRole(m, String(v[0]))}
@@ -175,6 +225,20 @@ export default function Members() {
                     {canManage && (
                       <Button
                         size="mini"
+                        fill="outline"
+                        color="warning"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTransferTarget(m);
+                          setTransferText('');
+                        }}
+                      >
+                        转让
+                      </Button>
+                    )}
+                    {canManage && (
+                      <Button
+                        size="mini"
                         fill="none"
                         color="danger"
                         onClick={(e) => {
@@ -183,6 +247,18 @@ export default function Members() {
                         }}
                       >
                         移除
+                      </Button>
+                    )}
+                    {!isOwner && isSelf && (
+                      <Button
+                        size="mini"
+                        fill="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLeave();
+                        }}
+                      >
+                        退出账本
                       </Button>
                     )}
                   </div>
@@ -224,7 +300,7 @@ export default function Members() {
           <div style={{ marginBottom: 16 }}>
             <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>角色</div>
             <Picker
-              columns={[ROLE_OPTIONS]}
+              columns={[ASSIGNABLE_ROLES]}
               value={[inviteRole]}
               onConfirm={(v) => setInviteRole(String(v[0]))}
             >
@@ -240,6 +316,33 @@ export default function Members() {
           </div>
           <Button block color="primary" onClick={handleInvite}>
             邀请
+          </Button>
+        </div>
+      </Popup>
+
+      {/* 转让所有权弹窗（二次确认：输入「转让所有权」文案） */}
+      <Popup
+        visible={!!transferTarget}
+        onMaskClick={() => setTransferTarget(null)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 16 }}>转让所有权</h3>
+          <div className="text-secondary" style={{ fontSize: 13, marginBottom: 12 }}>
+            转让后「{transferTarget?.user.nickname || transferTarget?.user.email}」将成为账本所有者，
+            你将变为可编辑成员（不能再管理成员、转让、删除账本）。账本所有者可以邀请成员、
+            修改角色、转让所有权和删除账本。
+          </div>
+          <Input
+            placeholder="输入「转让所有权」确认"
+            value={transferText}
+            onChange={setTransferText}
+            style={{ marginBottom: 16 }}
+          />
+          <Button block color="warning" onClick={handleTransfer}>
+            确认转让
           </Button>
         </div>
       </Popup>

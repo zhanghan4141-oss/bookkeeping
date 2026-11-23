@@ -1,7 +1,7 @@
 import { useContext, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Dialog, Input, List, NavBar, Popup, Toast } from 'antd-mobile';
+import { Button, Input, List, NavBar, Popup, Toast } from 'antd-mobile';
 import { TabActiveContext } from '../components/KeepAlive';
 import { ledgerApi } from '../api/ledger';
 import type { Ledger } from '../types';
@@ -24,6 +24,9 @@ export default function LedgerManage() {
   const [editName, setEditName] = useState('');
   const [editIcon, setEditIcon] = useState('📒');
   const [editColor, setEditColor] = useState('#1677ff');
+  // 删除账本（输入账本名二次确认）
+  const [deleting, setDeleting] = useState<Ledger | null>(null);
+  const [deleteName, setDeleteName] = useState('');
 
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],
@@ -62,18 +65,23 @@ export default function LedgerManage() {
     }
   };
 
-  const handleDelete = async (l: Ledger) => {
-    const ok = await new Promise((resolve) => {
-      Dialog.confirm({
-        content: `删除账本「${l.name}」？该账本的流水、贷款、成员将一并删除，不可恢复。`,
-        onConfirm: () => resolve(true),
-        onCancel: () => resolve(false),
-      });
-    });
-    if (!ok) return;
+  // 删除账本：先弹窗输入账本名（数据不可恢复，强制二次确认）
+  const handleDelete = (l: Ledger) => {
+    setDeleting(l);
+    setDeleteName('');
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    if (deleteName.trim() !== deleting.name) {
+      Toast.show({ content: '输入的账本名不正确，无法删除' });
+      return;
+    }
     try {
-      await ledgerApi.remove(l.id);
+      await ledgerApi.remove(deleting.id);
       Toast.show({ content: '已删除' });
+      setDeleting(null);
+      setDeleteName('');
       refresh();
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '删除失败' });
@@ -203,6 +211,32 @@ export default function LedgerManage() {
 
           <Button block color="primary" onClick={saveEdit}>
             保存
+          </Button>
+        </div>
+      </Popup>
+
+      {/* 删除账本确认（输入账本名，数据不可恢复强制二次确认） */}
+      <Popup
+        visible={!!deleting}
+        onMaskClick={() => setDeleting(null)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 12 }}>删除账本</h3>
+          <div className="text-secondary" style={{ fontSize: 13, marginBottom: 16 }}>
+            删除账本「{deleting?.name}」后，该账本的流水、贷款、支出计划、成员将一并删除，不可恢复。
+            请输入账本名以确认删除。
+          </div>
+          <Input
+            placeholder={`输入账本名「${deleting?.name ?? ''}」确认`}
+            value={deleteName}
+            onChange={setDeleteName}
+            style={{ marginBottom: 16 }}
+          />
+          <Button block color="danger" onClick={confirmDelete}>
+            确认删除
           </Button>
         </div>
       </Popup>

@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import ExcelJS from 'exceljs';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -66,6 +71,19 @@ export class ImportExportService {
     ledgerIds: string[],
     format: 'excel' | 'json',
   ): Promise<{ buffer: Buffer; filename: string; contentType: string }> {
+    // viewer 收紧：导出目标账本中若有「仅查看」身份则拒绝（防止完整数据副本外泄）
+    const memberRows = await this.prisma.ledgerMember.findMany({
+      where: {
+        userId,
+        ledgerId: ledgerIds.length ? { in: ledgerIds } : undefined,
+      },
+      select: { ledgerId: true, role: true },
+    });
+    if (memberRows.some((m) => m.role === 'viewer')) {
+      throw new ForbiddenException(
+        '部分账本你仅可查看，无法导出全部账本，请先排除仅查看的账本再导出',
+      );
+    }
     const members = await this.prisma.ledgerMember.findMany({
       where: {
         userId,

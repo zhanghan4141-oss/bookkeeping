@@ -15,4 +15,7 @@ export const ledgerApi = {
     api.patch(`/ledgers/${id}/members/${userId}`, { role }),
   removeMember: (id: string, userId: string) =>
     api.delete(`/ledgers/${id}/members/${userId}`),
+  transfer: (id: string, userId: string) =>
+    api.post(`/ledgers/${id}/members/${userId}/transfer`),
+  leave: (id: string) => api.post(`/ledgers/${id}/members/leave`),
 };
