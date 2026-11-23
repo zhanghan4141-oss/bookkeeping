@@ -41,7 +41,7 @@ export default function Ledgers() {
   const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
   const selectOne = useLedgerSelectionStore((s) => s.selectOne);
 
-  const { data: ledgers = [], refetch } = useQuery({
+  const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],
     queryFn: async () => (await ledgerApi.list()).data as Ledger[],
   });
@@ -122,7 +122,9 @@ export default function Ledgers() {
       });
       Toast.show({ content: '创建成功' });
       setShowCreate(false);
-      refetch();
+      // 失效账本列表与空间（抽屉计数/归属）缓存，立即显示新建账本
+      queryClient.invalidateQueries({ queryKey: ['ledgers'] });
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
       invalidateFinancialData(queryClient);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '创建失败' });
