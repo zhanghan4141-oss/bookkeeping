@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { syncReminderNotifications } from './reminderNotifications';
 
 /**
  * 财务数据变更后统一失效相关缓存，避免「操作完要手动刷新才显示最新数据」。
@@ -14,4 +15,6 @@ export function invalidateFinancialData(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['expense-plans'] });
   queryClient.invalidateQueries({ queryKey: ['expense-plan'] });
   queryClient.invalidateQueries({ queryKey: ['ledger-summaries'] });
+  // 财务数据变更后重排还款本地通知（原生 App 端）
+  void syncReminderNotifications();
 }

@@ -146,6 +146,8 @@ export interface ReminderSetting {
   emailEnabled: boolean;
   email: string | null;
   inappEnabled: boolean;
+  pushEnabled: boolean;
+  remindTime: string;
 }
 
 export interface StatSummary {

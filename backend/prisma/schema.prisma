@@ -253,6 +253,8 @@ model ReminderSetting {
   emailEnabled Boolean @default(false)
   email        String?
   inappEnabled Boolean @default(true)
+  pushEnabled  Boolean @default(true)
+  remindTime   String  @default("08:00")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

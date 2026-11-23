@@ -1,7 +1,7 @@
 import { useContext, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Checkbox, Input, List, NavBar, Popup, Stepper, Switch, Toast } from 'antd-mobile';
+import { Button, Checkbox, Input, List, NavBar, Picker, Popup, Stepper, Switch, Toast } from 'antd-mobile';
 import { Capacitor } from '@capacitor/core';
 import api from '../api/client';
 import { ledgerApi } from '../api/ledger';
@@ -155,6 +155,52 @@ export default function Settings() {
           >
             站内提醒
           </List.Item>
+          <List.Item
+            extra={
+              <Switch
+                checked={setting?.pushEnabled ?? true}
+                onChange={(v) => save({ pushEnabled: v })}
+              />
+            }
+          >
+            App 推送提醒
+          </List.Item>
+          {setting?.pushEnabled && (
+            <List.Item
+              extra={
+                <Picker
+                  columns={[
+                    Array.from({ length: 24 }, (_, i) => ({
+                      label: String(i).padStart(2, '0'),
+                      value: String(i).padStart(2, '0'),
+                    })),
+                    Array.from({ length: 60 }, (_, i) => ({
+                      label: String(i).padStart(2, '0'),
+                      value: String(i).padStart(2, '0'),
+                    })),
+                  ]}
+                  value={(setting?.remindTime ?? '08:00').split(':')}
+                  onConfirm={(v) =>
+                    save({ remindTime: `${String(v[0]).padStart(2, '0')}:${String(v[1]).padStart(2, '0')}` })
+                  }
+                >
+                  {(items, actions) => (
+                    <span
+                      onClick={() => actions.open()}
+                      style={{ color: '#1677ff', fontSize: 14 }}
+                    >
+                      {items.length >= 2
+                        ? `${items[0]?.label}:${items[1]?.label}`
+                        : (setting?.remindTime ?? '08:00')}{' '}
+                      ▾
+                    </span>
+                  )}
+                </Picker>
+              }
+            >
+              提醒时间
+            </List.Item>
+          )}
           <List.Item
             extra={
               <Switch

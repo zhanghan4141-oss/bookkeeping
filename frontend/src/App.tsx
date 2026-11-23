@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { useAuthStore } from './stores/auth';
 import { checkAppUpdate } from './lib/appUpdate';
+import { syncReminderNotifications } from './lib/reminderNotifications';
 import Login from './pages/Login';
 import Ledgers from './pages/Ledgers';
 import LedgerDetail from './pages/LedgerDetail';
@@ -37,6 +38,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   // Android 返回键：栈里有上一页则后退，首页/登录页则退出 App
   useEffect(() => {
@@ -58,6 +60,17 @@ export default function App() {
   useEffect(() => {
     checkAppUpdate();
   }, []);
+
+  // 还款到期本地通知：登录后 + 回到前台时重排（网页端跳过）
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !accessToken) return;
+    syncReminderNotifications();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') syncReminderNotifications();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [accessToken]);
 
   return (
     <>
