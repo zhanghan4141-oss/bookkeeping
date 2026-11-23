@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, DatePicker, Dialog, Input, NavBar, Popup, Toast } from 'antd-mobile';
 import { repaymentApi } from '../api/misc';
 import { loanApi } from '../api/loan';
+import { expensePlanApi } from '../api/expense';
 import { ledgerApi } from '../api/ledger';
 import { useRepaymentLedgerSelection } from '../stores/repaymentLedgerSelection';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
@@ -224,18 +225,21 @@ export default function Repayments() {
   const [markAmount, setMarkAmount] = useState('');
   const [markDate, setMarkDate] = useState(''); // 空 = 今天（后端取标记时刻，含时间）
 
-  // 点「标记已还」：提前 >3 天先二次确认，再打开标记弹窗
+  // 点「标记已还/标记支出」：提前 >3 天先二次确认，再打开标记弹窗
   const handleMarkClick = (it: any, dueDate: string) => {
     const daysN = daysUntil(dueDate);
+    const isPlan = !!it.expensePlanId;
     const openMark = () => {
       setMarkItem(it);
-      setMarkAmount(String(it.totalAmount ?? 0));
+      setMarkAmount(String(it.totalAmount ?? it.amount ?? 0));
       setMarkDate('');
     };
     if (daysN > 3) {
       Dialog.confirm({
         title: '提前标记确认',
-        content: `该期还有 ${daysN} 天才到期，标记为已还会把该笔支出记到标记时刻（今天 ${formatDate(new Date())}），确定继续吗？`,
+        content: isPlan
+          ? `该期还有 ${daysN} 天才到期，标记支出会把这笔支出记到今天 ${formatDate(new Date())}，确定继续吗？`
+          : `该期还有 ${daysN} 天才到期，标记为已还会把该笔支出记到标记时刻（今天 ${formatDate(new Date())}），确定继续吗？`,
         confirmText: '继续标记',
         cancelText: '取消',
         onConfirm: () => openMark(),
@@ -262,8 +266,17 @@ export default function Repayments() {
         // 默认今天 → 不传 paidDate，后端按标记时刻（精确时间）记录流水；
         // 显式选到其它日期才传 paidDate。
         if (markDate && markDate !== formatDate(new Date())) payload.paidDate = markDate;
-        await loanApi.pay(markItem.loanId, markItem.periodNo, payload);
-        Toast.show({ content: '已标记已还' });
+        // 支出计划来源 → 标记支出（后端同步流水时间/金额）；否则走贷款标记已还
+        if (markItem.expensePlanId) {
+          await expensePlanApi.mark(markItem.expensePlanId, markItem.expensePeriodNo, {
+            amount,
+            paidDate: payload.paidDate,
+          });
+          Toast.show({ content: '已标记支出' });
+        } else {
+          await loanApi.pay(markItem.loanId, markItem.periodNo, payload);
+          Toast.show({ content: '已标记已还' });
+        }
         setMarkItem(null);
         refetch();
       } catch (e: any) {
@@ -549,12 +562,25 @@ export default function Repayments() {
                 <span style={{ fontWeight: 700, color: '#999' }}>¥{formatMoney(d.total)}</span>
               </div>
               {isExpanded && d.items.map((it: any) => (
-                <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa' }}>
+                <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                   {repayScale !== 'day' && (
                     <span style={{ color: '#ff8f1f', marginRight: 6 }}>{it.dueDate}</span>
                   )}
-                  {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#52c41a' }}>¥{formatMoney(it.amount)}</span>
-                  {it.note && <ExpandableNote text={it.note} />}
+                  {it.expensePlanId ? (
+                    <>
+                      <span style={{ color: '#1677ff' }}>{it.expensePlanName}</span> 第{it.expensePeriodNo}期 ·{' '}
+                      <span style={{ color: '#52c41a' }}>¥{formatMoney(it.amount)}</span>
+                      <span style={{ marginLeft: 6, color: '#999' }}>待支出</span>
+                      <Button size="mini" color="success" fill="outline" style={{ marginLeft: 8 }} onClick={() => handleMarkClick(it, it.dueDate)}>
+                        支出
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#52c41a' }}>¥{formatMoney(it.amount)}</span>
+                      {it.note && <ExpandableNote text={it.note} />}
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -635,9 +661,11 @@ export default function Repayments() {
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
         <div style={{ padding: 24 }}>
-          <h3 style={{ marginBottom: 8 }}>标记为已还</h3>
+          <h3 style={{ marginBottom: 8 }}>{markItem?.expensePlanId ? '标记支出' : '标记为已还'}</h3>
           <div className="text-secondary" style={{ fontSize: 13, marginBottom: 16 }}>
-            {markItem?.loanName} 第{markItem?.periodNo}期 · 应还 ¥{formatMoney(Number(markItem?.totalAmount ?? 0))}
+            {markItem?.expensePlanId
+              ? `${markItem.expensePlanName} 第${markItem.expensePeriodNo}期 · 金额 ¥${formatMoney(Number(markItem?.amount ?? 0))}`
+              : `${markItem?.loanName} 第${markItem?.periodNo}期 · 应还 ¥${formatMoney(Number(markItem?.totalAmount ?? 0))}`}
           </div>
           <div style={{ marginBottom: 16 }}>
             <Input

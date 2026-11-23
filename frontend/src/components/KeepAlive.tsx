@@ -12,9 +12,11 @@ const TAB_PATHS = ['/ledgers', '/repayments', '/stats', '/settings'];
 const KEEP_ALIVE_PATTERNS = [
   '/ledgers/:id',            // 账本详情
   '/ledgers/:id/loans',      // 贷款列表
+  '/ledgers/:id/expense-plans', // 支出计划列表
   '/ledgers/:id/categories', // 类别
   '/ledgers/:id/members',    // 成员
   '/loans/:id',              // 贷款详情
+  '/expense-plans/:id',      // 支出计划详情
   '/notifications',          // 提醒中心
   '/settings/ledgers',       // 账本管理
   '/settings/audit-logs',    // 日志查询

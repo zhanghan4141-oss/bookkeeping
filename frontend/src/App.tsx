@@ -19,6 +19,9 @@ import Settings from './pages/Settings';
 import Members from './pages/Members';
 import LedgerManage from './pages/LedgerManage';
 import AuditLogs from './pages/AuditLogs';
+import ExpensePlans from './pages/ExpensePlans';
+import ExpensePlanDetail from './pages/ExpensePlanDetail';
+import ExpensePlanForm from './pages/ExpensePlanForm';
 import TabBar from './components/TabBar';
 import GlobalLoading from './components/GlobalLoading';
 
@@ -78,6 +81,10 @@ export default function App() {
           <Route path="ledgers/:ledgerId/loans/new" element={<LoanForm />} />
           <Route path="loans/:id" element={<LoanDetail />} />
           <Route path="loans/:id/edit" element={<LoanForm />} />
+          <Route path="ledgers/:id/expense-plans" element={<ExpensePlans />} />
+          <Route path="ledgers/:ledgerId/expense-plans/new" element={<ExpensePlanForm />} />
+          <Route path="expense-plans/:id" element={<ExpensePlanDetail />} />
+          <Route path="expense-plans/:id/edit" element={<ExpensePlanForm />} />
           <Route path="repayments" element={<Repayments />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="stats" element={<Stats />} />

@@ -11,6 +11,7 @@ import { RequestContextInterceptor } from './common/interceptors/request-context
 import { MailModule } from './common/mail/mail.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { CategoryModule } from './category/category.module.js';
+import { ExpensePlanModule } from './expense-plan/expense-plan.module.js';
 import { ImportExportModule } from './import-export/import-export.module.js';
 import { LedgerModule } from './ledger/ledger.module.js';
 import { LoanModule } from './loan/loan.module.js';
@@ -34,6 +35,7 @@ import { TransactionModule } from './transaction/transaction.module.js';
     CategoryModule,
     TransactionModule,
     LoanModule,
+    ExpensePlanModule,
     RepaymentModule,
     NotificationModule,
     SettingsModule,

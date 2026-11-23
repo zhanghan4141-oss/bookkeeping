@@ -38,6 +38,7 @@ model Ledger {
   categories   Category[]
   transactions Transaction[]
   loans        Loan[]
+  expensePlans ExpensePlan[]
 }
 
 // 账本成员（家人共享）
@@ -68,6 +69,7 @@ model Category {
 
   ledger       Ledger        @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  expensePlans ExpensePlan[]
 
   @@index([ledgerId])
 }
@@ -80,20 +82,26 @@ model Transaction {
   userId     String
   type       String   @default("expense") // expense | income | transfer
   amount     Decimal  @db.Decimal(12, 2)
-  note       String?
-  occurredAt DateTime
-  loanId     String? // 关联贷款（贷款产生的流水，用于提前还款时定位删除）
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  note                String?
+  occurredAt          DateTime
+  loanId              String? // 关联贷款（贷款产生的流水，用于提前还款时定位删除）
+  expensePlanId       String? // 关联支出计划（创建计划时生成的支出流水）
+  expensePlanPeriodId String? // 关联支出计划期（标记已支出/撤销时精确定位流水）
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  ledger   Ledger    @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
-  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  loan     Loan?     @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  ledger             Ledger            @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  category           Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loan               Loan?             @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  expensePlan        ExpensePlan?      @relation(fields: [expensePlanId], references: [id], onDelete: SetNull)
+  expensePlanPeriod  ExpensePlanPeriod? @relation(fields: [expensePlanPeriodId], references: [id], onDelete: SetNull)
 
   @@index([ledgerId, occurredAt])
   @@index([userId])
   @@index([loanId])
+  @@index([expensePlanId])
+  @@index([expensePlanPeriodId])
 }
 
 // 贷款
@@ -139,6 +147,49 @@ model LoanRepayment {
   loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
 
   @@unique([loanId, periodNo])
+  @@index([dueDate])
+}
+
+// 支出计划（长期支出，如女儿生活费。镜像贷款，创建即生成全部期流水）
+model ExpensePlan {
+  id           String   @id @default(cuid())
+  ledgerId     String
+  categoryId   String // 支出类别（用户自选，不按计划名自动建）
+  name         String
+  periodAmount Decimal  @db.Decimal(12, 2) // 每期金额
+  termCount    Int      @default(0) // 期数，0 = 不限（生成 120 期）
+  frequency    String   @default("month") // month | quarter | year
+  startDate    DateTime @db.Date
+  day          Int      @default(1) // 每周期扣款日 1-31（季/年默认 = startDate 的 day）
+  status       String   @default("active") // active | completed | closed
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ledger       Ledger              @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  category     Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict) // 类别被计划引用时不可删
+  periods      ExpensePlanPeriod[]
+  transactions Transaction[]
+
+  @@unique([ledgerId, name])
+  @@index([ledgerId])
+}
+
+// 支出计划期
+model ExpensePlanPeriod {
+  id       String   @id @default(cuid())
+  planId   String
+  periodNo Int
+  dueDate  DateTime @db.Date
+  amount   Decimal  @db.Decimal(12, 2)
+  status   String   @default("pending") // pending | paid
+  paidDate DateTime? @db.Date
+  note     String?
+
+  plan          ExpensePlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@unique([planId, periodNo])
   @@index([dueDate])
 }
 

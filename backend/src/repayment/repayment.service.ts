@@ -164,6 +164,8 @@ export class RepaymentService {
       include: {
         ledger: { select: { id: true, name: true } },
         category: { select: { id: true, name: true, icon: true } },
+        expensePlan: { select: { id: true, name: true, frequency: true } },
+        expensePlanPeriod: { select: { id: true, periodNo: true } },
       },
       orderBy: { occurredAt: 'asc' },
     });
@@ -188,6 +190,12 @@ export class RepaymentService {
         categoryIcon: e.category?.icon,
         note: e.note,
         amount: Math.round(amount * 100) / 100,
+        // 支出计划来源（创建计划生成的未来支出流水）
+        expensePlanId: e.expensePlanId,
+        expensePlanPeriodId: e.expensePlanPeriodId,
+        expensePlanName: e.expensePlan?.name,
+        expensePlanFrequency: e.expensePlan?.frequency,
+        expensePeriodNo: e.expensePlanPeriod?.periodNo,
       });
     }
 

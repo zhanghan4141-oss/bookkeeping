@@ -41,9 +41,12 @@ export interface Transaction {
   note: string | null;
   occurredAt: string;
   loanId?: string | null;
+  expensePlanId?: string | null;
+  expensePlanPeriodId?: string | null;
   category?: { id: string; name: string; icon: string | null; color: string | null; type: string } | null;
   user?: { id: string; nickname: string; avatarUrl: string | null };
   loan?: { id: string; name: string } | null;
+  expensePlan?: { id: string; name: string } | null;
   ledger?: { id: string; name: string } | null;
 }
 
@@ -79,6 +82,39 @@ export interface Loan {
   remainingPrincipal?: number;
   remainingInterest?: number;
   repayments: LoanRepayment[];
+}
+
+export interface ExpensePlanPeriod {
+  id: string;
+  planId: string;
+  periodNo: number;
+  dueDate: string;
+  amount: string;
+  status: 'pending' | 'paid';
+  paidDate: string | null;
+  note?: string | null;
+}
+
+export interface ExpensePlan {
+  id: string;
+  ledgerId: string;
+  categoryId: string;
+  name: string;
+  periodAmount: string;
+  termCount: number; // 0 = 不限
+  frequency: 'month' | 'quarter' | 'year';
+  startDate: string;
+  day: number;
+  status: 'active' | 'completed' | 'closed';
+  note: string | null;
+  createdAt?: string;
+  totalCount: number;
+  paidCount: number;
+  pendingCount: number;
+  totalPaid: number;
+  totalRemaining: number;
+  category?: { id: string; name: string } | null;
+  periods: ExpensePlanPeriod[];
 }
 
 export interface Notification {

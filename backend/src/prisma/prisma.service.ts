@@ -3,7 +3,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { getCurrentUserId } from '../common/request-context.js';
 
 /** 需要记录日志的模型（有 ledgerId 字段） */
-const AUDIT_MODELS = ['Transaction', 'Loan', 'Category', 'Ledger', 'LedgerMember'];
+const AUDIT_MODELS = ['Transaction', 'Loan', 'Category', 'Ledger', 'LedgerMember', 'ExpensePlan'];
 
 const ENTITY_LABEL: Record<string, string> = {
   Transaction: '流水',
@@ -11,6 +11,7 @@ const ENTITY_LABEL: Record<string, string> = {
   Category: '分类',
   Ledger: '账本',
   LedgerMember: '成员',
+  ExpensePlan: '支出计划',
 };
 
 function buildSummary(entity: string, action: string, before: any): string {

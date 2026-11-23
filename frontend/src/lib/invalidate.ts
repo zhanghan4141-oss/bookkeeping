@@ -11,5 +11,7 @@ export function invalidateFinancialData(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['repayments'] });
   queryClient.invalidateQueries({ queryKey: ['loans'] });
   queryClient.invalidateQueries({ queryKey: ['loan'] });
+  queryClient.invalidateQueries({ queryKey: ['expense-plans'] });
+  queryClient.invalidateQueries({ queryKey: ['expense-plan'] });
   queryClient.invalidateQueries({ queryKey: ['ledger-summaries'] });
 }

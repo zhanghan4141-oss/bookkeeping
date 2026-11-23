@@ -72,7 +72,7 @@ export function calculateXIRR(
  * 计算某个月份的还款日（还款日 day，遇到无该日（如2月30日）取当月最后一天）
  * 用 Date.UTC 构造，避免本地时区导致的日期偏移。
  */
-function repaymentDate(startDate: Date, monthOffset: number, day: number): Date {
+export function repaymentDate(startDate: Date, monthOffset: number, day: number): Date {
   const d = new Date(
     Date.UTC(
       startDate.getUTCFullYear(),

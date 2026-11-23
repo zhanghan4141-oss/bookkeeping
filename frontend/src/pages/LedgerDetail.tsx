@@ -543,6 +543,9 @@ export default function LedgerDetail() {
           <Button block color="primary" onClick={() => navigate(`/ledgers/${id}/loans`)}>
             <PayCircleOutline /> 贷款管理
           </Button>
+          <Button block color="success" onClick={() => navigate(`/ledgers/${id}/expense-plans`)}>
+            <PayCircleOutline /> 支出管理
+          </Button>
         </div>
 
         {keyword.trim() !== '' ? (
