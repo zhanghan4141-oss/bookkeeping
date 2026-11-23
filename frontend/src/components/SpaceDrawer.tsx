@@ -132,13 +132,11 @@ export default function SpaceDrawer({
             marginBottom: 12,
           }}
         >
+          <span style={{ fontWeight: 700, fontSize: 16 }}>空间</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Button size="mini" fill="outline" onClick={() => setShowLedgerGroup(true)}>
               账本
             </Button>
-            <span style={{ fontWeight: 700, fontSize: 16 }}>空间</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Button
               size="mini"
               fill={managing ? 'solid' : 'outline'}
