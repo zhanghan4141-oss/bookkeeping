@@ -132,15 +132,25 @@ export default function SpaceDrawer({
             marginBottom: 12,
           }}
         >
-          <span style={{ fontWeight: 700, fontSize: 16 }}>空间</span>
-          <Button
-            size="mini"
-            fill={managing ? 'solid' : 'outline'}
-            color="primary"
-            onClick={() => setManaging((v) => !v)}
-          >
-            {managing ? '完成' : '管理'}
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button size="mini" fill="outline" onClick={() => setShowLedgerGroup(true)}>
+              账本
+            </Button>
+            <span style={{ fontWeight: 700, fontSize: 16 }}>空间</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button
+              size="mini"
+              fill={managing ? 'solid' : 'outline'}
+              color="primary"
+              onClick={() => setManaging((v) => !v)}
+            >
+              {managing ? '完成' : '管理'}
+            </Button>
+            <Button size="mini" color="success" onClick={() => setShowCreate(true)}>
+              新建
+            </Button>
+          </div>
         </div>
 
           {/* 默认分组（固定首位） */}
@@ -212,13 +222,6 @@ export default function SpaceDrawer({
               )}
             </div>
           ))}
-
-          <Button block fill="outline" style={{ marginTop: 4 }} onClick={() => setShowCreate(true)}>
-            ＋ 新建空间
-          </Button>
-          <Button block fill="outline" style={{ marginTop: 8 }} onClick={() => setShowLedgerGroup(true)}>
-            账本分组
-          </Button>
         </div>
       </div>
 
