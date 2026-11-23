@@ -39,6 +39,8 @@ export default function SpaceDrawer({
   const [editing, setEditing] = useState<UserSpace | null>(null);
   const [editName, setEditName] = useState('');
   const [showLedgerGroup, setShowLedgerGroup] = useState(false);
+  // 管理模式：标题行「管理/完成」开关，打开后各空间行显示「改名」「删除」
+  const [managing, setManaging] = useState(false);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['ledgers'] });
@@ -122,7 +124,24 @@ export default function SpaceDrawer({
         }}
       >
         <div style={{ padding: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>空间</div>
+          <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
+          <span style={{ fontWeight: 700, fontSize: 16 }}>空间</span>
+          <Button
+            size="mini"
+            fill={managing ? 'solid' : 'outline'}
+            color="primary"
+            onClick={() => setManaging((v) => !v)}
+          >
+            {managing ? '完成' : '管理'}
+          </Button>
+        </div>
 
           {/* 默认分组（固定首位） */}
           <div
@@ -164,29 +183,33 @@ export default function SpaceDrawer({
               <span className="text-secondary" style={{ fontSize: 12 }}>
                 {sp.ledgerCount ?? 0}
               </span>
-              <Button
-                size="mini"
-                fill="none"
-                style={{ marginLeft: 4 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditing(sp);
-                  setEditName(sp.name);
-                }}
-              >
-                改名
-              </Button>
-              <Button
-                size="mini"
-                fill="none"
-                color="danger"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(sp);
-                }}
-              >
-                删除
-              </Button>
+              {managing && (
+                <>
+                  <Button
+                    size="mini"
+                    fill="outline"
+                    style={{ marginLeft: 4 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditing(sp);
+                      setEditName(sp.name);
+                    }}
+                  >
+                    改名
+                  </Button>
+                  <Button
+                    size="mini"
+                    fill="outline"
+                    color="danger"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(sp);
+                    }}
+                  >
+                    删除
+                  </Button>
+                </>
+              )}
             </div>
           ))}
 
