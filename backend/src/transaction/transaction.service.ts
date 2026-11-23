@@ -148,4 +148,48 @@ export class TransactionService {
     await this.prisma.transaction.deleteMany({ where: { id: { in: ids } } });
     return { success: true };
   }
+
+  /**
+   * 批量修改流水类别（同一账本内）。
+   * - 贷款流水 / 支出计划流水不可修改（只能在贷款/支出计划中编辑）；
+   * - 类别必须属于该账本，且类别收支类型与流水类型一致。
+   */
+  async updateCategoryMany(ledgerId: string, ids: string[], categoryId: string) {
+    const uniqueIds = [...new Set(ids)];
+    if (!uniqueIds.length) return { success: true, count: 0 };
+
+    const txs = await this.prisma.transaction.findMany({
+      where: { id: { in: uniqueIds }, ledgerId },
+      select: { id: true, type: true, loanId: true, expensePlanId: true },
+    });
+    if (txs.length !== uniqueIds.length) {
+      throw new NotFoundException('部分流水不存在');
+    }
+    const category = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+    });
+    if (!category || category.ledgerId !== ledgerId) {
+      throw new BadRequestException('类别无效');
+    }
+    for (const t of txs) {
+      if (t.loanId) throw new BadRequestException('贷款流水不可修改类别');
+      if (t.expensePlanId) {
+        throw new BadRequestException('支出计划流水不可修改类别，请在支出计划中编辑');
+      }
+      if (t.type === 'transfer') {
+        throw new BadRequestException('转账流水不支持修改类别');
+      }
+      if (t.type === 'income' && category.type !== 'income') {
+        throw new BadRequestException('收入流水只能使用收入类别');
+      }
+      if (t.type === 'expense' && category.type !== 'expense') {
+        throw new BadRequestException('支出流水只能使用支出类别');
+      }
+    }
+    await this.prisma.transaction.updateMany({
+      where: { id: { in: uniqueIds }, ledgerId },
+      data: { categoryId },
+    });
+    return { success: true, count: uniqueIds.length };
+  }
 }

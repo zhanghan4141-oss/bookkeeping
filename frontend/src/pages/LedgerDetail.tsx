@@ -15,6 +15,7 @@ import {
   NavBar,
   Picker,
   Popup,
+  Radio,
   SearchBar,
   SwipeAction,
   Toast,
@@ -102,6 +103,9 @@ export default function LedgerDetail() {
   const [searchField, setSearchField] = useState<'all' | 'category' | 'amount' | 'note'>('all');
   const [keyword, setKeyword] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // 批量修改类别
+  const [batchCategoryOpen, setBatchCategoryOpen] = useState(false);
+  const [selCatId, setSelCatId] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [importResult, setImportResult] = useState<{
     successCount: number;
@@ -390,6 +394,35 @@ export default function LedgerDetail() {
     }
   };
 
+  // 批量修改类别
+  const openBatchCategory = () => {
+    if (selectedIds.size === 0) return;
+    setSelCatId(categories.find((c) => c.type === 'expense')?.id ?? '');
+    setBatchCategoryOpen(true);
+  };
+
+  const handleBatchCategory = async () => {
+    if (!selCatId) {
+      Toast.show({ content: '请选择类别' });
+      return;
+    }
+    const targetIds = filtered
+      .filter((t) => selectedIds.has(t.id) && !t.loanId && !t.expensePlanId)
+      .map((t) => t.id);
+    if (!targetIds.length) {
+      Toast.show({ content: '所选流水不支持修改类别（贷款/支出计划流水除外）' });
+      return;
+    }
+    try {
+      await transactionApi.updateCategoryMany(id, targetIds, selCatId);
+      Toast.show({ content: '已修改类别' });
+      setBatchCategoryOpen(false);
+      refreshAll();
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '修改失败' });
+    }
+  };
+
   // 打开编辑弹窗
   const openEdit = (t: Transaction) => {
     setEditing(t);
@@ -580,6 +613,9 @@ export default function LedgerDetail() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAll}>
                     {selectedIds.size === deletableFiltered.length ? '取消全选' : '全选'}
+                  </Button>
+                  <Button size="mini" fill="outline" onClick={openBatchCategory} disabled={selectedIds.size === 0}>
+                    修改类别
                   </Button>
                   <Button size="mini" color="danger" loading={batchBusy} onClick={() => runBatch(handleBatchDelete)} disabled={selectedIds.size === 0}>
                     删除选中
@@ -935,6 +971,32 @@ export default function LedgerDetail() {
           </div>
 
           <Button block color="primary" onClick={saveEdit}>保存</Button>
+        </div>
+      </Popup>
+
+      {/* 批量修改类别弹窗 */}
+      <Popup
+        visible={batchCategoryOpen}
+        onMaskClick={() => setBatchCategoryOpen(false)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 8 }}>修改类别</h3>
+          <div className="text-secondary" style={{ fontSize: 13, marginBottom: 12 }}>
+            将把已选的 {selectedIds.size} 条流水设为所选类别（贷款/支出计划流水不参与，收支类别需与流水类型匹配）
+          </div>
+          <Radio.Group value={selCatId} onChange={(v) => setSelCatId(String(v))}>
+            {categories.map((c) => (
+              <Radio key={c.id} value={c.id} style={{ marginBottom: 6 }}>
+                {c.name}
+              </Radio>
+            ))}
+          </Radio.Group>
+          <Button block color="primary" onClick={handleBatchCategory} style={{ marginTop: 8 }}>
+            确定
+          </Button>
         </div>
       </Popup>
 

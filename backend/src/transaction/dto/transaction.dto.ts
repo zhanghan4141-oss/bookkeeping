@@ -100,3 +100,13 @@ export class RemoveManyTransactionDto {
   @IsString({ each: true })
   ids!: string[];
 }
+
+export class UpdateCategoryManyDto {
+  @IsArray()
+  @IsString({ each: true })
+  ids!: string[];
+
+  @IsString()
+  @IsNotEmpty({ message: '请选择类别' })
+  categoryId!: string;
+}

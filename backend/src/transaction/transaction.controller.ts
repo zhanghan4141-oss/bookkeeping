@@ -16,6 +16,7 @@ import {
   QueryTransactionDto,
   RemoveManyTransactionDto,
   TransferTransactionDto,
+  UpdateCategoryManyDto,
   UpdateTransactionDto,
 } from './dto/transaction.dto.js';
 import { TransactionService } from './transaction.service.js';
@@ -87,5 +88,20 @@ export class TransactionController {
       await this.access.assertWritable(ledgerId, user.id);
     }
     return this.transactionService.removeMany(dto.ids);
+  }
+
+  /** 批量修改流水类别（loan/支出计划流水不可参与） */
+  @Patch('ledgers/:ledgerId/transactions/category')
+  async updateCategoryMany(
+    @CurrentUser() user: AuthUser,
+    @Param('ledgerId') ledgerId: string,
+    @Body() dto: UpdateCategoryManyDto,
+  ) {
+    await this.access.assertWritable(ledgerId, user.id);
+    return this.transactionService.updateCategoryMany(
+      ledgerId,
+      dto.ids,
+      dto.categoryId,
+    );
   }
 }

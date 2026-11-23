@@ -17,6 +17,8 @@ export const transactionApi = {
   transfer: (id: string, data: { ledgerId: string; categoryId?: string | null }) =>
     api.patch(`/transactions/${id}/transfer`, data),
   removeMany: (ids: string[]) => api.delete('/transactions', { data: { ids } }),
+  updateCategoryMany: (ledgerId: string, ids: string[], categoryId: string) =>
+    api.patch(`/ledgers/${ledgerId}/transactions/category`, { ids, categoryId }),
   copy: (data: {
     ledgerId: string;
     categoryId?: string | null;
