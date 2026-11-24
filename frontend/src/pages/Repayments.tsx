@@ -119,7 +119,6 @@ export default function Repayments() {
   const navigate = useNavigate();
   const selectedIds = useRepaymentLedgerSelection((s) => s.selectedIds);
   const deselectedIds = useRepaymentLedgerSelection((s) => s.deselectedIds);
-  const toggle = useRepaymentLedgerSelection((s) => s.toggle);
   const setSelected = useRepaymentLedgerSelection((s) => s.setSelected);
   const [showPicker, setShowPicker] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -146,6 +145,22 @@ export default function Repayments() {
     queryKey: ['ledgers'],
     queryFn: async () => (await ledgerApi.list()).data as Ledger[],
   });
+
+  // 账本选中切换（「空=全部」模型 + 哨兵「0个」）：
+  // 全部→排除该项；0个→只选该项；部分→切换（移除后为空则 0 个）
+  const handleToggle = (id: string) => {
+    if (selectedIds.length === 0) {
+      const rest = ledgers.map((l) => l.id).filter((x) => x !== id);
+      setSelected(rest.length ? rest : [NONE_LEDGER_MARKER]);
+    } else if (selectedIds[0] === NONE_LEDGER_MARKER) {
+      setSelected([id]);
+    } else if (selectedIds.includes(id)) {
+      const rest = selectedIds.filter((x) => x !== id);
+      setSelected(rest.length ? rest : [NONE_LEDGER_MARKER]);
+    } else {
+      setSelected([...selectedIds, id]);
+    }
+  };
 
   // 截止日期 → 天数
   const days = useMemo(() => {
@@ -412,7 +427,7 @@ export default function Repayments() {
                   key={l.id}
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggle(l.id);
+                    handleToggle(l.id);
                   }}
                   style={{
                     padding: '4px 10px',
@@ -617,7 +632,7 @@ export default function Repayments() {
         onClose={() => setShowPicker(false)}
         ledgers={ledgers}
         selectedIds={selectedIds}
-        onToggle={toggle}
+        onToggle={handleToggle}
         onSelectAll={() => setSelected([])}
         onSelectNone={() => setSelected([NONE_LEDGER_MARKER])}
       />

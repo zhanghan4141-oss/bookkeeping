@@ -307,7 +307,6 @@ export default function Stats() {
   const selectedIds = useStatLedgerSelection((s) => s.selectedIds);
   const deselectedIds = useStatLedgerSelection((s) => s.deselectedIds);
   const selectOne = useStatLedgerSelection((s) => s.selectOne);
-  const toggle = useStatLedgerSelection((s) => s.toggle);
   const setSelected = useStatLedgerSelection((s) => s.setSelected);
 
   // 统计日期范围（默认当前公历月）
@@ -320,6 +319,22 @@ export default function Stats() {
     queryKey: ['ledgers'],
     queryFn: async () => (await ledgerApi.list()).data as Ledger[],
   });
+
+  // 账本选中切换（「空=全部」模型 + 哨兵「0个」）：
+  // 全部→排除该项；0个→只选该项；部分→切换（移除后为空则 0 个）
+  const handleToggle = (id: string) => {
+    if (selectedIds.length === 0) {
+      const rest = ledgers.map((l) => l.id).filter((x) => x !== id);
+      setSelected(rest.length ? rest : [NONE_LEDGER_MARKER]);
+    } else if (selectedIds[0] === NONE_LEDGER_MARKER) {
+      setSelected([id]);
+    } else if (selectedIds.includes(id)) {
+      const rest = selectedIds.filter((x) => x !== id);
+      setSelected(rest.length ? rest : [NONE_LEDGER_MARKER]);
+    } else {
+      setSelected([...selectedIds, id]);
+    }
+  };
 
   // 若没有选中任何账本，默认选中最近编辑的账本
   const latestLedger = useMemo(() => {
@@ -850,7 +865,7 @@ export default function Stats() {
                   key={l.id}
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggle(l.id);
+                    handleToggle(l.id);
                   }}
                   style={{
                     padding: '4px 10px',
@@ -1014,7 +1029,7 @@ export default function Stats() {
         onClose={() => setShowLedgerPicker(false)}
         ledgers={ledgers}
         selectedIds={selectedIds}
-        onToggle={toggle}
+        onToggle={handleToggle}
         onSelectAll={() => setSelected([])}
         onSelectNone={() => setSelected([NONE_LEDGER_MARKER])}
         getContainer={() => pageRef.current ?? document.body}
