@@ -591,7 +591,9 @@ export default function LoanDetail() {
                         提前还本金 {formatMoney(Number(r.principalAmount))}
                         {Number(r.interestAmount) > 0 && <> · 提前还息 {formatMoney(Number(r.interestAmount))}</>}
                         <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
-                        {Number(r.paidAmount) > 0 && (
+                        {Number(r.paidAmount) > 0 &&
+                        (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
+                          (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
                           <span style={{ marginLeft: 8, color: '#a855f7' }}>
                             实际 ¥{formatMoney(Number(r.paidAmount))} @ {r.paidDate?.slice(0, 10) ?? r.dueDate.slice(0, 10)}
                           </span>
