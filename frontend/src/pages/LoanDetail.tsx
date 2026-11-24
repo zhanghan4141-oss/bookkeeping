@@ -453,12 +453,20 @@ export default function LoanDetail() {
                   onConfirm: () => setEditPeriods((prev) => prev.filter((_, j) => j !== i)),
                 });
               };
-              const actualInfo =
-                p.paidAmount && Number(p.paidAmount) > 0 ? (
+              const actualInfo = (() => {
+                // 已发生还款，且金额/时间与计划不一致时才标注「实际已还」（一致不显示）
+                if (!p.paidAmount || Number(p.paidAmount) <= 0) return null;
+                const planTotal = (Number(p.principal) || 0) + (Number(p.interest) || 0);
+                const sameAmount = Math.abs(Number(p.paidAmount) - planTotal) < 0.005;
+                const sameDate =
+                  p.paidDate != null && p.paidDate.slice(0, 10) === (p.dueDate || '').slice(0, 10);
+                if (sameAmount && sameDate) return null;
+                return (
                   <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
                     实际已还 ¥{formatMoney(Number(p.paidAmount))} @ {p.paidDate?.slice(0, 10) ?? '—'}
                   </div>
-                ) : null;
+                );
+              })();
               if (p.kind === 'prepay') {
                 return (
                   <div key={i} style={{ marginBottom: 8 }}>
@@ -583,6 +591,11 @@ export default function LoanDetail() {
                         提前还本金 {formatMoney(Number(r.principalAmount))}
                         {Number(r.interestAmount) > 0 && <> · 提前还息 {formatMoney(Number(r.interestAmount))}</>}
                         <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
+                        {Number(r.paidAmount) > 0 && (
+                          <span style={{ marginLeft: 8, color: '#a855f7' }}>
+                            实际已还 ¥{formatMoney(Number(r.paidAmount))} @ {r.paidDate?.slice(0, 10) ?? '—'}
+                          </span>
+                        )}
                       </div>
                     }
                     extra={

@@ -315,15 +315,22 @@ export default function ExpensePlanDetail() {
               <List.Item
                 key={period.id}
                 description={
-                  <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
-                    金额 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(period.amount))}</span>
-                    {period.paidAmount != null && Number(period.paidAmount) !== Number(period.amount) && (
-                      <span style={{ marginLeft: 8, color: '#a855f7' }}>实际 ¥{formatMoney(period.paidAmount)}</span>
-                    )}
-                    <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{dd}</span>
-                    {pd !== null && pd !== dd && (
-                      <span style={{ marginLeft: 8, color: '#52c41a' }}>支出日 {pd}</span>
-                    )}
+                  <div>
+                    <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
+                      金额 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(period.amount))}</span>
+                      <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{dd}</span>
+                    </div>
+                    {(period.paidAmount != null && Math.abs(period.paidAmount - Number(period.amount)) > 0.005) ||
+                    (pd !== null && pd !== dd) ? (
+                      <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
+                        {period.paidAmount != null && Math.abs(period.paidAmount - Number(period.amount)) > 0.005 && (
+                          <span>实际支出 ¥{formatMoney(period.paidAmount)}</span>
+                        )}
+                        {pd !== null && pd !== dd && (
+                          <span style={{ marginLeft: 8 }}>支出日 {pd}</span>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 }
                 extra={
