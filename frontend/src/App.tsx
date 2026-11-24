@@ -64,17 +64,13 @@ export default function App() {
     if (Capacitor.isNativePlatform()) return;
     const onPop = () => {
       if (closeTopOverlay()) {
-        // 返回已触发：关弹窗后回填同 URL 占位，抵消后退、留在当前页
-        try {
-          window.history.pushState(window.history.state, '', window.location.href);
-        } catch {
-          // ignore
-        }
+        // 返回已触发：弹窗/编辑已被关闭，前进一格占位回到原页（避免真实后退离开页面）
+        navigate(1);
       }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, []);
+  }, [navigate]);
 
   // 启动时检查 App 更新（网页端自动跳过）
   useEffect(() => {
