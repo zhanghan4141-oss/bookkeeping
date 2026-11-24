@@ -1,7 +1,6 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsBoolean,
   IsDateString,
   IsIn,
   IsInt,
@@ -107,7 +106,7 @@ export class UpdateExpensePlanDto {
 }
 
 export class MarkPeriodDto {
-  /** 实际支出金额（缺省 = 计划金额）；≠ 计划值时前端询问「仅本期 / 同步后续」 */
+  /** 实际支出金额（缺省 = 计划金额）；≠ 计划值时仅记实际，不改计划 */
   @IsOptional()
   @IsNumber()
   @Min(0.01)
@@ -117,11 +116,6 @@ export class MarkPeriodDto {
   @IsOptional()
   @IsDateString()
   paidDate?: string;
-
-  /** 将 amount 同步到后续未支出期（计划金额跟随实际） */
-  @IsOptional()
-  @IsBoolean()
-  applyToFuture?: boolean;
 }
 
 export class UpdateExpensePlanPeriodDto {

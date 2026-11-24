@@ -637,7 +637,7 @@ export default function LoanDetail() {
                       还款
                     </Button>
                   )}
-                  {!isViewer && (r.status === 'paid' || r.status === 'partial') && (
+                  {!isViewer && (r.status === 'paid' || r.status === 'partial') && r.dueDate.slice(0, 10) >= formatDate(new Date()) && (
                     <Button size="mini" fill="none" style={{ marginLeft: 8 }} onClick={(e) => { e.stopPropagation(); handleUndo(r); }}>
                       撤销
                     </Button>

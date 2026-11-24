@@ -106,8 +106,10 @@ export interface ExpensePlanPeriod {
   status: 'pending' | 'paid';
   paidDate: string | null;
   note?: string | null;
-  /** 是否「操作过」（提前标记支出）：编辑计划时该期只改计划、流水冻结 */
+  /** 是否「操作过」（实际金额/日期偏离计划）：编辑计划时该期只改计划、流水冻结 */
   diverged?: boolean;
+  /** 实际支出金额（来自流水；已支出期有值） */
+  paidAmount?: number;
 }
 
 export interface ExpensePlan {

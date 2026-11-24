@@ -10,7 +10,7 @@ export const expensePlanApi = {
   mark: (
     id: string,
     periodNo: number,
-    data: { amount?: number; paidDate?: string; applyToFuture?: boolean },
+    data: { amount?: number; paidDate?: string },
   ) => api.post(`/expense-plans/${id}/periods/${periodNo}/mark`, data),
   undo: (id: string, periodNo: number) =>
     api.post(`/expense-plans/${id}/periods/${periodNo}/undo`),

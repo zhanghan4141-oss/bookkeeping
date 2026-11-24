@@ -30,7 +30,7 @@ export default function ExpensePlanDetail() {
   // 逐期编辑（已支出期：一致可同步流水；提前标记的操作过期只改计划、流水冻结）
   const [editingPlan, setEditingPlan] = useState(false);
   const [editPeriods, setEditPeriods] = useState<
-    { periodNo: number; dueDate: string; amount: string; status: string; diverged?: boolean; paidDate?: string | null }[]
+    { periodNo: number; dueDate: string; amount: string; status: string; diverged?: boolean; paidDate?: string | null; paidAmount?: number }[]
   >([]);
   // 耗时操作按钮 loading
   const { busy: exportBusy, run: runExport } = useBusy();
@@ -63,21 +63,8 @@ export default function ExpensePlanDetail() {
       return;
     }
     try {
-      // 实际支出与计划金额不同 → 询问是否同步后续未支出期（计划金额跟随实际）
-      let applyToFuture = false;
-      if (amount !== Number(paying.amount)) {
-        const ok = await new Promise<boolean>((resolve) => {
-          Dialog.confirm({
-            content: `实际支出 ¥${formatMoney(amount)} 与计划 ¥${formatMoney(Number(paying.amount))} 不同，是否将该金额同步到后续未支出期？`,
-            cancelText: '仅本期',
-            confirmText: '同步后续',
-            onConfirm: () => resolve(true),
-            onCancel: () => resolve(false),
-          });
-        });
-        applyToFuture = ok;
-      }
-      await expensePlanApi.mark(id, paying.periodNo, { amount, paidDate: payDate, applyToFuture });
+      // 只记实际（金额/日期），不改计划金额
+      await expensePlanApi.mark(id, paying.periodNo, { amount, paidDate: payDate });
       Toast.show({ content: '已标记支出' });
       setPaying(null);
       setPayAmount('');
@@ -116,6 +103,7 @@ export default function ExpensePlanDetail() {
         status: p.status,
         diverged: p.diverged,
         paidDate: p.paidDate,
+        paidAmount: p.paidAmount,
       })),
     );
     setEditingPlan(true);
@@ -296,9 +284,14 @@ export default function ExpensePlanDetail() {
                       style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
                     />
                   </div>
-                  {diverged && p.paidDate && (
+                  {diverged && (
                     <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
-                      实际支出日 {p.paidDate.slice(0, 10)}
+                      {p.paidAmount != null && Number(p.paidAmount) !== Number(p.amount) && (
+                        <span>实际 ¥{formatMoney(p.paidAmount)}</span>
+                      )}
+                      {p.paidDate && p.paidDate.slice(0, 10) !== p.dueDate && (
+                        <span style={{ marginLeft: 6 }}>支出日 {p.paidDate.slice(0, 10)}</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -324,6 +317,9 @@ export default function ExpensePlanDetail() {
                 description={
                   <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
                     金额 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(period.amount))}</span>
+                    {period.paidAmount != null && Number(period.paidAmount) !== Number(period.amount) && (
+                      <span style={{ marginLeft: 8, color: '#a855f7' }}>实际 ¥{formatMoney(period.paidAmount)}</span>
+                    )}
                     <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{dd}</span>
                     {pd !== null && pd !== dd && (
                       <span style={{ marginLeft: 8, color: '#52c41a' }}>支出日 {pd}</span>
@@ -354,7 +350,7 @@ export default function ExpensePlanDetail() {
                     标记支出
                   </Button>
                 )}
-                {!isViewer && isPaid && (
+                {!isViewer && isPaid && period.dueDate.slice(0, 10) >= formatDate(new Date()) && (
                   <Button size="mini" fill="none" style={{ marginLeft: 8 }} onClick={(e) => { e.stopPropagation(); handleUndo(period); }}>
                     撤销
                   </Button>
