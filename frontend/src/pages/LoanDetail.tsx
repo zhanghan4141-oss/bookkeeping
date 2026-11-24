@@ -624,19 +624,21 @@ export default function LoanDetail() {
                 <List.Item
                   key={r.periodNo}
                   description={
-                    <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
-                      {isMerged
-                        ? <>合计 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.totalAmount))}</span></>
-                        : <>本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.principalAmount))}</span> · 利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.interestAmount))}</span></>}
-                      <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
-                    </div>
-                    {Number(r.paidAmount) > 0 &&
-                    (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
-                      (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
-                      <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
-                        实际已还 ¥{formatMoney(Number(r.paidAmount))} @ {r.paidDate?.slice(0, 10) ?? '—'}
+                    <>
+                      <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
+                        {isMerged
+                          ? <>合计 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.totalAmount))}</span></>
+                          : <>本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.principalAmount))}</span> · 利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.interestAmount))}</span></>}
+                        <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
                       </div>
-                    )}
+                      {Number(r.paidAmount) > 0 &&
+                      (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
+                        (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
+                        <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
+                          实际已还 ¥{formatMoney(Number(r.paidAmount))} @ {r.paidDate?.slice(0, 10) ?? '—'}
+                        </div>
+                      )}
+                    </>
                   }
                   extra={
                     <div style={{ textAlign: 'right' }}>
