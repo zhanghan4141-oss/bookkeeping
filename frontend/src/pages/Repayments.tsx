@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, DatePicker, Dialog, Input, NavBar, Popup, Toast } from 'antd-mobile';
 import { repaymentApi } from '../api/misc';
@@ -115,6 +116,7 @@ function groupByScale(
 }
 
 export default function Repayments() {
+  const navigate = useNavigate();
   const selectedIds = useRepaymentLedgerSelection((s) => s.selectedIds);
   const deselectedIds = useRepaymentLedgerSelection((s) => s.deselectedIds);
   const toggle = useRepaymentLedgerSelection((s) => s.toggle);
@@ -507,7 +509,13 @@ export default function Repayments() {
                   {repayScale !== 'day' && (
                     <span style={{ color: '#ff8f1f', marginRight: 6 }}>{it.dueDate}</span>
                   )}
-                  <span style={{ color: '#1677ff' }}>{it.loanName}</span> {it.kind === 'prepay' ? '提前还款' : `第${it.periodNo}期`} · 剩余{' '}
+                  <span
+                    style={{ color: '#1677ff', cursor: 'pointer' }}
+                    onClick={() => it.loanId && navigate(`/loans/${it.loanId}`)}
+                  >
+                    {it.loanName}
+                  </span>{' '}
+                  {it.kind === 'prepay' ? '提前还款' : `第${it.periodNo}期`} · 剩余{' '}
                   <span style={{ color: '#ff4d4f' }}>¥{formatMoney(it.remainingPrincipal)}</span>
                   /{it.remainingPeriods}期、本期{' '}
                   <span style={{ color: '#52c41a' }}>¥{formatMoney(it.totalAmount)}</span>
@@ -573,7 +581,13 @@ export default function Repayments() {
                   )}
                   {it.expensePlanId ? (
                     <>
-                      <span style={{ color: '#1677ff' }}>{it.expensePlanName}</span> 第{it.expensePeriodNo}期 ·{' '}
+                      <span
+                        style={{ color: '#1677ff', cursor: 'pointer' }}
+                        onClick={() => it.expensePlanId && navigate(`/expense-plans/${it.expensePlanId}`)}
+                      >
+                        {it.expensePlanName}
+                      </span>{' '}
+                      第{it.expensePeriodNo}期 ·{' '}
                       <span style={{ color: '#52c41a' }}>¥{formatMoney(it.amount)}</span>
                       <span style={{ marginLeft: 6, color: '#999' }}>待支出</span>
                       <Button size="mini" color="success" fill="outline" style={{ marginLeft: 8 }} onClick={() => handleMarkClick(it, it.dueDate)}>
