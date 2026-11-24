@@ -286,12 +286,8 @@ export default function ExpensePlanDetail() {
                   </div>
                   {diverged && (
                     <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
-                      {p.paidAmount != null && Number(p.paidAmount) !== Number(p.amount) && (
-                        <span>实际 ¥{formatMoney(p.paidAmount)}</span>
-                      )}
-                      {p.paidDate && p.paidDate.slice(0, 10) !== p.dueDate && (
-                        <span style={{ marginLeft: 6 }}>支出日 {p.paidDate.slice(0, 10)}</span>
-                      )}
+                      实际 ¥{formatMoney(p.paidAmount ?? Number(p.amount))} @{' '}
+                      {p.paidDate && p.paidDate.slice(0, 10) !== p.dueDate ? p.paidDate.slice(0, 10) : p.dueDate}
                     </div>
                   )}
                 </div>
@@ -323,12 +319,7 @@ export default function ExpensePlanDetail() {
                     {(period.paidAmount != null && Math.abs(period.paidAmount - Number(period.amount)) > 0.005) ||
                     (pd !== null && pd !== dd) ? (
                       <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
-                        {period.paidAmount != null && Math.abs(period.paidAmount - Number(period.amount)) > 0.005 && (
-                          <span>实际支出 ¥{formatMoney(period.paidAmount)}</span>
-                        )}
-                        {pd !== null && pd !== dd && (
-                          <span style={{ marginLeft: 8 }}>支出日 {pd}</span>
-                        )}
+                        实际 ¥{formatMoney(period.paidAmount ?? Number(period.amount))} @ {pd ?? dd}
                       </div>
                     ) : null}
                   </div>

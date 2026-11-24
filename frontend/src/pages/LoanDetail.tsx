@@ -463,7 +463,7 @@ export default function LoanDetail() {
                 if (sameAmount && sameDate) return null;
                 return (
                   <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
-                    实际已还 ¥{formatMoney(Number(p.paidAmount))} @ {p.paidDate?.slice(0, 10) ?? '—'}
+                    实际 ¥{formatMoney(Number(p.paidAmount))} @ {p.paidDate?.slice(0, 10) ?? (p.dueDate || '').slice(0, 10)}
                   </div>
                 );
               })();
@@ -593,7 +593,7 @@ export default function LoanDetail() {
                         <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
                         {Number(r.paidAmount) > 0 && (
                           <span style={{ marginLeft: 8, color: '#a855f7' }}>
-                            实际已还 ¥{formatMoney(Number(r.paidAmount))} @ {r.paidDate?.slice(0, 10) ?? '—'}
+                            实际 ¥{formatMoney(Number(r.paidAmount))} @ {r.paidDate?.slice(0, 10) ?? r.dueDate.slice(0, 10)}
                           </span>
                         )}
                       </div>
@@ -635,7 +635,7 @@ export default function LoanDetail() {
                       (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
                         (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
                         <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
-                          实际已还 ¥{formatMoney(Number(r.paidAmount))} @ {r.paidDate?.slice(0, 10) ?? '—'}
+                          实际 ¥{formatMoney(Number(r.paidAmount))} @ {r.paidDate?.slice(0, 10) ?? r.dueDate.slice(0, 10)}
                         </div>
                       )}
                     </>
