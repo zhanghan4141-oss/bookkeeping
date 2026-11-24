@@ -1,18 +1,20 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, DatePicker, Dialog, Input, NavBar, Popup, SearchBar, SwipeAction, TextArea, Toast } from 'antd-mobile';
+import { Button, DatePicker, Dialog, Input, NavBar, Popup, Radio, SearchBar, SwipeAction, TextArea, Toast } from 'antd-mobile';
 import { LeftOutline, RightOutline } from 'antd-mobile-icons';
 import { Lunar, LunarMonth, Solar } from 'lunar-javascript';
 import { statApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
+import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
 import Chart from '../components/Chart';
 import ExpandableNote from '../components/ExpandableNote';
 import LedgerSelectPopup from '../components/LedgerSelectPopup';
+import TransferLedgerPopup from '../components/TransferLedgerPopup';
 import { useStatLedgerSelection } from '../stores/statLedgerSelection';
 import { TabActiveContext } from '../components/KeepAlive';
-import type { Ledger, StatSummary, Transaction } from '../types';
+import type { Category, Ledger, StatSummary, Transaction } from '../types';
 import { formatMoney } from '../lib/format';
 
 function fmtDate(d: Date): string {
@@ -394,20 +396,27 @@ export default function Stats() {
     [filteredCategoryTx],
   );
 
-  // 可删除的流水（贷款流水不可删，批量删除时排除）
+  // 可删除的流水（贷款/支出计划流水不可删，批量删除时排除）
   const deletableCategoryTx = useMemo(
-    () => filteredCategoryTx.filter((t) => !t.loanId),
+    () => filteredCategoryTx.filter((t) => !t.loanId && !t.expensePlanId),
     [filteredCategoryTx],
   );
 
   const queryClient = useQueryClient();
   const showLedgerName = selectedIds.length !== 1;
 
-  // 类别详情：批量选择 + 编辑
+  // 类别详情：批量选择 + 编辑 + 转移 + 批量改类别
   const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [editForm, setEditForm] = useState({ type: 'expense', amount: '', note: '' });
   const [expandedCategoryDates, setExpandedCategoryDates] = useState<Set<string>>(new Set());
+  // 转移流水
+  const [transferTx, setTransferTx] = useState<Transaction | null>(null);
+  // 批量修改类别（仅单账本）
+  const [selCatOpen, setSelCatOpen] = useState(false);
+  const [selCatId, setSelCatId] = useState('');
+  const [selTargets, setSelTargets] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<Category[]>([]);
 
   // 类别流水分组跨度跟随柱状图切换（auto 用后端推断的周期）
   const detailPeriod = trendMode === 'auto' ? summary?.period ?? 'day' : trendMode;
@@ -515,6 +524,45 @@ export default function Stats() {
   const openEditTx = (t: Transaction) => {
     setEditingTx(t);
     setEditForm({ type: t.type, amount: t.amount, note: t.note ?? '' });
+  };
+
+  // 批量修改类别：仅单账本（selectedIds 恰好 1 个账本）时可用；按当前类别类型过滤类别
+  const openBatchCategoryTx = async () => {
+    if (selectedTxIds.size === 0) return;
+    const targetLedgerId = selectedIds[0];
+    const targets = filteredCategoryTx.filter(
+      (t) =>
+        selectedTxIds.has(t.id) && !t.loanId && !t.expensePlanId && t.type === activeCategory?.type,
+    );
+    if (!targets.length) {
+      Toast.show({ content: '所选流水不支持修改类别（贷款/支出计划流水除外）' });
+      return;
+    }
+    try {
+      const cats = (await categoryApi.list(targetLedgerId)).data as Category[];
+      setCategoryOptions(cats.filter((c) => c.type === activeCategory?.type));
+      setSelCatId(cats.find((c) => c.type === activeCategory?.type)?.id ?? '');
+      setSelTargets(targets.map((t) => t.id));
+      setSelCatOpen(true);
+    } catch {
+      Toast.show({ content: '获取类别失败' });
+    }
+  };
+
+  const handleBatchCategoryTx = async () => {
+    if (!selCatId) {
+      Toast.show({ content: '请选择类别' });
+      return;
+    }
+    try {
+      await transactionApi.updateCategoryMany(selectedIds[0], selTargets, selCatId);
+      Toast.show({ content: '已修改类别' });
+      setSelCatOpen(false);
+      setSelectedTxIds(new Set());
+      refreshCategoryTx();
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '修改失败' });
+    }
   };
 
   const saveEditTx = async () => {
@@ -1036,6 +1084,11 @@ export default function Stats() {
                   <Button size="mini" fill="outline" onClick={toggleSelectAllTx}>
                     {selectedTxIds.size === deletableCategoryTx.length ? '取消全选' : '全选'}
                   </Button>
+                  {selectedIds.length === 1 && (
+                    <Button size="mini" fill="outline" onClick={openBatchCategoryTx} disabled={selectedTxIds.size === 0}>
+                      修改类别
+                    </Button>
+                  )}
                   <Button size="mini" color="danger" onClick={handleBatchDeleteTx} disabled={selectedTxIds.size === 0}>
                     删除选中
                   </Button>
@@ -1043,19 +1096,20 @@ export default function Stats() {
               </div>
               {filteredCategoryTx.map((t) => {
                 const isLoanTx = !!t.loanId;
+                const isLockedTx = isLoanTx || !!t.expensePlanId; // 贷款/支出计划流水不可编辑、不可批量
                 const content = (
                   <div
-                    onClick={() => !isLoanTx && openEditTx(t)}
+                    onClick={() => !isLockedTx && openEditTx(t)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       padding: '10px 12px',
                       borderRadius: 12,
-                      background: isLoanTx ? '#fafafa' : '#fff',
-                      cursor: isLoanTx ? 'default' : 'pointer',
+                      background: isLockedTx ? '#fafafa' : '#fff',
+                      cursor: isLockedTx ? 'default' : 'pointer',
                     }}
                   >
-                    {!isLoanTx ? (
+                    {!isLockedTx ? (
                       <input
                         type="checkbox"
                         checked={selectedTxIds.has(t.id)}
@@ -1086,9 +1140,10 @@ export default function Stats() {
                   <div key={t.id} style={{ marginBottom: 8 }}>
                     <SwipeAction
                       rightActions={
-                        isLoanTx
+                        isLockedTx
                           ? [{ key: 'copy', text: '复制', color: 'primary', onClick: () => handleCopyTx(t) }]
                           : [
+                              { key: 'transfer', text: '转移', color: 'warning', onClick: () => setTransferTx(t) },
                               { key: 'copy', text: '复制', color: 'primary', onClick: () => handleCopyTx(t) },
                               { key: 'delete', text: '删除', color: 'danger', onClick: () => handleDeleteTx(t) },
                             ]
@@ -1124,17 +1179,18 @@ export default function Stats() {
                     </div>
                     {isExpanded && items.map((t) => {
                       const isLoanTx = !!t.loanId;
+                      const isLockedTx = isLoanTx || !!t.expensePlanId; // 贷款/支出计划流水不可编辑
                       const content = (
                         <div
                           key={t.id}
-                          onClick={() => !isLoanTx && openEditTx(t)}
+                          onClick={() => !isLockedTx && openEditTx(t)}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
                             padding: '10px 12px',
                             borderBottom: '1px solid #fafafa',
-                            background: isLoanTx ? '#fafafa' : '#fff',
-                            cursor: isLoanTx ? 'default' : 'pointer',
+                            background: isLockedTx ? '#fafafa' : '#fff',
+                            cursor: isLockedTx ? 'default' : 'pointer',
                           }}
                         >
                           <span style={{ fontSize: 22, marginRight: 10 }}>{t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}</span>
@@ -1164,9 +1220,10 @@ export default function Stats() {
                         <SwipeAction
                           key={t.id}
                           rightActions={
-                            isLoanTx
+                            isLockedTx
                               ? [{ key: 'copy', text: '复制', color: 'primary', onClick: () => handleCopyTx(t) }]
                               : [
+                                  { key: 'transfer', text: '转移', color: 'warning', onClick: () => setTransferTx(t) },
                                   { key: 'copy', text: '复制', color: 'primary', onClick: () => handleCopyTx(t) },
                                   { key: 'delete', text: '删除', color: 'danger', onClick: () => handleDeleteTx(t) },
                                 ]
@@ -1186,6 +1243,43 @@ export default function Stats() {
           )}
         </div>
       </Popup>
+
+      {/* 批量修改类别弹窗（仅单账本） */}
+      <Popup
+        visible={selCatOpen}
+        onMaskClick={() => setSelCatOpen(false)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 8 }}>修改类别</h3>
+          <div className="text-secondary" style={{ fontSize: 13, marginBottom: 12 }}>
+            将把已选 {selTargets.length} 条流水设为所选类别
+            （贷款/支出计划流水不参与，仅展示与当前流水类型匹配的类别）
+          </div>
+          <Radio.Group value={selCatId} onChange={(v) => setSelCatId(String(v))}>
+            {categoryOptions.map((c) => (
+              <Radio key={c.id} value={c.id} style={{ marginBottom: 6 }}>
+                {c.name}
+              </Radio>
+            ))}
+          </Radio.Group>
+          <Button block color="primary" onClick={handleBatchCategoryTx} style={{ marginTop: 8 }}>
+            确定
+          </Button>
+        </div>
+      </Popup>
+
+      {/* 转移流水弹窗 */}
+      <TransferLedgerPopup
+        visible={!!transferTx}
+        txId={transferTx?.id ?? ''}
+        currentLedgerId={transferTx?.ledgerId ?? ''}
+        txType={(transferTx?.type as 'expense' | 'income' | 'transfer') ?? 'expense'}
+        getContainer={() => pageRef.current ?? document.body}
+        onClose={() => setTransferTx(null)}
+      />
 
       {/* 编辑流水弹窗 */}
       <Popup
