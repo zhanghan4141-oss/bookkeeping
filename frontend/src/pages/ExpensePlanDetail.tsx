@@ -322,7 +322,7 @@ export default function ExpensePlanDetail() {
                     </div>
                     {(period.paidAmount != null && Math.abs(period.paidAmount - Number(period.amount)) > 0.005) ||
                     (pd !== null && pd !== dd) ? (
-                      <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
+                      <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
                         {period.paidAmount != null && Math.abs(period.paidAmount - Number(period.amount)) > 0.005 && (
                           <span>实际支出 ¥{formatMoney(period.paidAmount)}</span>
                         )}
