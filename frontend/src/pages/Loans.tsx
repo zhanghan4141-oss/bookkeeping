@@ -157,7 +157,7 @@ export default function Loans() {
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-                    <span>{loan.name}</span>
+                    <span style={{ color: '#1677ff' }}>{loan.name}</span>
                     <span style={{ fontSize: 12, color: '#ff8f1f', marginLeft: 8 }}>
                       （{loan.startDate?.slice(0, 10)}）
                     </span>
