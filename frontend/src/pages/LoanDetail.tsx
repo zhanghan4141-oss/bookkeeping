@@ -590,27 +590,25 @@ export default function LoanDetail() {
                   <List.Item
                     key={r.id}
                     description={
-                      <div style={{ fontSize: 12, marginTop: 2 }}>
-                        提前还本金 {formatMoney(Number(r.principalAmount))}
-                        {Number(r.interestAmount) > 0 && <> · 提前还息 {formatMoney(Number(r.interestAmount))}</>}
-                        <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
+                      <>
+                        <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
+                          本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.principalAmount))}</span>
+                          {Number(r.interestAmount) > 0 && <> · 利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.interestAmount))}</span></>}
+                          <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
+                        </div>
                         {Number(r.paidAmount) > 0 &&
                         (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
                           (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
-                          <>
+                          <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
                             {Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 && (
-                              <span style={{ marginLeft: 8, color: '#a855f7' }}>
-                                实际 ¥{formatMoney(Number(r.paidAmount))}
-                              </span>
+                              <span>实际 ¥{formatMoney(Number(r.paidAmount))}</span>
                             )}
                             {r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10) && (
-                              <span style={{ marginLeft: 8, color: '#a855f7' }}>
-                                还款日 {r.paidDate.slice(0, 10)}
-                              </span>
+                              <span style={{ marginLeft: 6 }}>还款日 {r.paidDate.slice(0, 10)}</span>
                             )}
-                          </>
+                          </div>
                         )}
-                      </div>
+                      </>
                     }
                     extra={
                       <div style={{ textAlign: 'right' }}>
