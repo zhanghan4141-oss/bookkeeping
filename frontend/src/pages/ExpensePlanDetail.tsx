@@ -286,8 +286,12 @@ export default function ExpensePlanDetail() {
                   </div>
                   {diverged && (
                     <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
-                      实际 ¥{formatMoney(p.paidAmount ?? Number(p.amount))} @{' '}
-                      {p.paidDate && p.paidDate.slice(0, 10) !== p.dueDate ? p.paidDate.slice(0, 10) : p.dueDate}
+                      {p.paidAmount != null && Math.abs(p.paidAmount - Number(p.amount)) > 0.005 && (
+                        <span>实际 ¥{formatMoney(p.paidAmount)}</span>
+                      )}
+                      {p.paidDate && p.paidDate.slice(0, 10) !== p.dueDate && (
+                        <span style={{ marginLeft: 6 }}>支出日 {p.paidDate.slice(0, 10)}</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -316,12 +320,17 @@ export default function ExpensePlanDetail() {
                       金额 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(period.amount))}</span>
                       <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{dd}</span>
                     </div>
-                    {(period.paidAmount != null && Math.abs(period.paidAmount - Number(period.amount)) > 0.005) ||
-                    (pd !== null && pd !== dd) ? (
+                    {(() => {
+                    const amountDiff =
+                      period.paidAmount != null && Math.abs(period.paidAmount - Number(period.amount)) > 0.005;
+                    const dateDiff = pd !== null && pd !== dd;
+                    return amountDiff || dateDiff ? (
                       <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
-                        实际 ¥{formatMoney(period.paidAmount ?? Number(period.amount))} @ {pd ?? dd}
+                        {amountDiff && <span>实际 ¥{formatMoney(period.paidAmount)}</span>}
+                        {dateDiff && <span style={{ marginLeft: 8 }}>支出日 {pd}</span>}
                       </div>
-                    ) : null}
+                    ) : null;
+                  })()}
                   </div>
                 }
                 extra={

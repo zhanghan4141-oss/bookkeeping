@@ -454,16 +454,19 @@ export default function LoanDetail() {
                 });
               };
               const actualInfo = (() => {
-                // 已发生还款，且金额/时间与计划不一致时才标注「实际已还」（一致不显示）
+                // 已发生还款：金额不一致 →「实际 ¥金额」；日期不一致 →「还款日 日期」；一致不显示
                 if (!p.paidAmount || Number(p.paidAmount) <= 0) return null;
                 const planTotal = (Number(p.principal) || 0) + (Number(p.interest) || 0);
-                const sameAmount = Math.abs(Number(p.paidAmount) - planTotal) < 0.005;
-                const sameDate =
-                  p.paidDate != null && p.paidDate.slice(0, 10) === (p.dueDate || '').slice(0, 10);
-                if (sameAmount && sameDate) return null;
+                const amountDiff = Math.abs(Number(p.paidAmount) - planTotal) >= 0.005;
+                const dateDiff =
+                  p.paidDate != null && p.paidDate.slice(0, 10) !== (p.dueDate || '').slice(0, 10);
+                if (!amountDiff && !dateDiff) return null;
                 return (
                   <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
-                    实际 ¥{formatMoney(Number(p.paidAmount))} @ {p.paidDate?.slice(0, 10) ?? (p.dueDate || '').slice(0, 10)}
+                    {amountDiff && <span>实际 ¥{formatMoney(Number(p.paidAmount))}</span>}
+                    {dateDiff && (
+                      <span style={{ marginLeft: 6 }}>还款日 {p.paidDate?.slice(0, 10) ?? '—'}</span>
+                    )}
                   </div>
                 );
               })();
@@ -594,9 +597,18 @@ export default function LoanDetail() {
                         {Number(r.paidAmount) > 0 &&
                         (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
                           (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
-                          <span style={{ marginLeft: 8, color: '#a855f7' }}>
-                            实际 ¥{formatMoney(Number(r.paidAmount))} @ {r.paidDate?.slice(0, 10) ?? r.dueDate.slice(0, 10)}
-                          </span>
+                          <>
+                            {Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 && (
+                              <span style={{ marginLeft: 8, color: '#a855f7' }}>
+                                实际 ¥{formatMoney(Number(r.paidAmount))}
+                              </span>
+                            )}
+                            {r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10) && (
+                              <span style={{ marginLeft: 8, color: '#a855f7' }}>
+                                还款日 {r.paidDate.slice(0, 10)}
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                     }
@@ -637,7 +649,12 @@ export default function LoanDetail() {
                       (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
                         (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
                         <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
-                          实际 ¥{formatMoney(Number(r.paidAmount))} @ {r.paidDate?.slice(0, 10) ?? r.dueDate.slice(0, 10)}
+                          {Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 && (
+                            <span>实际 ¥{formatMoney(Number(r.paidAmount))}</span>
+                          )}
+                          {r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10) && (
+                            <span style={{ marginLeft: 6 }}>还款日 {r.paidDate.slice(0, 10)}</span>
+                          )}
                         </div>
                       )}
                     </>
