@@ -346,7 +346,7 @@ export default function ExpensePlanDetail() {
                     const dateDiff = pd !== null && pd !== dd;
                     return amountDiff || dateDiff ? (
                       <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
-                        实际{amountDiff ? ` ¥${formatMoney(period.paidAmount)}` : ''}{dateDiff ? ` @ ${pd}` : ''}
+                        实际{amountDiff ? ` ¥${formatMoney(period.paidAmount ?? 0)}` : ''}{dateDiff ? ` @ ${pd}` : ''}
                       </div>
                     ) : null;
                   })()}
