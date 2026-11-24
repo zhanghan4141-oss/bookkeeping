@@ -62,15 +62,14 @@ export default function App() {
   // web：浏览器返回/手势优先关弹窗（App 原生用 backButton 处理）
   useEffect(() => {
     if (Capacitor.isNativePlatform()) return;
+    // 弹窗/编辑打开时 usePopupBack 已 push 同 URL 占位：返回触发 popstate 时 URL 不变、
+    // 组件不卸载 → 只需在此关闭栈顶（弹窗/编辑的“取消”逻辑），不做额外导航
     const onPop = () => {
-      if (closeTopOverlay()) {
-        // 返回已触发：弹窗/编辑已被关闭，前进一格占位回到原页（避免真实后退离开页面）
-        navigate(1);
-      }
+      closeTopOverlay();
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [navigate]);
+  }, []);
 
   // 启动时检查 App 更新（网页端自动跳过）
   useEffect(() => {
