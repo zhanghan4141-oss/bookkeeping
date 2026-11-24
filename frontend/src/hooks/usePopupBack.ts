@@ -13,9 +13,14 @@ export function usePopupBack(visible: boolean, close: () => void) {
   useEffect(() => {
     if (!visible) return;
     if (!Capacitor.isNativePlatform()) {
-      // web：占位历史条目，让浏览器返回键有可回退目标并触发 popstate
+      // web：压入同 URL 占位，state 复制当前历史 state（保留 React Router 的 idx/key/usr）并加 __overlay 标记。
+      // 返回键退到占位（__overlay=true）= 退页面、弹窗保留；再从占位退回普通条目 = 关弹窗。
       try {
-        window.history.pushState(window.history.state, '', window.location.href);
+        window.history.pushState(
+          { ...(window.history.state ?? {}), __overlay: true },
+          '',
+          window.location.href,
+        );
       } catch {
         // 受限环境不支持 pushState，忽略（App 原生走 backButton）
       }

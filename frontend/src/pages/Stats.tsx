@@ -1109,7 +1109,7 @@ export default function Stats() {
                         <span style={{ color: isLoanTx ? '#ff8f1f' : '#ffa94d' }}>{formatDateTime(new Date(t.occurredAt))}</span>
                         {t.note && <ExpandableNote text={t.note} />}
                         {isLoanTx && (
-                          <span onClick={(e) => { e.stopPropagation(); setShowCategoryTx(false); navigate(`/loans/${t.loanId}`); }} style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}>〔{t.loan?.name ?? '贷款'}〕</span>
+                          <span onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }} style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}>〔{t.loan?.name ?? '贷款'}〕</span>
                         )}
                         {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#ff8f1f' }}>〔{t.ledger.name}〕</span>}
                       </div>
@@ -1184,7 +1184,6 @@ export default function Stats() {
                                 <span
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setShowCategoryTx(false);
                                     navigate(`/loans/${t.loanId}`);
                                   }}
                                   style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}

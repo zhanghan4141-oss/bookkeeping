@@ -62,11 +62,12 @@ export default function App() {
   // web：浏览器返回/手势优先关弹窗（App 原生用 backButton 处理）
   useEffect(() => {
     if (Capacitor.isNativePlatform()) return;
-    // 弹窗打开时 usePopupBack 已 push 同 URL 占位：返回触发 popstate 时 URL 不变、组件不卸载，
-    // 只需关闭栈顶弹窗；无需 navigate 补偿（占位同 URL，URL 本身不会退到上一页）。
-    // 从弹窗跳转的场景由「跳转前先关闭弹窗」保证栈空，返回自然退到跳转前页。
-    const onPop = () => {
-      closeTopOverlay();
+    const onPop = (e: PopStateEvent) => {
+      // 退到「弹窗占位」(__overlay) = 返回页面、弹窗保留（React Router 已导航回弹窗所在页）；
+      // 退到普通条目 = 从占位退回 → 关闭栈顶弹窗（栈空时无害，浏览器自然后退）。
+      if (!e.state?.__overlay) {
+        closeTopOverlay();
+      }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
