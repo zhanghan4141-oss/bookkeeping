@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { TabActiveContext } from '../components/KeepAlive';
 import ExpandableNote from '../components/ExpandableNote';
 import TransferLedgerPopup from '../components/TransferLedgerPopup';
+import BatchModifyPopup from '../components/BatchModifyPopup';
 import { useBusy } from '../hooks/useBusy';
 import {
   Button,
@@ -15,7 +16,6 @@ import {
   NavBar,
   Picker,
   Popup,
-  Radio,
   SearchBar,
   SwipeAction,
   Toast,
@@ -103,9 +103,9 @@ export default function LedgerDetail() {
   const [searchField, setSearchField] = useState<'all' | 'category' | 'amount' | 'note'>('all');
   const [keyword, setKeyword] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  // 批量修改类别
-  const [batchCategoryOpen, setBatchCategoryOpen] = useState(false);
-  const [selCatId, setSelCatId] = useState('');
+  // 批量修改（类别/转移/备注）
+  const [batchModifyOpen, setBatchModifyOpen] = useState(false);
+  const [batchModifyTxIds, setBatchModifyTxIds] = useState<string[]>([]);
   const [showImport, setShowImport] = useState(false);
   const [importResult, setImportResult] = useState<{
     successCount: number;
@@ -394,33 +394,18 @@ export default function LedgerDetail() {
     }
   };
 
-  // 批量修改类别
-  const openBatchCategory = () => {
+  // 批量修改（类别/转移/备注）——打开时计算目标流水
+  const openBatchModify = () => {
     if (selectedIds.size === 0) return;
-    setSelCatId(categories.find((c) => c.type === 'expense')?.id ?? '');
-    setBatchCategoryOpen(true);
-  };
-
-  const handleBatchCategory = async () => {
-    if (!selCatId) {
-      Toast.show({ content: '请选择类别' });
-      return;
-    }
     const targetIds = filtered
       .filter((t) => selectedIds.has(t.id) && !t.loanId && !t.expensePlanId)
       .map((t) => t.id);
     if (!targetIds.length) {
-      Toast.show({ content: '所选流水不支持修改类别（贷款/支出计划流水除外）' });
+      Toast.show({ content: '所选流水不支持修改（贷款/支出计划流水除外）' });
       return;
     }
-    try {
-      await transactionApi.updateCategoryMany(id, targetIds, selCatId);
-      Toast.show({ content: '已修改类别' });
-      setBatchCategoryOpen(false);
-      refreshAll();
-    } catch (e: any) {
-      Toast.show({ content: e.response?.data?.message ?? '修改失败' });
-    }
+    setBatchModifyTxIds(targetIds);
+    setBatchModifyOpen(true);
   };
 
   // 打开编辑弹窗
@@ -614,8 +599,8 @@ export default function LedgerDetail() {
                   <Button size="mini" fill="outline" onClick={toggleSelectAll}>
                     {selectedIds.size === deletableFiltered.length ? '取消全选' : '全选'}
                   </Button>
-                  <Button size="mini" fill="outline" onClick={openBatchCategory} disabled={selectedIds.size === 0}>
-                    修改类别
+                  <Button size="mini" fill="outline" onClick={openBatchModify} disabled={selectedIds.size === 0}>
+                    修改
                   </Button>
                   <Button size="mini" color="danger" loading={batchBusy} onClick={() => runBatch(handleBatchDelete)} disabled={selectedIds.size === 0}>
                     删除选中
@@ -976,31 +961,19 @@ export default function LedgerDetail() {
         </div>
       </Popup>
 
-      {/* 批量修改类别弹窗 */}
-      <Popup
-        visible={batchCategoryOpen}
-        onMaskClick={() => setBatchCategoryOpen(false)}
+      {/* 批量修改弹窗（类别/转移/备注） */}
+      <BatchModifyPopup
+        visible={batchModifyOpen}
+        onClose={() => setBatchModifyOpen(false)}
+        ledgerId={id}
+        txIds={batchModifyTxIds}
         getContainer={() => pageRef.current ?? document.body}
         disableBodyScroll={isActive}
-        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
-      >
-        <div style={{ padding: 24 }}>
-          <h3 style={{ marginBottom: 8 }}>修改类别</h3>
-          <div className="text-secondary" style={{ fontSize: 13, marginBottom: 12 }}>
-            将把已选的 {selectedIds.size} 条流水设为所选类别（贷款/支出计划流水不参与，收支类别需与流水类型匹配）
-          </div>
-          <Radio.Group value={selCatId} onChange={(v) => setSelCatId(String(v))}>
-            {categories.map((c) => (
-              <Radio key={c.id} value={c.id} style={{ marginBottom: 6 }}>
-                {c.name}
-              </Radio>
-            ))}
-          </Radio.Group>
-          <Button block color="primary" onClick={handleBatchCategory} style={{ marginTop: 8 }}>
-            确定
-          </Button>
-        </div>
-      </Popup>
+        onChanged={() => {
+          setSelectedIds(new Set());
+          refreshAll();
+        }}
+      />
 
       {/* 导入流水弹窗 */}
       <Popup
