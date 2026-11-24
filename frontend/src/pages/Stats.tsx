@@ -9,7 +9,7 @@ import { ledgerApi } from '../api/ledger';
 import { transactionApi } from '../api/transaction';
 import Chart from '../components/Chart';
 import ExpandableNote from '../components/ExpandableNote';
-import LedgerSelectPopup from '../components/LedgerSelectPopup';
+import LedgerSelectPopup, { NONE_LEDGER_MARKER } from '../components/LedgerSelectPopup';
 import TransferLedgerPopup from '../components/TransferLedgerPopup';
 import BatchModifyPopup from '../components/BatchModifyPopup';
 import { useStatLedgerSelection } from '../stores/statLedgerSelection';
@@ -308,6 +308,7 @@ export default function Stats() {
   const deselectedIds = useStatLedgerSelection((s) => s.deselectedIds);
   const selectOne = useStatLedgerSelection((s) => s.selectOne);
   const toggle = useStatLedgerSelection((s) => s.toggle);
+  const setSelected = useStatLedgerSelection((s) => s.setSelected);
 
   // 统计日期范围（默认当前公历月）
   const [range, setRange] = useState(() => monthRangeOf(new Date(), 'solar'));
@@ -843,7 +844,7 @@ export default function Stats() {
           <div className="hide-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
             <span className="text-secondary" style={{ fontSize: 13, flexShrink: 0 }}>账本</span>
             {orderedLedgers.map((l) => {
-              const selected = selectedIds.includes(l.id);
+              const selected = selectedIds.length === 0 || selectedIds.includes(l.id);
               return (
                 <span
                   key={l.id}
@@ -1014,6 +1015,8 @@ export default function Stats() {
         ledgers={ledgers}
         selectedIds={selectedIds}
         onToggle={toggle}
+        onSelectAll={() => setSelected([])}
+        onSelectNone={() => setSelected([NONE_LEDGER_MARKER])}
         getContainer={() => pageRef.current ?? document.body}
       />
 

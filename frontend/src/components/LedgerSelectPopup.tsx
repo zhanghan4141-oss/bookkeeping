@@ -10,9 +10,16 @@ interface Props {
   ledgers: Ledger[];
   selectedIds: string[];
   onToggle: (id: string) => void;
+  /** 全选（所有账本参与统计） */
+  onSelectAll: () => void;
+  /** 全不选（0 个账本参与统计） */
+  onSelectNone: () => void;
   /** 弹窗渲染容器（keep-alive 下渲染回页面内，避免 display:none 藏不住 portal） */
   getContainer?: () => HTMLElement;
 }
+
+/** 表示「0 个账本」的哨兵 id：后端按 id 过滤时天然匹配不到任何账本 */
+export const NONE_LEDGER_MARKER = '__none__';
 
 /**
  * 账本多选弹窗：用于还款/统计页面选择参与统计的账本。
@@ -24,6 +31,8 @@ export default function LedgerSelectPopup({
   ledgers,
   selectedIds,
   onToggle,
+  onSelectAll,
+  onSelectNone,
   getContainer,
 }: Props) {
   // 打开弹窗时冻结一次顺序（选中置顶）；打开期间勾选不再重排
@@ -53,6 +62,8 @@ export default function LedgerSelectPopup({
   }, [ledgers, sortedIds]);
 
   const isActive = useContext(TabActiveContext);
+  // selectedIds 空 = 全部账本；否则为部分/0 个
+  const allSelected = selectedIds.length === 0;
 
   return (
     <Popup
@@ -65,7 +76,12 @@ export default function LedgerSelectPopup({
       <div style={{ padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span style={{ fontWeight: 600, fontSize: 16 }}>选择账本</span>
-          <span style={{ fontSize: 13, color: '#1677ff' }} onClick={onClose}>完成</span>
+          <span
+            style={{ fontSize: 13, color: '#1677ff', cursor: 'pointer' }}
+            onClick={allSelected ? onSelectNone : onSelectAll}
+          >
+            {allSelected ? '全不选' : '全选'}
+          </span>
         </div>
         <div style={{ maxHeight: '50vh', overflowY: 'auto' }}>
           {sorted.map((l) => (
@@ -81,7 +97,7 @@ export default function LedgerSelectPopup({
               onClick={() => onToggle(l.id)}
             >
               <span style={{ fontSize: 14 }}>{l.name}</span>
-              <Checkbox checked={selectedIds.includes(l.id)} />
+              <Checkbox checked={selectedIds.length === 0 || selectedIds.includes(l.id)} />
             </div>
           ))}
           {ledgers.length === 0 && (

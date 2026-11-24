@@ -7,7 +7,7 @@ import { loanApi } from '../api/loan';
 import { expensePlanApi } from '../api/expense';
 import { ledgerApi } from '../api/ledger';
 import { useRepaymentLedgerSelection } from '../stores/repaymentLedgerSelection';
-import LedgerSelectPopup from '../components/LedgerSelectPopup';
+import LedgerSelectPopup, { NONE_LEDGER_MARKER } from '../components/LedgerSelectPopup';
 import ExpandableNote from '../components/ExpandableNote';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { useBusy } from '../hooks/useBusy';
@@ -120,6 +120,7 @@ export default function Repayments() {
   const selectedIds = useRepaymentLedgerSelection((s) => s.selectedIds);
   const deselectedIds = useRepaymentLedgerSelection((s) => s.deselectedIds);
   const toggle = useRepaymentLedgerSelection((s) => s.toggle);
+  const setSelected = useRepaymentLedgerSelection((s) => s.setSelected);
   const [showPicker, setShowPicker] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
   // 截止日期选择弹窗
@@ -405,7 +406,7 @@ export default function Repayments() {
           <div className="hide-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
             <span className="text-secondary" style={{ fontSize: 13, flexShrink: 0 }}>账本</span>
             {orderedLedgers.map((l) => {
-              const selected = selectedIds.includes(l.id);
+              const selected = selectedIds.length === 0 || selectedIds.includes(l.id);
               return (
                 <span
                   key={l.id}
@@ -617,6 +618,8 @@ export default function Repayments() {
         ledgers={ledgers}
         selectedIds={selectedIds}
         onToggle={toggle}
+        onSelectAll={() => setSelected([])}
+        onSelectNone={() => setSelected([NONE_LEDGER_MARKER])}
       />
 
       {/* 统计截止时间选择弹窗 */}
