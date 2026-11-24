@@ -112,6 +112,9 @@ export class ExpensePlanService {
     if (period.status === 'paid') throw new BadRequestException('该期已标记支出');
 
     const paidDate = dto.paidDate ? new Date(dto.paidDate) : todayMidnight();
+    if (paidDate > new Date()) {
+      throw new BadRequestException('支出日期不能晚于今天');
+    }
     const amount = dto.amount ?? Number(period.amount);
     const baseAmount = Number(period.amount);
 
@@ -300,30 +303,27 @@ export class ExpensePlanService {
       for (const p of periods) {
         const orig = plan.periods.find((x) => x.periodNo === p.periodNo);
         if (!orig) throw new BadRequestException(`第${p.periodNo}期不存在`);
-        if (orig.status === 'paid') {
-          if (fmtDay(new Date(p.dueDate)) !== fmtDay(orig.dueDate)) {
-            throw new BadRequestException(`第${p.periodNo}期已支出，请先撤销支出再修改日期`);
-          }
-          if (Math.abs(Number(p.amount) - Number(orig.amount)) > 0.005) {
-            throw new BadRequestException(`第${p.periodNo}期已支出，请先撤销支出再修改金额`);
-          }
-          prevDue = orig.dueDate;
-          continue;
-        }
         let effDue = new Date(p.dueDate);
         if (prevDue && effDue <= prevDue) {
           effDue = new Date(prevDue.getTime() + DAY_MS);
         }
         prevDue = effDue;
         const amount = new Prisma.Decimal(p.amount);
+        // 操作过（已支出且提前标记）→ 只改计划行，流水冻结；一致/未支出 → 流水同步
+        const diverged =
+          orig.status === 'paid' &&
+          orig.paidDate != null &&
+          fmtDay(orig.paidDate) !== fmtDay(orig.dueDate);
         await tx.expensePlanPeriod.update({
           where: { id: orig.id },
           data: { dueDate: effDue, amount },
         });
-        await tx.transaction.updateMany({
-          where: { expensePlanPeriodId: orig.id },
-          data: { occurredAt: effDue, amount },
-        });
+        if (!diverged) {
+          await tx.transaction.updateMany({
+            where: { expensePlanPeriodId: orig.id },
+            data: { occurredAt: effDue, amount },
+          });
+        }
       }
     });
     await this.recalcPlanStatus(id);
@@ -412,9 +412,16 @@ export class ExpensePlanService {
 
   /** 附加派生统计：总期数 / 已支出期数 / 已支出金额 / 待支出金额 */
   private withDerived(plan: {
-    periods: { status: string; amount: Prisma.Decimal }[];
+    periods: { status: string; amount: Prisma.Decimal; dueDate: Date; paidDate: Date | null }[];
   }) {
-    const periods = plan.periods;
+    const periods = plan.periods.map((p) => ({
+      ...p,
+      // 操作过：已支出且实际日期偏离到期日（提前标记）
+      diverged:
+        p.status === 'paid' &&
+        p.paidDate != null &&
+        fmtDay(p.paidDate) !== fmtDay(p.dueDate),
+    }));
     const paid = periods.filter((p) => p.status === 'paid');
     const paidCount = paid.length;
     const totalPaid = paid.reduce((s, p) => s + Number(p.amount), 0);
@@ -423,6 +430,7 @@ export class ExpensePlanService {
       .reduce((s, p) => s + Number(p.amount), 0);
     return {
       ...plan,
+      periods,
       totalCount: periods.length,
       paidCount,
       pendingCount: periods.length - paidCount,

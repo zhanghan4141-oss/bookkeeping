@@ -172,59 +172,42 @@ export class LoanService {
       return x.toISOString().slice(0, 10);
     };
 
-    // 已还期按日期键映射（支持期号平移/末尾追加，不再依赖 periodNo）
-    const paidByDate = new Map<string, (typeof loan.repayments)[number]>();
-    for (const r of loan.repayments) {
-      if (r.kind === 'period' && Number(r.paidAmount) > 0) {
-        const k = fmtDay(r.dueDate);
-        if (!paidByDate.has(k)) paidByDate.set(k, r);
+    // 提前还款日期不能晚于今天（提前还只可能是今天/过去）
+    for (const p of prepayEntries) {
+      if (p.dueDate > new Date()) {
+        throw new BadRequestException('提前还款日期不能晚于今天');
       }
     }
-    // 已发生的提前还款（paidAmount>0）日期集
-    const paidPrepayDates = new Set(
-      loan.repayments
-        .filter((r) => r.kind === 'prepay' && Number(r.paidAmount) > 0)
-        .map((r) => fmtDay(r.dueDate)),
-    );
-    const oldPrepayByDate = new Map(
+
+    // 已还的普通期按期号映射（期数固定，期号即顺序，支持改日期）
+    const oldPaidByPeriodNo = new Map<number, (typeof loan.repayments)[number]>();
+    for (const r of loan.repayments) {
+      if (r.kind === 'period' && Number(r.paidAmount) > 0) {
+        oldPaidByPeriodNo.set(r.periodNo, r);
+      }
+    }
+    // 已发生的提前还款（paidAmount>0）按日期映射
+    const oldPaidPrepayByDate = new Map(
       loan.repayments
         .filter((r) => r.kind === 'prepay' && Number(r.paidAmount) > 0)
         .map((r) => [fmtDay(r.dueDate), r]),
     );
+    const newPrepayDates = new Set(prepayEntries.map((p) => fmtDay(p.dueDate)));
+    // 保留的提前还（旧已发生且仍在计划里）日期集；被删除的提前还 → 流水随之删除
+    const keptPrepayDates = new Set(
+      [...oldPaidPrepayByDate.keys()].filter((k) => newPrepayDates.has(k)),
+    );
 
-    // ===== 一致性校验：已还期/已发生提前还款不允许删除、改日期、改金额 =====
-    // （其流水保留原样，计划若被改会造成计划与流水不一致）
-    const newPeriodByDate = new Map(periodEntries.map((p) => [fmtDay(p.dueDate), p]));
-    for (const k of paidByDate.keys()) {
-      const n = newPeriodByDate.get(k);
-      if (!n) {
-        throw new BadRequestException(
-          `已标记还款的期不能删除或修改还款日期，请先撤销还款再编辑`,
-        );
-      }
-      if (Math.abs(Number(n.totalAmount) - Number(paidByDate.get(k)!.totalAmount)) > 0.005) {
-        throw new BadRequestException(
-          `已标记还款的期修改金额需先撤销还款后再编辑`,
-        );
-      }
-    }
-    const newPrepayByDate = new Map(prepayEntries.map((p) => [fmtDay(p.dueDate), p]));
-    for (const k of paidPrepayDates) {
-      if (!newPrepayByDate.has(k)) {
-        throw new BadRequestException(
-          '已发生的提前还款不能删除或修改日期，请先撤销还款再编辑',
-        );
-      }
-      const old = oldPrepayByDate.get(k)!;
-      if (Math.abs(Number(newPrepayByDate.get(k)!.totalAmount) - Number(old.totalAmount)) > 0.005) {
-        throw new BadRequestException(
-          '已发生的提前还款修改金额需先撤销还款后再编辑',
-        );
-      }
-    }
+    // 「操作过」（与计划不一致）：提前还款恒为真；普通期按实际日期/金额偏离判定
+    const isDiverged = (r: (typeof loan.repayments)[number]): boolean => {
+      if (r.kind === 'prepay') return true;
+      const paidDay = r.paidDate ? fmtDay(r.paidDate) : null;
+      if (paidDay && paidDay !== fmtDay(r.dueDate)) return true;
+      return Number(r.paidAmount) !== Number(r.totalAmount);
+    };
 
     await this.prisma.$transaction(async (tx) => {
-      // 保留已还期/已发生提前还款对应的流水（原 id/日期/金额），其余删除重建
+      // 保留「操作过」已还期/仍保留的提前还款对应的流水（原 id/日期/金额），其余删除重建
       const existingTx = await tx.transaction.findMany({
         where: { loanId },
         select: {
@@ -242,15 +225,18 @@ export class LoanService {
       const isRepayNote = (note: string | null) =>
         ['还款本金', '还款利息', '还款'].some((p) => note?.startsWith(p)) ||
         note?.includes('提前还款');
-      for (const [k, r] of paidByDate) {
+      // 操作过的普通期 → 保留流水（一致期不保留，随重建同步为新计划）
+      for (const [periodNo, r] of oldPaidByPeriodNo) {
+        if (!isDiverged(r)) continue;
+        const at = new Set([fmtDay(r.dueDate)]);
+        if (r.paidDate) at.add(fmtDay(r.paidDate));
         for (const t of existingTx) {
           if (preservedIds.has(t.id) || t.type !== 'expense' || !isRepayNote(t.note)) continue;
-          const at = new Set([k]);
-          if (r.paidDate) at.add(fmtDay(r.paidDate));
           if (at.has(fmtDay(t.occurredAt))) preservedIds.add(t.id);
         }
       }
-      for (const k of paidPrepayDates) {
+      // 保留仍在计划里的提前还款流水（被删除的提前还 → 流水随之删除）
+      for (const k of keptPrepayDates) {
         for (const t of existingTx) {
           if (preservedIds.has(t.id) || t.type !== 'expense' || !isRepayNote(t.note)) continue;
           if (fmtDay(t.occurredAt) === k) preservedIds.add(t.id);
@@ -263,17 +249,39 @@ export class LoanService {
       });
       await tx.loanRepayment.deleteMany({ where: { loanId } });
 
-      // 重建各期（已还期按日期键继承 paidAmount/status/paidDate；金额变更已被校验拦截）
+      // 重建各期：一致已还期 → 同步为新计划（金额/日期/paidDate）；操作过已还期 → 计划更新、实际冻结
       await tx.loanRepayment.createMany({
         data: periodEntries.map((p, i) => {
           const periodNo = i + 1;
-          const paid = paidByDate.get(fmtDay(p.dueDate));
+          const old = oldPaidByPeriodNo.get(periodNo);
           const totalAmount = p.totalAmount;
-          // 若该期已还，且新的总额小于已还金额，则报错
-          if (paid && Number(paid.paidAmount) > totalAmount + 0.005) {
-            throw new BadRequestException(
-              `第${periodNo}期已还 ${paid.paidAmount} 元，不能小于已还金额`,
-            );
+          if (old && isDiverged(old)) {
+            // 操作过：只改计划行，实际（paidAmount/paidDate）保持原样
+            return {
+              loanId,
+              periodNo,
+              dueDate: p.dueDate,
+              principalAmount: new Prisma.Decimal(p.principal),
+              interestAmount: new Prisma.Decimal(p.interest),
+              totalAmount: new Prisma.Decimal(totalAmount),
+              paidAmount: old.paidAmount,
+              status: Number(old.paidAmount) >= totalAmount - 0.005 ? 'paid' : 'partial',
+              paidDate: old.paidDate,
+            };
+          }
+          if (old) {
+            // 一致：流水/计划同步，视为按新计划足额还
+            return {
+              loanId,
+              periodNo,
+              dueDate: p.dueDate,
+              principalAmount: new Prisma.Decimal(p.principal),
+              interestAmount: new Prisma.Decimal(p.interest),
+              totalAmount: new Prisma.Decimal(totalAmount),
+              paidAmount: new Prisma.Decimal(totalAmount),
+              status: 'paid',
+              paidDate: p.dueDate,
+            };
           }
           return {
             loanId,
@@ -282,23 +290,19 @@ export class LoanService {
             principalAmount: new Prisma.Decimal(p.principal),
             interestAmount: new Prisma.Decimal(p.interest),
             totalAmount: new Prisma.Decimal(totalAmount),
-            paidAmount: paid ? paid.paidAmount : new Prisma.Decimal(0),
-            status: paid
-              ? Number(paid.paidAmount) >= totalAmount - 0.005
-                ? 'paid'
-                : 'partial'
-              : 'pending',
-            paidDate: paid ? paid.paidDate : null,
+            paidAmount: new Prisma.Decimal(0),
+            status: 'pending',
+            paidDate: null,
           };
         }),
       });
 
-      // 重建提前还款条目：时间未到（dueDate 在未来）→ 生成「待还的额外计划」；
-      // 当天/已过 → 记作已还（已发生条目经校验后日期/金额不变）
+      // 重建提前还款条目（未来日期已在上方拒绝，一律记为已还；保留的继承原实际）
       if (prepayEntries.length > 0) {
         await tx.loanRepayment.createMany({
           data: prepayEntries.map((p, i) => {
-            const isFuture = p.dueDate > new Date();
+            const old = oldPaidPrepayByDate.get(fmtDay(p.dueDate));
+            const paidAmount = old ? old.paidAmount : new Prisma.Decimal(p.totalAmount);
             return {
               loanId,
               periodNo: 10000 + i + 1,
@@ -307,19 +311,20 @@ export class LoanService {
               principalAmount: new Prisma.Decimal(p.principal),
               interestAmount: new Prisma.Decimal(p.interest),
               totalAmount: new Prisma.Decimal(p.totalAmount),
-              paidAmount: new Prisma.Decimal(isFuture ? 0 : p.totalAmount),
-              status: isFuture ? 'pending' : 'paid',
-              paidDate: isFuture ? null : p.dueDate,
+              paidAmount,
+              status: Number(paidAmount) >= p.totalAmount - 0.005 ? 'paid' : 'partial',
+              paidDate: old ? old.paidDate : p.dueDate,
               note: '提前还款',
             };
           }),
         });
       }
 
-      // 写流水：放款收入 + 每期还款总额（跳过已还期——其流水已保留，避免重写回计划日期）
-      const paidNos = new Set<number>();
+      // 写流水：放款收入 + 每期还款（跳过「操作过」已还期——其流水已保留；一致期同步重写为新计划）
+      const skipNos = new Set<number>();
       periodEntries.forEach((p, i) => {
-        if (paidByDate.has(fmtDay(p.dueDate))) paidNos.add(i + 1);
+        const old = oldPaidByPeriodNo.get(i + 1);
+        if (old && isDiverged(old)) skipNos.add(i + 1);
       });
       await this.writeLoanTransactions(
         userId,
@@ -336,7 +341,7 @@ export class LoanService {
             totalAmount: p.totalAmount,
           })),
           loanNote: loan.note,
-          skipPeriodNos: paidNos,
+          skipPeriodNos: skipNos,
         },
         tx,
       );
@@ -356,7 +361,7 @@ export class LoanService {
           'expense',
         );
         for (const p of prepayEntries) {
-          if (paidPrepayDates.has(fmtDay(p.dueDate))) continue;
+          if (keptPrepayDates.has(fmtDay(p.dueDate))) continue;
           if (principalCategory && p.principal > 0) {
             await tx.transaction.create({
               data: {
@@ -409,6 +414,9 @@ export class LoanService {
     if (loan.status === 'paid_off') throw new BadRequestException('贷款已还清');
 
     const prepayDate = new Date(dto.prepayDate);
+    if (prepayDate > new Date()) {
+      throw new BadRequestException('提前还款日期不能晚于今天');
+    }
 
     // ===== 自定义贷款：纯记账，追加一条已还的「提前还款」计划记录 + 本金/利息流水 =====
     if (loan.repaymentMethod === 'custom') {
@@ -1096,6 +1104,7 @@ export class LoanService {
       kind: string;
       status: string;
       dueDate: Date;
+      paidDate: Date | null;
       principalAmount: Prisma.Decimal;
       interestAmount: Prisma.Decimal;
       totalAmount: Prisma.Decimal;
@@ -1167,8 +1176,20 @@ export class LoanService {
       }
     }
 
+    const fmtDay = (d: Date) => d.toISOString().slice(0, 10);
+    // 「操作过」（与计划不一致）：提前还款恒为真；普通期按实际日期/金额偏离判定
+    const repayments = loan.repayments.map((r) => ({
+      ...r,
+      diverged:
+        r.kind === 'prepay' ||
+        (Number(r.paidAmount) > 0 &&
+          ((r.paidDate != null && fmtDay(r.paidDate) !== fmtDay(r.dueDate)) ||
+            Number(r.paidAmount) !== Number(r.totalAmount))),
+    }));
+
     return {
       ...loan,
+      repayments,
       actualAnnualRate: xirr === null ? null : Math.round(xirr * 10000) / 100,
       remainingPrincipal: Math.round(remainingPrincipal * 100) / 100,
       remainingInterest: Math.round(remainingInterest * 100) / 100,

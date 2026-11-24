@@ -27,10 +27,10 @@ export default function ExpensePlanDetail() {
   const [paying, setPaying] = useState<ExpensePlanPeriod | null>(null);
   const [payAmount, setPayAmount] = useState('');
   const [payDate, setPayDate] = useState(() => formatDate(new Date()));
-  // 逐期编辑（镜像贷款编辑计划：已支出期不可改）
+  // 逐期编辑（已支出期：一致可同步流水；提前标记的操作过期只改计划、流水冻结）
   const [editingPlan, setEditingPlan] = useState(false);
   const [editPeriods, setEditPeriods] = useState<
-    { periodNo: number; dueDate: string; amount: string; status: string }[]
+    { periodNo: number; dueDate: string; amount: string; status: string; diverged?: boolean; paidDate?: string | null }[]
   >([]);
   // 耗时操作按钮 loading
   const { busy: exportBusy, run: runExport } = useBusy();
@@ -114,6 +114,8 @@ export default function ExpensePlanDetail() {
         dueDate: p.dueDate.slice(0, 10),
         amount: String(p.amount),
         status: p.status,
+        diverged: p.diverged,
+        paidDate: p.paidDate,
       })),
     );
     setEditingPlan(true);
@@ -258,46 +260,46 @@ export default function ExpensePlanDetail() {
           <div style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
             {editPeriods.map((p) => {
               const isPaid = p.status === 'paid';
+              const diverged = p.diverged === true;
               return (
-                <div key={p.periodNo} style={{ marginBottom: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span style={{ width: 60, fontSize: 13, color: '#666', flexShrink: 0 }}>
-                    第{p.periodNo}期{isPaid ? '✓' : ''}
-                  </span>
-                  {isPaid ? (
-                    <span style={{ flex: 1, fontSize: 13, color: '#999' }}>
-                      {p.dueDate} · ¥{p.amount}（已支出，不可改）
+                <div key={p.periodNo} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: diverged ? '#f9f0ff' : undefined, borderRadius: 6, padding: '4px 6px' }}>
+                    <span style={{ width: 60, fontSize: 13, color: '#666', flexShrink: 0 }}>
+                      第{p.periodNo}期{isPaid ? '✓' : ''}
                     </span>
-                  ) : (
-                    <>
-                      <div style={{ width: 116, flexShrink: 0 }}>
-                        <DatePicker
-                          value={p.dueDate ? new Date(p.dueDate) : new Date()}
-                          onConfirm={(v) => {
-                            const d = formatDate(v);
-                            setEditPeriods((prev) =>
-                              prev.map((x) => (x.periodNo === p.periodNo ? { ...x, dueDate: d } : x)),
-                            );
-                          }}
-                        >
-                          {(_value, actions) => (
-                            <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
-                              {p.dueDate || '日期'}
-                            </div>
-                          )}
-                        </DatePicker>
-                      </div>
-                      <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>金额</span>
-                      <Input
-                        type="number"
-                        value={p.amount}
-                        onChange={(v) =>
+                    <div style={{ width: 116, flexShrink: 0 }}>
+                      <DatePicker
+                        value={p.dueDate ? new Date(p.dueDate) : new Date()}
+                        onConfirm={(v) => {
+                          const d = formatDate(v);
                           setEditPeriods((prev) =>
-                            prev.map((x) => (x.periodNo === p.periodNo ? { ...x, amount: v } : x)),
-                          )
-                        }
-                        style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
-                      />
-                    </>
+                            prev.map((x) => (x.periodNo === p.periodNo ? { ...x, dueDate: d } : x)),
+                          );
+                        }}
+                      >
+                        {(_value, actions) => (
+                          <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
+                            {p.dueDate || '日期'}
+                          </div>
+                        )}
+                      </DatePicker>
+                    </div>
+                    <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>金额</span>
+                    <Input
+                      type="number"
+                      value={p.amount}
+                      onChange={(v) =>
+                        setEditPeriods((prev) =>
+                          prev.map((x) => (x.periodNo === p.periodNo ? { ...x, amount: v } : x)),
+                        )
+                      }
+                      style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                    />
+                  </div>
+                  {diverged && p.paidDate && (
+                    <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
+                      实际支出日 {p.paidDate.slice(0, 10)}
+                    </div>
                   )}
                 </div>
               );

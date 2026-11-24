@@ -19,9 +19,18 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 };
 
 /** 编辑还款计划时的一行：普通期与提前还款都编辑本金/利息 */
-type EditPlanRow =
-  | { kind: 'period'; periodNo?: number; dueDate: string; principal: string; interest: string }
-  | { kind: 'prepay'; periodNo?: number; dueDate: string; principal: string; interest: string };
+type EditPlanRow = {
+  kind: 'period' | 'prepay';
+  periodNo?: number;
+  dueDate: string;
+  principal: string;
+  interest: string;
+  /** 操作过（提前还/提前标记）：编辑时只改计划、流水冻结 */
+  diverged?: boolean;
+  paidAmount?: string;
+  paidDate?: string | null;
+  status?: string;
+};
 
 export default function LoanDetail() {
   const { id = '' } = useParams();
@@ -271,14 +280,21 @@ export default function LoanDetail() {
     const doStart = () => {
       setEditPeriods(
         loan.repayments.map((r): EditPlanRow => {
+          const base = {
+            dueDate: r.dueDate.slice(0, 10),
+            diverged: r.diverged,
+            paidAmount: r.paidAmount,
+            paidDate: r.paidDate,
+            status: r.status,
+          };
           if (r.kind === 'prepay') {
             const P = Number(r.principalAmount);
             const I = Number(r.interestAmount);
             // 历史提前还款（本金/利息都为 0 仅总额）→ 全额当本金回填
             if (P === 0 && I === 0) {
-              return { kind: 'prepay', dueDate: r.dueDate.slice(0, 10), principal: r.totalAmount, interest: '0' };
+              return { kind: 'prepay', ...base, principal: r.totalAmount, interest: '0' };
             }
-            return { kind: 'prepay', dueDate: r.dueDate.slice(0, 10), principal: r.principalAmount, interest: r.interestAmount };
+            return { kind: 'prepay', ...base, principal: r.principalAmount, interest: r.interestAmount };
           }
           const P = Number(r.principalAmount);
           const I = Number(r.interestAmount);
@@ -287,7 +303,7 @@ export default function LoanDetail() {
             return {
               kind: 'period',
               periodNo: r.periodNo,
-              dueDate: r.dueDate.slice(0, 10),
+              ...base,
               principal: r.totalAmount,
               interest: '0',
             };
@@ -295,7 +311,7 @@ export default function LoanDetail() {
           return {
             kind: 'period',
             periodNo: r.periodNo,
-            dueDate: r.dueDate.slice(0, 10),
+            ...base,
             principal: r.principalAmount,
             interest: r.interestAmount,
           };
@@ -428,16 +444,72 @@ export default function LoanDetail() {
         {editingPlan ? (
           <div style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
             {editPeriods.map((p, i) => {
-              const orig = loan.repayments[i];
-              // 已还（status=paid）的期也可编辑：后端 updateRepayments 支持改已还期并校验下限
-              const isPaid = orig ? orig.status === 'paid' : false;
+              const isPaid = p.status === 'paid';
               const setRow = (patch: Partial<EditPlanRow>) =>
                 setEditPeriods((prev) => prev.map((x, j) => (j === i ? { ...x, ...patch } : x) as EditPlanRow));
+              const removeRow = () => {
+                Dialog.confirm({
+                  content: '撤销该笔提前还款？其对应流水将被删除。',
+                  onConfirm: () => setEditPeriods((prev) => prev.filter((_, j) => j !== i)),
+                });
+              };
+              const actualInfo =
+                p.paidAmount && Number(p.paidAmount) > 0 ? (
+                  <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
+                    实际已还 ¥{formatMoney(Number(p.paidAmount))} @ {p.paidDate?.slice(0, 10) ?? '—'}
+                  </div>
+                ) : null;
               if (p.kind === 'prepay') {
                 return (
-                  <div key={i} style={{ marginBottom: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <span style={{ width: 56, fontSize: 13, color: '#a855f7', flexShrink: 0 }}>
-                      提前还款
+                  <div key={i} style={{ marginBottom: 8 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: isPaid ? '#f9f0ff' : undefined, borderRadius: 6, padding: '4px 6px' }}>
+                      <span style={{ width: 56, fontSize: 13, color: '#a855f7', flexShrink: 0 }}>
+                        提前还款
+                      </span>
+                      <div style={{ width: 92, flexShrink: 0 }}>
+                        <DatePicker
+                          value={p.dueDate ? new Date(p.dueDate) : new Date()}
+                          max={new Date()}
+                          onConfirm={(v) => {
+                            const date = formatDate(v);
+                            setRow({ dueDate: date });
+                          }}
+                        >
+                          {(_value, actions) => (
+                            <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
+                              {p.dueDate || '日期'}
+                            </div>
+                          )}
+                        </DatePicker>
+                      </div>
+                      <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>本金</span>
+                      <Input
+                        type="number"
+                        placeholder="本金"
+                        value={p.principal}
+                        onChange={(v) => setRow({ principal: v })}
+                        style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                      />
+                      <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>利息</span>
+                      <Input
+                        type="number"
+                        placeholder="利息"
+                        value={p.interest}
+                        onChange={(v) => setRow({ interest: v })}
+                        style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                      />
+                      <span onClick={removeRow} style={{ fontSize: 16, color: '#ff4d4f', flexShrink: 0, padding: '0 2px', lineHeight: 1 }}>×</span>
+                    </div>
+                    {actualInfo}
+                  </div>
+                );
+              }
+              return (
+                <div key={i} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: p.diverged ? '#f9f0ff' : undefined, borderRadius: 6, padding: '4px 6px' }}>
+                    {/* 单行：期号 + 缩窄日期 + 本金 + 利息 */}
+                    <span style={{ width: 56, fontSize: 13, color: '#666', flexShrink: 0 }}>
+                      第{p.periodNo}期{isPaid ? '✓' : ''}
                     </span>
                     <div style={{ width: 92, flexShrink: 0 }}>
                       <DatePicker
@@ -471,45 +543,7 @@ export default function LoanDetail() {
                       style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
                     />
                   </div>
-                );
-              }
-              return (
-                <div key={i} style={{ marginBottom: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
-                  {/* 单行：期号 + 缩窄日期 + 本金 + 利息 */}
-                  <span style={{ width: 56, fontSize: 13, color: '#666', flexShrink: 0 }}>
-                    第{p.periodNo}期{isPaid ? '✓' : ''}
-                  </span>
-                  <div style={{ width: 92, flexShrink: 0 }}>
-                    <DatePicker
-                      value={p.dueDate ? new Date(p.dueDate) : new Date()}
-                      onConfirm={(v) => {
-                        const date = formatDate(v);
-                        setRow({ dueDate: date });
-                      }}
-                    >
-                      {(_value, actions) => (
-                        <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
-                          {p.dueDate || '日期'}
-                        </div>
-                      )}
-                    </DatePicker>
-                  </div>
-                  <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>本金</span>
-                  <Input
-                    type="number"
-                    placeholder="本金"
-                    value={p.principal}
-                    onChange={(v) => setRow({ principal: v })}
-                    style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
-                  />
-                  <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>利息</span>
-                  <Input
-                    type="number"
-                    placeholder="利息"
-                    value={p.interest}
-                    onChange={(v) => setRow({ interest: v })}
-                    style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
-                  />
+                  {actualInfo}
                 </div>
               );
             })}
@@ -653,6 +687,7 @@ export default function LoanDetail() {
             <DatePicker
               precision="day"
               value={new Date(prepayDate)}
+              max={new Date()}
               onConfirm={(v) => v && setPrepayDate(formatDate(v))}
             >
               {(value, actions) => (

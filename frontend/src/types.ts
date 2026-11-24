@@ -74,6 +74,8 @@ export interface LoanRepayment {
   status: 'pending' | 'partial' | 'paid' | 'overdue';
   paidDate: string | null;
   note?: string | null;
+  /** 是否「操作过」（提前还/提前标记）：编辑计划时该期只改计划、流水冻结 */
+  diverged?: boolean;
 }
 
 export interface Loan {
@@ -104,6 +106,8 @@ export interface ExpensePlanPeriod {
   status: 'pending' | 'paid';
   paidDate: string | null;
   note?: string | null;
+  /** 是否「操作过」（提前标记支出）：编辑计划时该期只改计划、流水冻结 */
+  diverged?: boolean;
 }
 
 export interface ExpensePlan {
