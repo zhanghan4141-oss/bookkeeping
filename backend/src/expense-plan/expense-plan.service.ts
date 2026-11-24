@@ -293,6 +293,8 @@ export class ExpensePlanService {
   }
 
   async findAll(ledgerId: string) {
+    // 到期自动已支出（镜像贷款 autoSettleExpired：到期日已过的未支出期自动记为已支出）
+    await this.autoMarkExpiredByLedger(ledgerId);
     const plans = await this.prisma.expensePlan.findMany({
       where: { ledgerId },
       include: { category: { select: { id: true, name: true } }, periods: { orderBy: { periodNo: 'asc' } } },
@@ -302,12 +304,33 @@ export class ExpensePlanService {
   }
 
   async findOne(id: string) {
+    await this.autoMarkExpired(id);
     const plan = await this.prisma.expensePlan.findUnique({
       where: { id },
       include: { category: { select: { id: true, name: true } }, periods: { orderBy: { periodNo: 'asc' } } },
     });
     if (!plan) throw new NotFoundException('支出计划不存在');
     return this.withDerived(plan);
+  }
+
+  /** 到期自动已支出：到期日已过的未支出期置为已支出（paidDate=到期日，流水时间本就在该日） */
+  private async autoMarkExpired(planId: string) {
+    const today = todayMidnight();
+    await this.prisma.$executeRaw`
+      UPDATE \`ExpensePlanPeriod\`
+      SET \`status\` = 'paid', \`paidDate\` = \`dueDate\`
+      WHERE \`planId\` = ${planId} AND \`dueDate\` < ${today} AND \`status\` = 'pending'
+    `;
+  }
+
+  private async autoMarkExpiredByLedger(ledgerId: string) {
+    const today = todayMidnight();
+    await this.prisma.$executeRaw`
+      UPDATE \`ExpensePlanPeriod\` p
+      JOIN \`ExpensePlan\` e ON e.\`id\` = p.\`planId\`
+      SET p.\`status\` = 'paid', p.\`paidDate\` = p.\`dueDate\`
+      WHERE e.\`ledgerId\` = ${ledgerId} AND p.\`dueDate\` < ${today} AND p.\`status\` = 'pending'
+    `;
   }
 
   /** 导出支出计划 Excel（镜像导出还款计划） */
