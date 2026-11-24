@@ -59,6 +59,23 @@ export default function App() {
     };
   }, [location.pathname, navigate]);
 
+  // web：浏览器返回/手势优先关弹窗（App 原生用 backButton 处理）
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return;
+    const onPop = () => {
+      if (closeTopOverlay()) {
+        // 返回已触发：关弹窗后回填同 URL 占位，抵消后退、留在当前页
+        try {
+          window.history.pushState(window.history.state, '', window.location.href);
+        } catch {
+          // ignore
+        }
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
   // 启动时检查 App 更新（网页端自动跳过）
   useEffect(() => {
     checkAppUpdate();
