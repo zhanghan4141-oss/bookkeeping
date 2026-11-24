@@ -16,6 +16,7 @@ import { useStatLedgerSelection } from '../stores/statLedgerSelection';
 import { TabActiveContext } from '../components/KeepAlive';
 import type { Ledger, StatSummary, Transaction } from '../types';
 import { formatMoney } from '../lib/format';
+import { usePopupBack } from '../hooks/usePopupBack';
 
 function fmtDate(d: Date): string {
   const y = d.getFullYear();
@@ -286,6 +287,8 @@ export default function Stats() {
   const isActive = useContext(TabActiveContext);
   const [calendar, setCalendar] = useState<'solar' | 'lunar'>('solar');
   const [showRangePicker, setShowRangePicker] = useState(false);
+
+  usePopupBack(showRangePicker, () => setShowRangePicker(false));
   const [showLedgerPicker, setShowLedgerPicker] = useState(false);
   const [tempStart, setTempStart] = useState('');
   const [tempEnd, setTempEnd] = useState('');
@@ -354,6 +357,8 @@ export default function Stats() {
 
   // 点开的类别（弹窗用）
   const [showCategoryTx, setShowCategoryTx] = useState(false);
+
+  usePopupBack(showCategoryTx, () => setShowCategoryTx(false));
   const [activeCategory, setActiveCategory] = useState<{
     categoryId: string;
     name: string;
@@ -408,6 +413,8 @@ export default function Stats() {
   // 类别详情：批量选择 + 编辑 + 转移 + 批量改类别
   const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+
+  usePopupBack(!!editingTx, () => setEditingTx(null));
   const [editForm, setEditForm] = useState({ type: 'expense', amount: '', note: '' });
   const [expandedCategoryDates, setExpandedCategoryDates] = useState<Set<string>>(new Set());
   // 转移流水

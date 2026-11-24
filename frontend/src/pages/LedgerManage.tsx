@@ -5,6 +5,7 @@ import { Button, Input, List, NavBar, Popup, Toast } from 'antd-mobile';
 import { TabActiveContext } from '../components/KeepAlive';
 import { ledgerApi } from '../api/ledger';
 import type { Ledger } from '../types';
+import { usePopupBack } from '../hooks/usePopupBack';
 
 const ICON_OPTIONS = ['📒', '📕', '📗', '📘', '💰', '💳', '📁', '🏠', '🚗', '🛒', '💊', '🎓', '✈️', '🎁'];
 const COLOR_OPTIONS = ['#1677ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2', '#eb2f96', '#999999'];
@@ -27,6 +28,9 @@ export default function LedgerManage() {
   // 删除账本（输入账本名二次确认）
   const [deleting, setDeleting] = useState<Ledger | null>(null);
   const [deleteName, setDeleteName] = useState('');
+
+  usePopupBack(!!editing, () => setEditing(null));
+  usePopupBack(!!deleting, () => setDeleting(null));
 
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],

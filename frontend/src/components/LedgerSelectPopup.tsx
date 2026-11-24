@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { Checkbox, Popup } from 'antd-mobile';
 import type { Ledger } from '../types';
 import { TabActiveContext } from './KeepAlive';
+import { usePopupBack } from '../hooks/usePopupBack';
 
 interface Props {
   visible: boolean;
@@ -27,6 +28,8 @@ export default function LedgerSelectPopup({
 }: Props) {
   // 打开弹窗时冻结一次顺序（选中置顶）；打开期间勾选不再重排
   const [sortedIds, setSortedIds] = useState<string[]>([]);
+
+  usePopupBack(visible, onClose);
 
   useEffect(() => {
     if (visible) {

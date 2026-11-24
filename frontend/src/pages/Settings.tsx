@@ -12,6 +12,7 @@ import { formatDate } from '../lib/format';
 import { TabActiveContext } from '../components/KeepAlive';
 import { useAuthStore } from '../stores/auth';
 import { useBusy } from '../hooks/useBusy';
+import { usePopupBack } from '../hooks/usePopupBack';
 import type { Ledger, ReminderSetting } from '../types';
 
 export default function Settings() {
@@ -25,6 +26,8 @@ export default function Settings() {
   const [exportFormat, setExportFormat] = useState<'excel' | 'json'>('excel');
   // 全量导出耗时较长，按钮转圈防重复点击
   const { busy: exportBusy, run: runExport } = useBusy();
+
+  usePopupBack(showExport, () => setShowExport(false));
 
   const { data: setting, refetch } = useQuery({
     queryKey: ['settings', 'reminder'],

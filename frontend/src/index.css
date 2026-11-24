@@ -45,6 +45,12 @@ body {
   padding-top: env(safe-area-inset-top);
 }
 
+/* 弹窗内容超出屏幕时可滚动，避免超出部分看不到；留出顶部遮罩可点关闭 */
+.adm-popup-body {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
 .amount-income {
   color: var(--income);
 }

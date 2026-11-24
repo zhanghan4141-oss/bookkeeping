@@ -7,6 +7,7 @@ import { TabActiveContext } from '../components/KeepAlive';
 import { ledgerApi } from '../api/ledger';
 import { useAuthStore } from '../stores/auth';
 import type { Ledger, LedgerMember } from '../types';
+import { usePopupBack } from '../hooks/usePopupBack';
 
 // 可分配的成员角色：owner 不能通过邀请/改角色设置，只能转让产生（账本恒一名 owner）
 const ASSIGNABLE_ROLES = [
@@ -39,6 +40,9 @@ export default function Members() {
   // 转让所有权
   const [transferTarget, setTransferTarget] = useState<LedgerMember | null>(null);
   const [transferText, setTransferText] = useState('');
+
+  usePopupBack(showInvite, () => setShowInvite(false));
+  usePopupBack(!!transferTarget, () => setTransferTarget(null));
 
   const { data: ledger } = useQuery({
     queryKey: ['ledger', id],

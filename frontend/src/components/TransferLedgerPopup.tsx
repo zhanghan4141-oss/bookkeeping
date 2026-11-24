@@ -6,6 +6,7 @@ import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
 import { invalidateFinancialData } from '../lib/invalidate';
 import { useBusy } from '../hooks/useBusy';
+import { usePopupBack } from '../hooks/usePopupBack';
 import type { Category, Ledger } from '../types';
 
 interface Props {
@@ -33,6 +34,8 @@ export default function TransferLedgerPopup({
   const [targetLedger, setTargetLedger] = useState<Ledger | null>(null);
   // 选中的目标分类；null = 未分类
   const [categoryId, setCategoryId] = useState<string | null>(null);
+
+  usePopupBack(visible, onClose);
 
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],

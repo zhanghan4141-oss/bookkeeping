@@ -5,6 +5,7 @@ import { TabActiveContext } from './KeepAlive';
 import SpaceLedgerPopup from './SpaceLedgerPopup';
 import { spaceApi } from '../api/space';
 import type { Ledger, UserSpace } from '../types';
+import { usePopupBack } from '../hooks/usePopupBack';
 
 interface SpaceDrawerProps {
   open: boolean;
@@ -41,6 +42,10 @@ export default function SpaceDrawer({
   const [showLedgerGroup, setShowLedgerGroup] = useState(false);
   // 管理模式：标题行「管理/完成」开关，打开后各空间行显示「改名」「删除」
   const [managing, setManaging] = useState(false);
+
+  usePopupBack(open, onClose);
+  usePopupBack(showCreate, () => setShowCreate(false));
+  usePopupBack(!!editing, () => setEditing(null));
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['ledgers'] });

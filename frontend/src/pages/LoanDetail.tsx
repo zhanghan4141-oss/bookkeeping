@@ -8,6 +8,7 @@ import { ledgerApi } from '../api/ledger';
 import { invalidateFinancialData } from '../lib/invalidate';
 import { formatDate, formatMoney } from '../lib/format';
 import { useBusy } from '../hooks/useBusy';
+import { usePopupBack } from '../hooks/usePopupBack';
 import type { Ledger, Loan, LoanRepayment } from '../types';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -44,6 +45,9 @@ export default function LoanDetail() {
   const { busy: deleteLoanBusy, run: runDeleteLoan } = useBusy();
   const { busy: editPlanBusy, run: runEditPlan } = useBusy();
   const { busy: prepayBusy, run: runPrepay } = useBusy();
+
+  usePopupBack(!!paying, () => setPaying(null));
+  usePopupBack(showPrepay, () => setShowPrepay(false));
 
   const { data: loan } = useQuery({
     queryKey: ['loan', id],

@@ -10,6 +10,7 @@ import LedgerSelectPopup from '../components/LedgerSelectPopup';
 import ExpandableNote from '../components/ExpandableNote';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { useBusy } from '../hooks/useBusy';
+import { usePopupBack } from '../hooks/usePopupBack';
 import type { Ledger } from '../types';
 import { formatDate, formatMoney } from '../lib/format';
 import { Lunar, LunarMonth, Solar } from 'lunar-javascript';
@@ -121,6 +122,8 @@ export default function Repayments() {
   const pageRef = useRef<HTMLDivElement>(null);
   // 截止日期选择弹窗
   const [showEndPicker, setShowEndPicker] = useState(false);
+
+  usePopupBack(showEndPicker, () => setShowEndPicker(false));
   // 弹窗内待定的截止日期（点预设/改日期后，点「确定」才生效；打开时同步为当前值）
   const [tempEnd, setTempEnd] = useState('');
   // 截止日期（默认未来 30 天，持久化记住上次选择；切账号会重置）
@@ -222,6 +225,8 @@ export default function Repayments() {
   };
 
   const [markItem, setMarkItem] = useState<any>(null);
+
+  usePopupBack(!!markItem, () => setMarkItem(null));
   const [markAmount, setMarkAmount] = useState('');
   const [markDate, setMarkDate] = useState(''); // 空 = 今天（后端取标记时刻，含时间）
 

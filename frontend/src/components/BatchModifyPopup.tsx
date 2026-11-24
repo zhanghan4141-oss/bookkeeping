@@ -5,6 +5,7 @@ import { categoryApi } from '../api/category';
 import { ledgerApi } from '../api/ledger';
 import { transactionApi } from '../api/transaction';
 import type { Category, Ledger } from '../types';
+import { usePopupBack } from '../hooks/usePopupBack';
 
 interface BatchModifyPopupProps {
   visible: boolean;
@@ -41,6 +42,8 @@ export default function BatchModifyPopup({
   const [targetLedger, setTargetLedger] = useState<Ledger | null>(null);
   const [targetCatId, setTargetCatId] = useState<string | null>(null);
   const [note, setNote] = useState('');
+
+  usePopupBack(visible, onClose);
 
   // 当前账本类别（修改类别选项）
   const { data: cats = [] } = useQuery({

@@ -7,6 +7,7 @@ import { TabActiveContext } from '../components/KeepAlive';
 import { categoryApi } from '../api/category';
 import { ledgerApi } from '../api/ledger';
 import { invalidateFinancialData } from '../lib/invalidate';
+import { usePopupBack } from '../hooks/usePopupBack';
 import type { Category, Ledger } from '../types';
 
 export default function Categories() {
@@ -17,6 +18,9 @@ export default function Categories() {
   const isActive = useContext(TabActiveContext);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
+
+  usePopupBack(showAdd, () => setShowAdd(false));
+  usePopupBack(!!editing, () => setEditing(null));
 
   const { data: categories = [], refetch } = useQuery({
     queryKey: ['categories', id],

@@ -8,6 +8,7 @@ import { ledgerApi } from '../api/ledger';
 import { invalidateFinancialData } from '../lib/invalidate';
 import { formatDate, formatMoney } from '../lib/format';
 import { useBusy } from '../hooks/useBusy';
+import { usePopupBack } from '../hooks/usePopupBack';
 import type { ExpensePlan, ExpensePlanPeriod, Ledger } from '../types';
 
 const FREQUENCY_LABEL: Record<string, string> = {
@@ -35,6 +36,8 @@ export default function ExpensePlanDetail() {
   const { busy: exportBusy, run: runExport } = useBusy();
   const { busy: deleteBusy, run: runDelete } = useBusy();
   const { busy: markBusy, run: runMark } = useBusy();
+
+  usePopupBack(!!paying, () => setPaying(null));
 
   const { data: plan } = useQuery({
     queryKey: ['expense-plan', id],

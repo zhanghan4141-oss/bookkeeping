@@ -6,6 +6,7 @@ import ExpandableNote from '../components/ExpandableNote';
 import TransferLedgerPopup from '../components/TransferLedgerPopup';
 import BatchModifyPopup from '../components/BatchModifyPopup';
 import { useBusy } from '../hooks/useBusy';
+import { usePopupBack } from '../hooks/usePopupBack';
 import {
   Button,
   DatePicker,
@@ -112,6 +113,9 @@ export default function LedgerDetail() {
     errors: { row: number; message: string }[];
   } | null>(null);
   const [editing, setEditing] = useState<Transaction | null>(null);
+
+  usePopupBack(showImport, () => setShowImport(false));
+  usePopupBack(!!editing, () => setEditing(null));
   // 转移流水弹窗状态
   const [transferTx, setTransferTx] = useState<Transaction | null>(null);
   // 展开的日期集合（默认展开最近一天，其余折叠）

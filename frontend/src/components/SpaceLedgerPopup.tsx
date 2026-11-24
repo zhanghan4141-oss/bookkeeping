@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { List, Picker, Popup, Toast } from 'antd-mobile';
 import { ledgerApi } from '../api/ledger';
 import type { Ledger, UserSpace } from '../types';
+import { usePopupBack } from '../hooks/usePopupBack';
 
 interface SpaceLedgerPopupProps {
   open: boolean;
@@ -28,6 +29,8 @@ export default function SpaceLedgerPopup({
   disableBodyScroll,
 }: SpaceLedgerPopupProps) {
   const queryClient = useQueryClient();
+
+  usePopupBack(open, onClose);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['ledgers'] });

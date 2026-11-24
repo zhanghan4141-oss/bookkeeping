@@ -15,6 +15,7 @@ import SpaceDrawer from '../components/SpaceDrawer';
 import { spaceApi } from '../api/space';
 import type { Ledger, LedgerSummary, StatOverview, UserSpace } from '../types';
 import { formatMoney } from '../lib/format';
+import { usePopupBack } from '../hooks/usePopupBack';
 
 const LEDGER_TYPE_ICON: Record<string, string> = {
   daily: '📒',
@@ -40,6 +41,8 @@ export default function Ledgers() {
   const setPeriod = useLedgerPeriodStore((s) => s.setPeriod);
   const selectedIds = useLedgerSelectionStore((s) => s.selectedIds);
   const selectOne = useLedgerSelectionStore((s) => s.selectOne);
+
+  usePopupBack(showCreate, () => setShowCreate(false));
 
   const { data: ledgers = [] } = useQuery({
     queryKey: ['ledgers'],

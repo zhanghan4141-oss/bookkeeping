@@ -5,6 +5,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { useAuthStore } from './stores/auth';
 import { checkAppUpdate } from './lib/appUpdate';
 import { syncReminderNotifications } from './lib/reminderNotifications';
+import { closeTopOverlay } from './lib/overlayStack';
 import Login from './pages/Login';
 import Ledgers from './pages/Ledgers';
 import LedgerDetail from './pages/LedgerDetail';
@@ -44,6 +45,8 @@ export default function App() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     const handler = CapacitorApp.addListener('backButton', () => {
+      // 有弹窗打开时，优先关闭栈顶弹窗，而不是跳页/退出
+      if (closeTopOverlay()) return;
       const path = location.pathname;
       if (path === '/ledgers' || path === '/login') {
         CapacitorApp.exitApp();
