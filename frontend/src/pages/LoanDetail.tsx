@@ -463,10 +463,8 @@ export default function LoanDetail() {
                 if (!amountDiff && !dateDiff) return null;
                 return (
                   <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
-                    {amountDiff && <span>实际 ¥{formatMoney(Number(p.paidAmount))}</span>}
-                    {dateDiff && (
-                      <span style={{ marginLeft: 6 }}>还款日 {p.paidDate?.slice(0, 10) ?? '—'}</span>
-                    )}
+                    实际{amountDiff ? ` ¥${formatMoney(Number(p.paidAmount))}` : ''}
+                    {dateDiff ? ` @ ${p.paidDate?.slice(0, 10) ?? '—'}` : ''}
                   </div>
                 );
               })();
@@ -600,12 +598,8 @@ export default function LoanDetail() {
                         (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
                           (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
                           <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
-                            {Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 && (
-                              <span>实际 ¥{formatMoney(Number(r.paidAmount))}</span>
-                            )}
-                            {r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10) && (
-                              <span style={{ marginLeft: 6 }}>还款日 {r.paidDate.slice(0, 10)}</span>
-                            )}
+                            实际{Number(r.paidAmount) > 0 && Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ? ` ¥${formatMoney(Number(r.paidAmount))}` : ''}
+                            {r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10) ? ` @ ${r.paidDate.slice(0, 10)}` : ''}
                           </div>
                         )}
                       </>
@@ -647,12 +641,8 @@ export default function LoanDetail() {
                       (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
                         (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
                         <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
-                          {Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 && (
-                            <span>实际 ¥{formatMoney(Number(r.paidAmount))}</span>
-                          )}
-                          {r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10) && (
-                            <span style={{ marginLeft: 6 }}>还款日 {r.paidDate.slice(0, 10)}</span>
-                          )}
+                          实际{Number(r.paidAmount) > 0 && Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ? ` ¥${formatMoney(Number(r.paidAmount))}` : ''}
+                          {r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10) ? ` @ ${r.paidDate.slice(0, 10)}` : ''}
                         </div>
                       )}
                     </>

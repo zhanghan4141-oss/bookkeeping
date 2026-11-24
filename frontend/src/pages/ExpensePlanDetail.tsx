@@ -286,12 +286,8 @@ export default function ExpensePlanDetail() {
                   </div>
                   {diverged && (
                     <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
-                      {p.paidAmount != null && Math.abs(p.paidAmount - Number(p.amount)) > 0.005 && (
-                        <span>实际 ¥{formatMoney(p.paidAmount)}</span>
-                      )}
-                      {p.paidDate && p.paidDate.slice(0, 10) !== p.dueDate && (
-                        <span style={{ marginLeft: 6 }}>支出日 {p.paidDate.slice(0, 10)}</span>
-                      )}
+                      实际{p.paidAmount != null && Math.abs(p.paidAmount - Number(p.amount)) > 0.005 ? ` ¥${formatMoney(p.paidAmount)}` : ''}
+                      {p.paidDate && p.paidDate.slice(0, 10) !== p.dueDate ? ` @ ${p.paidDate.slice(0, 10)}` : ''}
                     </div>
                   )}
                 </div>
@@ -326,8 +322,7 @@ export default function ExpensePlanDetail() {
                     const dateDiff = pd !== null && pd !== dd;
                     return amountDiff || dateDiff ? (
                       <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
-                        {amountDiff && <span>实际 ¥{formatMoney(period.paidAmount)}</span>}
-                        {dateDiff && <span style={{ marginLeft: 8 }}>支出日 {pd}</span>}
+                        实际{amountDiff ? ` ¥${formatMoney(period.paidAmount)}` : ''}{dateDiff ? ` @ ${pd}` : ''}
                       </div>
                     ) : null;
                   })()}
