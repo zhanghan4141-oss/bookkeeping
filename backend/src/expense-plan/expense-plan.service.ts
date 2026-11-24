@@ -10,6 +10,7 @@ import {
   CreateExpensePlanDto,
   MarkPeriodDto,
   UpdateExpensePlanDto,
+  UpdateExpensePlanPeriodsDto,
 } from './dto/expense-plan.dto.js';
 import {
   Frequency,
@@ -277,6 +278,54 @@ export class ExpensePlanService {
       }
     });
 
+    await this.recalcPlanStatus(id);
+    return this.findOne(id);
+  }
+
+  /**
+   * 逐期编辑（镜像贷款 updateRepayments）：已支出期不可改日期/金额（可撤销后改）；
+   * 未支出期更新日期/金额并同步对应流水（occurredAt/amount）。
+   */
+  async updatePeriods(id: string, periods: UpdateExpensePlanPeriodsDto['periods']) {
+    const plan = await this.prisma.expensePlan.findUnique({
+      where: { id },
+      include: { periods: { orderBy: { periodNo: 'asc' } } },
+    });
+    if (!plan) throw new NotFoundException('支出计划不存在');
+    if (periods.length !== plan.periods.length) {
+      throw new BadRequestException(`期数不匹配：需要 ${plan.periods.length} 期`);
+    }
+    await this.prisma.$transaction(async (tx) => {
+      let prevDue: Date | null = null;
+      for (const p of periods) {
+        const orig = plan.periods.find((x) => x.periodNo === p.periodNo);
+        if (!orig) throw new BadRequestException(`第${p.periodNo}期不存在`);
+        if (orig.status === 'paid') {
+          if (fmtDay(new Date(p.dueDate)) !== fmtDay(orig.dueDate)) {
+            throw new BadRequestException(`第${p.periodNo}期已支出，请先撤销支出再修改日期`);
+          }
+          if (Math.abs(Number(p.amount) - Number(orig.amount)) > 0.005) {
+            throw new BadRequestException(`第${p.periodNo}期已支出，请先撤销支出再修改金额`);
+          }
+          prevDue = orig.dueDate;
+          continue;
+        }
+        let effDue = new Date(p.dueDate);
+        if (prevDue && effDue <= prevDue) {
+          effDue = new Date(prevDue.getTime() + DAY_MS);
+        }
+        prevDue = effDue;
+        const amount = new Prisma.Decimal(p.amount);
+        await tx.expensePlanPeriod.update({
+          where: { id: orig.id },
+          data: { dueDate: effDue, amount },
+        });
+        await tx.transaction.updateMany({
+          where: { expensePlanPeriodId: orig.id },
+          data: { occurredAt: effDue, amount },
+        });
+      }
+    });
     await this.recalcPlanStatus(id);
     return this.findOne(id);
   }

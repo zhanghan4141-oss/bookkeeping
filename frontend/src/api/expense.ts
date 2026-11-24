@@ -14,5 +14,9 @@ export const expensePlanApi = {
   ) => api.post(`/expense-plans/${id}/periods/${periodNo}/mark`, data),
   undo: (id: string, periodNo: number) =>
     api.post(`/expense-plans/${id}/periods/${periodNo}/undo`),
+  updatePeriods: (
+    id: string,
+    periods: { periodNo: number; dueDate: string; amount: number }[],
+  ) => api.patch(`/expense-plans/${id}/periods`, { periods }),
   exportPlan: (id: string) => api.get(`/expense-plans/${id}/export`, { responseType: 'blob' }),
 };

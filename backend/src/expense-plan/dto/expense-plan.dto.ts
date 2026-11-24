@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsIn,
@@ -10,6 +11,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 
 export class CreateExpensePlanDto {
@@ -120,4 +122,27 @@ export class MarkPeriodDto {
   @IsOptional()
   @IsBoolean()
   applyToFuture?: boolean;
+}
+
+export class UpdateExpensePlanPeriodDto {
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  periodNo!: number;
+
+  @IsDateString()
+  dueDate!: string;
+
+  @IsNumber()
+  @Min(0.01)
+  @Type(() => Number)
+  amount!: number;
+}
+
+/** 逐期编辑（镜像贷款 updateRepayments：已支出期不可改日期/金额） */
+export class UpdateExpensePlanPeriodsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateExpensePlanPeriodDto)
+  periods!: UpdateExpensePlanPeriodDto[];
 }

@@ -26,6 +26,11 @@ export default function ExpensePlanDetail() {
   const [paying, setPaying] = useState<ExpensePlanPeriod | null>(null);
   const [payAmount, setPayAmount] = useState('');
   const [payDate, setPayDate] = useState(() => formatDate(new Date()));
+  // 逐期编辑（镜像贷款编辑计划：已支出期不可改）
+  const [editingPlan, setEditingPlan] = useState(false);
+  const [editPeriods, setEditPeriods] = useState<
+    { periodNo: number; dueDate: string; amount: string; status: string }[]
+  >([]);
   // 耗时操作按钮 loading
   const { busy: exportBusy, run: runExport } = useBusy();
   const { busy: deleteBusy, run: runDelete } = useBusy();
@@ -94,6 +99,38 @@ export default function ExpensePlanDetail() {
       invalidateFinancialData(queryClient);
     } catch (e: any) {
       Toast.show({ content: e.response?.data?.message ?? '操作失败' });
+    }
+  };
+
+  // 进入逐期编辑（已支出期回填原值、不可改，后端会校验）
+  const startEditPlan = () => {
+    if (!plan) return;
+    setEditPeriods(
+      plan.periods.map((p) => ({
+        periodNo: p.periodNo,
+        dueDate: p.dueDate.slice(0, 10),
+        amount: String(p.amount),
+        status: p.status,
+      })),
+    );
+    setEditingPlan(true);
+  };
+
+  const saveEditPlan = async () => {
+    if (editPeriods.some((p) => p.status !== 'paid' && (!p.dueDate || !p.amount))) {
+      Toast.show({ content: '请完整填写每期日期和金额' });
+      return;
+    }
+    try {
+      await expensePlanApi.updatePeriods(
+        id,
+        editPeriods.map((p) => ({ periodNo: p.periodNo, dueDate: p.dueDate, amount: Number(p.amount) })),
+      );
+      Toast.show({ content: '已保存' });
+      setEditingPlan(false);
+      invalidateFinancialData(queryClient);
+    } catch (e: any) {
+      Toast.show({ content: e.response?.data?.message ?? '保存失败' });
     }
   };
 
@@ -207,37 +244,91 @@ export default function ExpensePlanDetail() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontWeight: 600 }}>支出计划</span>
+          {!isViewer && plan.status !== 'closed' && plan.pendingCount > 0 && !editingPlan && (
+            <Button size="mini" color="primary" fill="outline" onClick={startEditPlan}>
+              编辑计划
+            </Button>
+          )}
         </div>
 
+        {editingPlan ? (
+          <div style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+            {editPeriods.map((p) => {
+              const isPaid = p.status === 'paid';
+              return (
+                <div key={p.periodNo} style={{ marginBottom: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span style={{ width: 60, fontSize: 13, color: '#666', flexShrink: 0 }}>
+                    第{p.periodNo}期{isPaid ? '✓' : ''}
+                  </span>
+                  {isPaid ? (
+                    <span style={{ flex: 1, fontSize: 13, color: '#999' }}>
+                      {p.dueDate} · ¥{p.amount}（已支出，不可改）
+                    </span>
+                  ) : (
+                    <>
+                      <div style={{ width: 116, flexShrink: 0 }}>
+                        <DatePicker
+                          value={p.dueDate ? new Date(p.dueDate) : new Date()}
+                          onConfirm={(v) => {
+                            const d = formatDate(v);
+                            setEditPeriods((prev) =>
+                              prev.map((x) => (x.periodNo === p.periodNo ? { ...x, dueDate: d } : x)),
+                            );
+                          }}
+                        >
+                          {(_value, actions) => (
+                            <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
+                              {p.dueDate || '日期'}
+                            </div>
+                          )}
+                        </DatePicker>
+                      </div>
+                      <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>金额</span>
+                      <Input
+                        type="number"
+                        value={p.amount}
+                        onChange={(v) =>
+                          setEditPeriods((prev) =>
+                            prev.map((x) => (x.periodNo === p.periodNo ? { ...x, amount: v } : x)),
+                          )
+                        }
+                        style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                      />
+                    </>
+                  )}
+                </div>
+              );
+            })}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <Button block fill="outline" onClick={() => setEditingPlan(false)}>取消</Button>
+              <Button block color="primary" onClick={saveEditPlan}>保存</Button>
+            </div>
+          </div>
+        ) : (
         <List style={{ borderRadius: 12, overflow: 'hidden' }}>
           {plan.periods.map((period) => {
             const isPaid = period.status === 'paid';
-            // 今天之前的未支出期 → 「未支出」（提醒色）；今天及之后 → 「待支出」
-            const todayStr = formatDate(new Date());
-            const isOverdue = !isPaid && period.dueDate.slice(0, 10) < todayStr;
+            const dd = period.dueDate.slice(0, 10);
+            const pd = isPaid && period.paidDate ? period.paidDate.slice(0, 10) : null;
+            // 标签：未支出=待支出；已支出按 vs 计划日期：同日=已支出，早于=提前支出，晚于（补记）=已支出
+            const label = pd === null ? '待支出' : pd === dd ? '已支出' : pd < dd ? '提前支出' : '已支出';
+            const color = pd === null ? '#1677ff' : pd < dd ? '#a855f7' : '#52c41a';
             return (
               <List.Item
                 key={period.id}
                 description={
                   <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
                     金额 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(period.amount))}</span>
-                    <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{period.dueDate.slice(0, 10)}</span>
-                    {isPaid && period.paidDate && period.paidDate.slice(0, 10) !== period.dueDate.slice(0, 10) && (
-                      <span style={{ marginLeft: 8, color: '#52c41a' }}>支出日 {period.paidDate.slice(0, 10)}</span>
+                    <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{dd}</span>
+                    {pd !== null && pd !== dd && (
+                      <span style={{ marginLeft: 8, color: '#52c41a' }}>支出日 {pd}</span>
                     )}
                   </div>
                 }
                 extra={
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 600 }}>¥{formatMoney(Number(period.amount))}</div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: isPaid ? '#52c41a' : isOverdue ? '#ff8f1f' : '#1677ff',
-                      }}
-                    >
-                      {isPaid ? '已支出' : isOverdue ? '未支出' : '待支出'}
-                    </div>
+                    <div style={{ fontSize: 12, color }}>{label}</div>
                   </div>
                 }
               >
@@ -267,6 +358,7 @@ export default function ExpensePlanDetail() {
             );
           })}
         </List>
+        )}
       </div>
 
       {/* 标记支出弹窗 */}
@@ -287,6 +379,7 @@ export default function ExpensePlanDetail() {
             <DatePicker
               precision="day"
               value={new Date(payDate)}
+              max={new Date()}
               onConfirm={(v) => v && setPayDate(formatDate(v))}
             >
               {(value, actions) => (

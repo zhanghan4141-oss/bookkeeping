@@ -17,6 +17,7 @@ import {
   CreateExpensePlanDto,
   MarkPeriodDto,
   UpdateExpensePlanDto,
+  UpdateExpensePlanPeriodsDto,
 } from './dto/expense-plan.dto.js';
 import { ExpensePlanService } from './expense-plan.service.js';
 
@@ -88,6 +89,18 @@ export class ExpensePlanController {
     const plan = await this.expensePlanService.findPlanEntity(id);
     await this.access.assertWritable(plan.ledgerId, user.id);
     return this.expensePlanService.undo(id, periodNo);
+  }
+
+  /** 逐期编辑（已支出期不可改） */
+  @Patch('expense-plans/:id/periods')
+  async updatePeriods(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateExpensePlanPeriodsDto,
+  ) {
+    const plan = await this.expensePlanService.findPlanEntity(id);
+    await this.access.assertWritable(plan.ledgerId, user.id);
+    return this.expensePlanService.updatePeriods(id, dto.periods);
   }
 
   @Get('expense-plans/:id/export')

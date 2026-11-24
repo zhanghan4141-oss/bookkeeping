@@ -675,7 +675,7 @@ export default function Repayments() {
               onChange={setMarkAmount}
               style={{ fontSize: 24, marginBottom: 12 }}
             />
-            <DatePicker precision="day" value={markDate ? new Date(markDate) : new Date()} onConfirm={(v) => setMarkDate(formatDate(v))}>
+            <DatePicker precision="day" value={markDate ? new Date(markDate) : new Date()} max={new Date()} onConfirm={(v) => setMarkDate(formatDate(v))}>
               {(_value, actions) => (
                 <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
                   {markDate || '今天'}
