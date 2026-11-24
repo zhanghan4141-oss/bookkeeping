@@ -222,7 +222,7 @@ export default function ExpensePlanDetail() {
                   <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
                     金额 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(period.amount))}</span>
                     <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{period.dueDate.slice(0, 10)}</span>
-                    {isPaid && period.paidDate && (
+                    {isPaid && period.paidDate && period.paidDate.slice(0, 10) !== period.dueDate.slice(0, 10) && (
                       <span style={{ marginLeft: 8, color: '#52c41a' }}>支出日 {period.paidDate.slice(0, 10)}</span>
                     )}
                   </div>
