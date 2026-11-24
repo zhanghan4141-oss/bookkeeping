@@ -166,9 +166,9 @@ export default function LedgerDetail() {
     });
   }, [transactions, keyword, searchField]);
 
-  // 可删除的流水（贷款流水不可删，批量删除时排除）
+  // 可删除的流水（贷款/支出计划流水不可删，批量删除时排除）
   const deletableFiltered = useMemo(
-    () => filtered.filter((t) => !t.loanId),
+    () => filtered.filter((t) => !t.loanId && !t.expensePlanId),
     [filtered],
   );
 
@@ -625,19 +625,20 @@ export default function LedgerDetail() {
             )}
             {filtered.map((t) => {
               const isLoanTx = !!t.loanId;
+              const isLockedTx = isLoanTx || !!t.expensePlanId; // 贷款/支出计划流水不可编辑、不可批量操作
               const content = (
                 <div
-                  onClick={() => !isLoanTx && !isViewer && openEdit(t)}
+                  onClick={() => !isLockedTx && !isViewer && openEdit(t)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     padding: '10px 12px',
                     borderRadius: 12,
-                    background: isLoanTx ? '#fafafa' : '#fff',
-                    cursor: isLoanTx || isViewer ? 'default' : 'pointer',
+                    background: isLockedTx ? '#fafafa' : '#fff',
+                    cursor: isLockedTx || isViewer ? 'default' : 'pointer',
                   }}
                 >
-                  {!isViewer && !isLoanTx && (
+                  {!isViewer && !isLockedTx && (
                     <input
                       type="checkbox"
                       checked={selectedIds.has(t.id)}
@@ -647,7 +648,7 @@ export default function LedgerDetail() {
                       style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
                     />
                   )}
-                  {!isViewer && isLoanTx && (
+                  {!isViewer && isLockedTx && (
                     <span style={{ marginRight: 10, width: 18, flexShrink: 0 }} />
                   )}
                   <span style={{ fontSize: 22, marginRight: 10 }}>
@@ -686,7 +687,7 @@ export default function LedgerDetail() {
                 <div key={t.id} style={{ marginBottom: 8 }}>
                   <SwipeAction
                     rightActions={
-                      isLoanTx
+                      isLockedTx
                         ? [
                             {
                               key: 'copy',
@@ -760,17 +761,18 @@ export default function LedgerDetail() {
               </div>
               {isExpanded && items.map((t) => {
                 const isLoanTx = !!t.loanId;
+                const isLockedTx = isLoanTx || !!t.expensePlanId; // 贷款/支出计划流水不可编辑
                 const content = (
                   <div
                     key={t.id}
-                    onClick={() => !isLoanTx && !isViewer && openEdit(t)}
+                    onClick={() => !isLockedTx && !isViewer && openEdit(t)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       padding: '10px 12px',
                       borderBottom: '1px solid #fafafa',
-                      background: isLoanTx ? '#fafafa' : '#fff',
-                      cursor: isLoanTx || isViewer ? 'default' : 'pointer',
+                      background: isLockedTx ? '#fafafa' : '#fff',
+                      cursor: isLockedTx || isViewer ? 'default' : 'pointer',
                     }}
                   >
                     <span style={{ fontSize: 22, marginRight: 10 }}>
@@ -807,7 +809,7 @@ export default function LedgerDetail() {
                   <SwipeAction
                     key={t.id}
                     rightActions={
-                      isLoanTx
+                      isLockedTx
                         ? [
                             {
                               key: 'copy',
