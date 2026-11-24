@@ -167,11 +167,11 @@ export default function Ledgers() {
             marginBottom: 16,
           }}
         >
-          <div style={{ overflowX: 'auto' }}>
+          <div className="hide-scrollbar">
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '36px repeat(3, minmax(0, 1fr))',
+                gridTemplateColumns: '36px repeat(3, auto)',
                 alignItems: 'center',
                 rowGap: 8,
                 columnGap: 4,
@@ -190,13 +190,13 @@ export default function Ledgers() {
                 return (
                   <Fragment key={b.key}>
                     <div className="text-secondary" style={{ fontSize: 12 }}>{b.label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#52c41a', textAlign: 'center', whiteSpace: 'nowrap', overflowX: 'auto' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#52c41a', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       ¥{formatMoney(s?.income ?? 0)}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#ff4d4f', textAlign: 'center', whiteSpace: 'nowrap', overflowX: 'auto' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#ff4d4f', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       ¥{formatMoney(s?.expense ?? 0)}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1677ff', textAlign: 'center', whiteSpace: 'nowrap', overflowX: 'auto' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1677ff', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       ¥{formatMoney(s?.surplus ?? 0)}
                     </div>
                   </Fragment>
