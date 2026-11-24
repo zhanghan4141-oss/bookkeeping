@@ -39,10 +39,15 @@ body {
   padding-bottom: calc(70px + env(safe-area-inset-bottom));
 }
 
-/* 顶部安全区：NavBar 内容避开状态栏/刘海（无刘海设备 env 值为 0，不影响） */
+/* 顶部安全区：NavBar 内容避开状态栏/刘海（无刘海设备 env 值为 0，不影响）；
+   页头 sticky 固定在视口顶端，向下滚动时保持可见 */
 .adm-nav-bar {
   height: calc(var(--height) + env(safe-area-inset-top));
   padding-top: env(safe-area-inset-top);
+  position: sticky;
+  top: 0;
+  z-index: 50; /* 高于内容，低于底部 TabBar(100) */
+  background: #fff;
 }
 
 /* 弹窗内容超出屏幕时可滚动，避免超出部分看不到；留出顶部遮罩可点关闭 */
