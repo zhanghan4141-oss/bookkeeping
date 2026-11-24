@@ -517,7 +517,7 @@ export default function LedgerDetail() {
                   color={period === p ? 'primary' : 'default'}
                   onClick={() => choosePeriod(p)}
                 >
-                  {{ month: '按月', year: '按年', all: '所有' }[p]}
+                  {{ month: '月', year: '年', all: '所有' }[p]}
                 </Button>
               ))}
             </div>
