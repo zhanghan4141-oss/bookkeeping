@@ -619,7 +619,7 @@ export default function LoanDetail() {
                       </div>
                     }
                   >
-                    <span style={{ color: '#a855f7', fontWeight: 600 }}>
+                    <span style={{ color: '#a855f7' }}>
                       {r.note ?? '提前还款'}
                     </span>
                   </List.Item>
