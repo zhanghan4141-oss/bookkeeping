@@ -32,6 +32,8 @@ export default function ExpensePlanDetail() {
   const [editPeriods, setEditPeriods] = useState<
     { periodNo: number; dueDate: string; amount: string; status: string; diverged?: boolean; paidDate?: string | null; paidAmount?: number }[]
   >([]);
+  // 编辑初始基准（返回键判断「是否有未保存修改」）
+  const initialEditRef = useRef<typeof editPeriods>([]);
   // 耗时操作按钮 loading
   const { busy: exportBusy, run: runExport } = useBusy();
   const { busy: deleteBusy, run: runDelete } = useBusy();
@@ -95,19 +97,41 @@ export default function ExpensePlanDetail() {
   // 进入逐期编辑（已支出期回填原值、不可改，后端会校验）
   const startEditPlan = () => {
     if (!plan) return;
-    setEditPeriods(
-      plan.periods.map((p) => ({
-        periodNo: p.periodNo,
-        dueDate: p.dueDate.slice(0, 10),
-        amount: String(p.amount),
-        status: p.status,
-        diverged: p.diverged,
-        paidDate: p.paidDate,
-        paidAmount: p.paidAmount,
-      })),
-    );
+    const rows = plan.periods.map((p) => ({
+      periodNo: p.periodNo,
+      dueDate: p.dueDate.slice(0, 10),
+      amount: String(p.amount),
+      status: p.status,
+      diverged: p.diverged,
+      paidDate: p.paidDate,
+      paidAmount: p.paidAmount,
+    }));
+    initialEditRef.current = rows;
+    setEditPeriods(rows);
     setEditingPlan(true);
   };
+
+  // 返回键在编辑计划时 = 取消：有未保存修改先提示确认
+  const dirtyEdit =
+    editingPlan &&
+    (editPeriods.length !== initialEditRef.current.length ||
+      editPeriods.some((x, i) => {
+        const o = initialEditRef.current[i];
+        return !!o && (x.dueDate !== o.dueDate || x.amount !== o.amount);
+      }));
+  const handleEditBack = () => {
+    if (!dirtyEdit) {
+      setEditingPlan(false);
+      return;
+    }
+    Dialog.confirm({
+      content: '有未保存的修改，放弃修改并退出？',
+      cancelText: '继续编辑',
+      confirmText: '放弃修改',
+      onConfirm: () => setEditingPlan(false),
+    });
+  };
+  usePopupBack(editingPlan, handleEditBack);
 
   const saveEditPlan = async () => {
     if (editPeriods.some((p) => p.status !== 'paid' && (!p.dueDate || !p.amount))) {

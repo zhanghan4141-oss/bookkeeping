@@ -46,9 +46,11 @@ export default function LoanDetail() {
   const [prepayInterest, setPrepayInterest] = useState('');
   const [prepayDate, setPrepayDate] = useState(() => formatDate(new Date()));
   const [prepayMode, setPrepayMode] = useState<'reduce_payment' | 'reduce_term'>('reduce_payment');
-  // 编辑还款计划状态
+  // 编辑还款计划状态（返回键优先视为取消）
   const [editingPlan, setEditingPlan] = useState(false);
   const [editPeriods, setEditPeriods] = useState<EditPlanRow[]>([]);
+  // 编辑初始基准（返回键判断「是否有未保存修改」）
+  const initialEditRef = useRef<EditPlanRow[]>([]);
   // 耗时操作按钮 loading
   const { busy: exportPlanBusy, run: runExportPlan } = useBusy();
   const { busy: deleteLoanBusy, run: runDeleteLoan } = useBusy();
@@ -278,8 +280,7 @@ export default function LoanDetail() {
     // 若有已还期，额外确认
     const hasPaid = loan.repayments.some((r) => Number(r.paidAmount) > 0);
     const doStart = () => {
-      setEditPeriods(
-        loan.repayments.map((r): EditPlanRow => {
+      const rows = loan.repayments.map((r): EditPlanRow => {
           const base = {
             dueDate: r.dueDate.slice(0, 10),
             diverged: r.diverged,
@@ -315,8 +316,9 @@ export default function LoanDetail() {
             principal: r.principalAmount,
             interest: r.interestAmount,
           };
-        }),
-      );
+        });
+      initialEditRef.current = rows;
+      setEditPeriods(rows);
       setEditingPlan(true);
     };
     if (hasPaid) {
@@ -328,6 +330,31 @@ export default function LoanDetail() {
       doStart();
     }
   };
+
+  // 返回键在编辑计划时 = 取消：有未保存修改先提示确认
+  const dirtyEdit =
+    editingPlan &&
+    (editPeriods.length !== initialEditRef.current.length ||
+      editPeriods.some((x, i) => {
+        const o = initialEditRef.current[i];
+        return (
+          !!o &&
+          (x.dueDate !== o.dueDate || x.principal !== o.principal || x.interest !== o.interest)
+        );
+      }));
+  const handleEditBack = () => {
+    if (!dirtyEdit) {
+      setEditingPlan(false);
+      return;
+    }
+    Dialog.confirm({
+      content: '有未保存的修改，放弃修改并退出？',
+      cancelText: '继续编辑',
+      confirmText: '放弃修改',
+      onConfirm: () => setEditingPlan(false),
+    });
+  };
+  usePopupBack(editingPlan, handleEditBack);
 
   const saveEditPlan = async () => {
     // 校验（仅统计普通各期，提前还款条目不计入期数）
