@@ -60,3 +60,12 @@ body {
 .text-secondary {
   color: var(--text-secondary);
 }
+
+/* 横向滑动容器：可滑动但隐藏滚动条（账本选择/收支总览大金额横滑） */
+.hide-scrollbar {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

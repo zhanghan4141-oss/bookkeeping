@@ -360,7 +360,34 @@ export default function Repayments() {
       </NavBar>
 
       <div style={{ padding: 16 }}>
-        {/* 账本筛选（折叠显示，点开弹窗多选） */}
+        {/* 统计截止时间（置于账本选择上方） */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span className="text-secondary" style={{ fontSize: 13 }}>统计截止时间</span>
+          <div
+            onClick={openEndPicker}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              color: '#1677ff',
+              fontSize: 13,
+            }}
+          >
+            {endDate}（约 {days} 天）
+          </div>
+        </div>
+
+        {/* 账本筛选（横向滑动浏览，点开弹窗多选） */}
         <div
           style={{
             background: '#fff',
@@ -373,7 +400,7 @@ export default function Repayments() {
           }}
           onClick={() => setShowPicker(true)}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, overflow: 'hidden' }}>
+          <div className="hide-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
             <span className="text-secondary" style={{ fontSize: 13, flexShrink: 0 }}>账本</span>
             {orderedLedgers.map((l) => {
               const selected = selectedIds.includes(l.id);
@@ -401,33 +428,6 @@ export default function Repayments() {
             })}
           </div>
           <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
-        </div>
-
-        {/* 截止时间 */}
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            padding: 12,
-            marginBottom: 12,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span className="text-secondary" style={{ fontSize: 13 }}>统计截止时间</span>
-          <div
-            onClick={openEndPicker}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              color: '#1677ff',
-              fontSize: 13,
-            }}
-          >
-            {endDate}（约 {days} 天）
-          </div>
         </div>
 
         {/* 汇总卡片 */}

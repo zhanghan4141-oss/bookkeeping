@@ -840,7 +840,7 @@ export default function Stats() {
           }}
           onClick={() => setShowLedgerPicker(true)}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, overflow: 'hidden' }}>
+          <div className="hide-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
             <span className="text-secondary" style={{ fontSize: 13, flexShrink: 0 }}>账本</span>
             {orderedLedgers.map((l) => {
               const selected = selectedIds.includes(l.id);
@@ -870,8 +870,8 @@ export default function Stats() {
           <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
         </div>
 
-        {/* 收支总览：金额过大时整体横向滑动查看 */}
-        <div style={{ overflowX: 'auto', marginBottom: 12 }}>
+        {/* 收支总览：金额过大时整体横向滑动查看（隐藏滚动条） */}
+        <div className="hide-scrollbar" style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 8 }}>
             {[
               { label: '收入', value: summary?.totalIncome ?? 0, color: '#52c41a' },
