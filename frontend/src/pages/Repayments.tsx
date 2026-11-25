@@ -448,23 +448,32 @@ export default function Repayments() {
           <span style={{ fontSize: 13, color: 'var(--primary)' }}>选择</span>
         </div>
 
-        {/* 汇总：待还金额（居中） */}
+        {/* 汇总：合计/待还款/待支出/本金/利息（横排，数字大可横滑） */}
         <div
+          className="hide-scrollbar"
           style={{
             background: 'var(--card)',
             borderRadius: 12,
-            padding: '10px 16px',
+            padding: '10px 12px',
             marginBottom: 12,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
+            gap: '10px 20px',
           }}
         >
-          <span className="text-secondary" style={{ fontSize: 13 }}>合计待还</span>
-          <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--income)' }}>
-            ¥{formatMoney((data?.totalAmount ?? 0) + (pendingExpense?.totalAmount ?? 0))}
-          </span>
+          {[
+            { label: '合计', value: (data?.totalAmount ?? 0) + (pendingExpense?.totalAmount ?? 0), color: 'var(--text)' },
+            { label: '待还款', value: data?.totalAmount ?? 0, color: 'var(--primary)' },
+            { label: '待支出', value: pendingExpense?.totalAmount ?? 0, color: 'var(--primary)' },
+            { label: '本金', value: (data as any)?.totalPrincipal ?? 0, color: 'var(--text-muted)' },
+            { label: '利息', value: (data as any)?.totalInterest ?? 0, color: 'var(--text-muted)' },
+          ].map((s) => (
+            <div key={s.label} style={{ display: 'flex', flexDirection: 'column', height: 36, flexShrink: 0 }}>
+              <div className="text-secondary" style={{ fontSize: 11 }}>{s.label}</div>
+              <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: s.color, whiteSpace: 'nowrap' }}>
+                ¥{formatMoney(s.value)}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* 待还款列表 */}

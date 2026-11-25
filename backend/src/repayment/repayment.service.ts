@@ -121,8 +121,10 @@ export class RepaymentService {
       }
     }
 
-    // 按日期分组汇总
+    // 按日期分组汇总（同时累加待还本金/利息）
     const byDate = new Map<string, { date: string; total: number; items: any[] }>();
+    let totalPrincipal = 0;
+    let totalInterest = 0;
     for (const r of repayments) {
       const key = (r.dueDate as Date).toISOString().slice(0, 10);
       const remain = Number(r.totalAmount) - Number(r.paidAmount);
@@ -145,6 +147,14 @@ export class RepaymentService {
         remainingPeriods: remaining.periods,
         status: r.status,
       });
+
+      // 待还本金/利息：按已还比例折算；历史合并期（本金/利息都为 0）全额当本金
+      const paidRatio = Number(r.totalAmount) > 0 ? Number(r.paidAmount) / Number(r.totalAmount) : 0;
+      let p = Number(r.principalAmount);
+      let i = Number(r.interestAmount);
+      if (p === 0 && i === 0) p = Number(r.totalAmount);
+      totalPrincipal += p * (1 - paidRatio);
+      totalInterest += i * (1 - paidRatio);
     }
 
     const result = Array.from(byDate.values()).map((g) => ({
@@ -209,6 +219,8 @@ export class RepaymentService {
       days,
       // 待还款
       totalAmount: Math.round(result.reduce((s, g) => s + g.total, 0) * 100) / 100,
+      totalPrincipal: Math.round(totalPrincipal * 100) / 100,
+      totalInterest: Math.round(totalInterest * 100) / 100,
       daily: result,
       // 待支出
       pendingExpense: {
