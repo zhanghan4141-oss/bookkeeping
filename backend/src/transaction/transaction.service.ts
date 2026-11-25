@@ -50,6 +50,7 @@ export class TransactionService {
         category: { select: { id: true, name: true, icon: true, color: true, type: true } },
         user: { select: { id: true, nickname: true, avatarUrl: true } },
         loan: { select: { id: true, name: true } },
+        expensePlan: { select: { id: true, name: true } },
       },
       orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }],
       // 「所有」周期需展示全部流水，不再做数量截断（前端按分组折叠渲染）
@@ -131,6 +132,7 @@ export class TransactionService {
         category: { select: { id: true, name: true, icon: true, color: true, type: true } },
         user: { select: { id: true, nickname: true, avatarUrl: true } },
         loan: { select: { id: true, name: true } },
+        expensePlan: { select: { id: true, name: true } },
       },
     });
   }

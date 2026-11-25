@@ -383,8 +383,8 @@ export default function Repayments() {
           style={{
             background: 'var(--card)',
             borderRadius: 12,
-            padding: 12,
-            marginBottom: 12,
+            padding: '8px 12px',
+            marginBottom: 8,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -410,8 +410,8 @@ export default function Repayments() {
           style={{
             background: 'var(--card)',
             borderRadius: 12,
-            padding: 12,
-            marginBottom: 12,
+            padding: '8px 12px',
+            marginBottom: 8,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -448,36 +448,22 @@ export default function Repayments() {
           <span style={{ fontSize: 13, color: 'var(--primary)' }}>选择</span>
         </div>
 
-        {/* 汇总卡片 */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-          <div
-            style={{
-              flex: 1,
-              background: 'var(--card)',
-              borderRadius: 12,
-              padding: '16px',
-              textAlign: 'center',
-            }}
-          >
-            <div className="text-secondary" style={{ fontSize: 13 }}>待还款</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--income)' }}>
-              ¥{formatMoney(data?.totalAmount ?? 0)}
-            </div>
-          </div>
-          <div
-            style={{
-              flex: 1,
-              background: 'var(--card)',
-              borderRadius: 12,
-              padding: '16px',
-              textAlign: 'center',
-            }}
-          >
-            <div className="text-secondary" style={{ fontSize: 13 }}>待支出</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--income)' }}>
-              ¥{formatMoney(pendingExpense?.totalAmount ?? 0)}
-            </div>
-          </div>
+        {/* 汇总：待还 */}
+        <div
+          style={{
+            background: 'var(--card)',
+            borderRadius: 12,
+            padding: '10px 16px',
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span className="text-secondary" style={{ fontSize: 13 }}>待还</span>
+          <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--income)' }}>
+            ¥{formatMoney(data?.totalAmount ?? 0)}
+          </span>
         </div>
 
         {/* 待还款列表 */}

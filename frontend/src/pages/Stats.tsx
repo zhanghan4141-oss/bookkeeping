@@ -463,9 +463,9 @@ export default function Stats() {
   // 搜索框是否处于「固定」状态：有内容或光标聚焦
   const categorySearchActive = categoryKeyword.trim() !== '' || categorySearchFocused;
   const catStatsStuck = useStuck<HTMLDivElement>(0, () => categoryScrollRef.current);
-  const catSearchStuck = useStuck<HTMLDivElement>(60, () => categoryScrollRef.current);
-  const catBatchStuckSearch = useStuck<HTMLDivElement>(120, () => categoryScrollRef.current);
-  const catBatchStuckBatch = useStuck<HTMLDivElement>(categorySearchActive ? 120 : 60, () => categoryScrollRef.current);
+  const catSearchStuck = useStuck<HTMLDivElement>(40, () => categoryScrollRef.current);
+  const catBatchStuckSearch = useStuck<HTMLDivElement>(80, () => categoryScrollRef.current);
+  const catBatchStuckBatch = useStuck<HTMLDivElement>(categorySearchActive ? 80 : 40, () => categoryScrollRef.current);
 
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
@@ -920,8 +920,8 @@ export default function Stats() {
             justifyContent: 'space-between',
             background: 'var(--card)',
             borderRadius: 12,
-            padding: '10px 16px',
-            marginBottom: 12,
+            padding: '8px 16px',
+            marginBottom: 8,
           }}
         >
           <div onClick={() => shift(-1)} style={{ padding: '4px 8px', cursor: 'pointer' }}>
@@ -942,8 +942,8 @@ export default function Stats() {
           style={{
             background: 'var(--card)',
             borderRadius: 12,
-            padding: 12,
-            marginBottom: 12,
+            padding: '8px 12px',
+            marginBottom: 8,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -1137,7 +1137,7 @@ export default function Stats() {
         disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
-        <div ref={categoryScrollRef} style={{ padding: 16, maxHeight: '85vh', overflowY: 'auto' }}>
+        <div ref={categoryScrollRef} style={{ padding: 16, maxHeight: '92vh', overflowY: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontWeight: 600, fontSize: 16 }}>
               {activeCategory?.icon} {activeCategory?.name} 流水
@@ -1147,20 +1147,18 @@ export default function Stats() {
             </span>
           </div>
 
-          <div ref={catStatsStuck.ref} style={{ display: 'flex', gap: 8, marginBottom: 12, position: 'sticky', top: 0, background: 'var(--card)', zIndex: 40, paddingTop: 4, boxShadow: catStatsStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
-            <div style={{ flex: 1, background: 'var(--fill)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
-              <div className="text-secondary" style={{ fontSize: 11 }}>合计</div>
+          <div ref={catStatsStuck.ref} style={{ display: 'flex', gap: 8, marginBottom: 8, position: 'sticky', top: 0, background: 'var(--card)', zIndex: 40, paddingTop: 4, boxShadow: catStatsStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+            <div style={{ flex: 1, background: 'var(--fill)', borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: activeCategory?.type === 'income' ? 'var(--income)' : 'var(--expense)' }}>
                 ¥{formatMoney(categoryTotal)}
               </div>
             </div>
-            <div style={{ flex: 1, background: 'var(--fill)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
-              <div className="text-secondary" style={{ fontSize: 11 }}>笔数</div>
+            <div style={{ flex: 1, background: 'var(--fill)', borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{categoryCount} 笔</div>
             </div>
           </div>
 
-          <div ref={catSearchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: categorySearchActive ? 'sticky' : 'static', top: categorySearchActive ? 60 : undefined, background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: catSearchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+          <div ref={catSearchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: categorySearchActive ? 'sticky' : 'static', top: categorySearchActive ? 40 : undefined, background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: catSearchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
             <SearchBar
               placeholder="搜索备注、类别或金额"
               value={categoryKeyword}
@@ -1174,7 +1172,7 @@ export default function Stats() {
 
           {categoryKeyword.trim() !== '' ? (
             <div>
-              <div ref={catBatchStuckSearch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: 120, background: 'var(--card)', zIndex: 40, boxShadow: catBatchStuckSearch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+              <div ref={catBatchStuckSearch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: 80, background: 'var(--card)', zIndex: 40, boxShadow: catBatchStuckSearch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>已选 {selectedTxIds.size} 条</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAllTx}>
@@ -1230,6 +1228,9 @@ export default function Stats() {
                         {isLoanTx && (
                           <span onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }} style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}>〔{t.loan?.name ?? '贷款'}〕</span>
                         )}
+                        {!!t.expensePlanId && (
+                          <span onClick={(e) => { e.stopPropagation(); navigate(`/expense-plans/${t.expensePlanId}`); }} style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}>〔{t.expensePlan?.name ?? '支出计划'}〕</span>
+                        )}
                         {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#ff8f1f' }}>〔{t.ledger.name}〕</span>}
                       </div>
                     </div>
@@ -1261,7 +1262,7 @@ export default function Stats() {
           ) : (
             <div>
               {batchMode && (
-                <div ref={catBatchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: categorySearchActive ? 120 : 60, background: 'var(--card)', zIndex: 40, boxShadow: catBatchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+                <div ref={catBatchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: categorySearchActive ? 80 : 40, background: 'var(--card)', zIndex: 40, boxShadow: catBatchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>已选 {selectedTxIds.size} 条</span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Button size="mini" fill="outline" onClick={toggleSelectAllTx}>
@@ -1334,6 +1335,17 @@ export default function Stats() {
                                   style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}
                                 >
                                   〔{t.loan?.name ?? '贷款'}〕
+                                </span>
+                              )}
+                              {!!t.expensePlanId && (
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/expense-plans/${t.expensePlanId}`);
+                                  }}
+                                  style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}
+                                >
+                                  〔{t.expensePlan?.name ?? '支出计划'}〕
                                 </span>
                               )}
                               {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#ff8f1f' }}>〔{t.ledger.name}〕</span>}

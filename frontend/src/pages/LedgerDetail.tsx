@@ -752,6 +752,14 @@ export default function LedgerDetail() {
                           〔{t.loan?.name ?? '贷款'}〕
                         </span>
                       )}
+                      {!!t.expensePlanId && (
+                        <span
+                          onClick={(e) => { e.stopPropagation(); navigate(`/expense-plans/${t.expensePlanId}`); }}
+                          style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}
+                        >
+                          〔{t.expensePlan?.name ?? '支出计划'}〕
+                        </span>
+                      )}
                     </div>
                   </div>
                   <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? 'var(--income)' : 'var(--expense)' }}>
@@ -899,6 +907,14 @@ export default function LedgerDetail() {
                             style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}
                           >
                             〔{t.loan?.name ?? '贷款'}〕
+                          </span>
+                        )}
+                        {!!t.expensePlanId && (
+                          <span
+                            onClick={(e) => { e.stopPropagation(); navigate(`/expense-plans/${t.expensePlanId}`); }}
+                            style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}
+                          >
+                            〔{t.expensePlan?.name ?? '支出计划'}〕
                           </span>
                         )}
                       </div>
