@@ -159,10 +159,10 @@ export default function ExpensePlans() {
                   </span>
                 </div>
                 <div className="text-secondary" style={{ fontSize: 12 }}>
-                  每期 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(plan.periodAmount))}</span> · {FREQUENCY_LABEL[plan.frequency]} · <span style={{ fontWeight: 600, color: '#000' }}>{termText}</span>
+                  每期 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(Number(plan.periodAmount))}</span> · {FREQUENCY_LABEL[plan.frequency]} · <span style={{ fontWeight: 600, color: 'var(--text)' }}>{termText}</span>
                 </div>
                 <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
-                  已支出 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(plan.totalPaid)}</span> · 待支出 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(plan.totalRemaining)}</span>
+                  已支出 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(plan.totalPaid)}</span> · 待支出 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(plan.totalRemaining)}</span>
                 </div>
                 <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
               </div>

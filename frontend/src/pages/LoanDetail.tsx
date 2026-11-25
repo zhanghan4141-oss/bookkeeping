@@ -617,8 +617,8 @@ export default function LoanDetail() {
                     description={
                       <>
                         <div style={{ fontSize: 12, marginTop: 2, color: 'var(--text-muted)' }}>
-                          本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.principalAmount))}</span>
-                          {Number(r.interestAmount) > 0 && <> · 利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.interestAmount))}</span></>}
+                          本金 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(Number(r.principalAmount))}</span>
+                          {Number(r.interestAmount) > 0 && <> · 利息 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(Number(r.interestAmount))}</span></>}
                           <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
                         </div>
                         {Number(r.paidAmount) > 0 &&
@@ -660,8 +660,8 @@ export default function LoanDetail() {
                     <>
                       <div style={{ fontSize: 12, marginTop: 2, color: 'var(--text-muted)' }}>
                         {isMerged
-                          ? <>合计 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.totalAmount))}</span></>
-                          : <>本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.principalAmount))}</span> · 利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.interestAmount))}</span></>}
+                          ? <>合计 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(Number(r.totalAmount))}</span></>
+                          : <>本金 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(Number(r.principalAmount))}</span> · 利息 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(Number(r.interestAmount))}</span></>}
                         <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
                       </div>
                       {Number(r.paidAmount) > 0 &&

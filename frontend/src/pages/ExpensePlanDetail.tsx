@@ -337,7 +337,7 @@ export default function ExpensePlanDetail() {
                 description={
                   <div>
                     <div style={{ fontSize: 12, marginTop: 2, color: 'var(--text-muted)' }}>
-                      金额 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(period.amount))}</span>
+                      金额 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(Number(period.amount))}</span>
                       <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{dd}</span>
                     </div>
                     {(() => {

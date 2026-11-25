@@ -163,10 +163,10 @@ export default function Loans() {
                     </span>
                   </div>
                   <div className="text-secondary" style={{ fontSize: 12 }}>
-                    本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(loan.principal))}</span> · 年利率 <span style={{ fontWeight: 600, color: '#000' }}>{loan.annualRate}%</span> · <span style={{ fontWeight: 600, color: '#000' }}>{loan.termMonths}</span>期
+                    本金 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(Number(loan.principal))}</span> · 年利率 <span style={{ fontWeight: 600, color: 'var(--text)' }}>{loan.annualRate}%</span> · <span style={{ fontWeight: 600, color: 'var(--text)' }}>{loan.termMonths}</span>期
                   </div>
                   <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
-                    剩余本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(loan.remainingPrincipal ?? 0)}</span> · 剩余利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(loan.remainingInterest ?? 0)}</span>
+                    剩余本金 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(loan.remainingPrincipal ?? 0)}</span> · 剩余利息 <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(loan.remainingInterest ?? 0)}</span>
                   </div>
                   <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
                 </div>
