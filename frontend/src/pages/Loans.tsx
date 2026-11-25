@@ -170,7 +170,7 @@ export default function Loans() {
                   </div>
                   <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
                 </div>
-                <span style={{ color: loan.status === 'paid_off' ? 'var(--income)' : $1.status === 'closed' ? 'var(--text-muted)' : 'var(--primary)' }}>
+                <span style={{ color: loan.status === 'paid_off' ? 'var(--income)' : loan.status === 'closed' ? 'var(--text-muted)' : 'var(--primary)' }}>
                   {loan.status === 'paid_off' ? '已还清' : loan.status === 'closed' ? '已关闭' : '进行中'}
                 </span>
               </div>

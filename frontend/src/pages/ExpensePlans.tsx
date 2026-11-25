@@ -166,7 +166,7 @@ export default function ExpensePlans() {
                 </div>
                 <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
               </div>
-              <span style={{ color: plan.status === 'completed' ? 'var(--income)' : $1.status === 'closed' ? 'var(--text-muted)' : 'var(--primary)' }}>
+              <span style={{ color: plan.status === 'completed' ? 'var(--income)' : plan.status === 'closed' ? 'var(--text-muted)' : 'var(--primary)' }}>
                 {plan.status === 'completed' ? '已完成' : plan.status === 'closed' ? '已关闭' : '进行中'}
               </span>
             </div>
