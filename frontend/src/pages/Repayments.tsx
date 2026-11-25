@@ -448,7 +448,7 @@ export default function Repayments() {
           <span style={{ fontSize: 13, color: 'var(--primary)' }}>选择</span>
         </div>
 
-        {/* 汇总：待还 */}
+        {/* 汇总：待还金额（居中） */}
         <div
           style={{
             background: 'var(--card)',
@@ -458,10 +458,8 @@ export default function Repayments() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 8,
           }}
         >
-          <span className="text-secondary" style={{ fontSize: 13 }}>待还</span>
           <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--income)' }}>
             ¥{formatMoney(data?.totalAmount ?? 0)}
           </span>
@@ -469,7 +467,12 @@ export default function Repayments() {
 
         {/* 待还款列表 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontWeight: 600, fontSize: 15 }}>待还款</span>
+          <span style={{ fontWeight: 600, fontSize: 15 }}>
+            待还款
+            <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>
+              （¥{formatMoney(data?.totalAmount ?? 0)}）
+            </span>
+          </span>
           <div style={{ display: 'flex', gap: 4 }}>
             {(['day', 'month', 'year'] as const).map((k) => (
               <Button
@@ -539,7 +542,12 @@ export default function Repayments() {
 
         {/* 待支出列表 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 16 }}>
-          <span style={{ fontWeight: 600, fontSize: 15 }}>待支出</span>
+          <span style={{ fontWeight: 600, fontSize: 15 }}>
+            待支出
+            <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>
+              （¥{formatMoney(pendingExpense?.totalAmount ?? 0)}）
+            </span>
+          </span>
           <div style={{ display: 'flex', gap: 4 }}>
             {(['day', 'month', 'year'] as const).map((k) => (
               <Button
