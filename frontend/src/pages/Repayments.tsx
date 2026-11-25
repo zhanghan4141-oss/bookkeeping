@@ -458,8 +458,10 @@ export default function Repayments() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 8,
           }}
         >
+          <span className="text-secondary" style={{ fontSize: 13 }}>合计待还</span>
           <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--income)' }}>
             ¥{formatMoney((data?.totalAmount ?? 0) + (pendingExpense?.totalAmount ?? 0))}
           </span>
