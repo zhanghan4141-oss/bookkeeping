@@ -1144,13 +1144,13 @@ export default function Stats() {
           </div>
 
           <div ref={catStatsStuck.ref} style={{ display: 'flex', gap: 8, marginBottom: 12, position: 'sticky', top: 0, background: 'var(--card)', zIndex: 40, paddingTop: 4, boxShadow: catStatsStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
-            <div style={{ flex: 1, background: '#f5f6f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+            <div style={{ flex: 1, background: 'var(--fill)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 11 }}>合计</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: activeCategory?.type === 'income' ? 'var(--income)' : 'var(--expense)' }}>
                 ¥{formatMoney(categoryTotal)}
               </div>
             </div>
-            <div style={{ flex: 1, background: '#f5f6f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+            <div style={{ flex: 1, background: 'var(--fill)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 11 }}>笔数</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{categoryCount} 笔</div>
             </div>

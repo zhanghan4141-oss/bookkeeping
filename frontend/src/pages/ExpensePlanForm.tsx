@@ -315,7 +315,7 @@ export default function ExpensePlanForm() {
         </Button>
 
         {preview && (
-          <div style={{ background: '#f5f6f8', borderRadius: 12, padding: 16, marginTop: 16 }}>
+          <div style={{ background: 'var(--fill)', borderRadius: 12, padding: 16, marginTop: 16 }}>
             <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
               计划预览（共 {preview.total}，每期 ¥{formatMoney(Number(form.periodAmount))}）
             </div>

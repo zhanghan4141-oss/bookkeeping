@@ -127,7 +127,7 @@ export default function Login() {
 
       {/* 下载 App / PWA 入口（App 内不显示） */}
       {!Capacitor.isNativePlatform() && (
-        <div style={{ marginTop: 28, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
+        <div style={{ marginTop: 28, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
           <Button block fill="outline" onClick={downloadApp}>
             下载 Android App
           </Button>

@@ -351,7 +351,7 @@ export default function LoanForm() {
         </Button>
 
         {plan && (
-          <div style={{ background: '#f5f6f8', borderRadius: 12, padding: 16, marginTop: 16 }}>
+          <div style={{ background: 'var(--fill)', borderRadius: 12, padding: 16, marginTop: 16 }}>
             <div className="text-secondary" style={{ fontSize: 12, marginBottom: 8 }}>
               {isCustom
                 ? `还款计划（共 ${plan.length} 期，本金/利息创建后填写）`
