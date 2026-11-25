@@ -562,14 +562,14 @@ export default function LedgerDetail() {
                       type="month"
                       value={month}
                       onChange={(e) => setMonth(e.target.value)}
-                      style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 110 }}
+                      style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 110, background: 'var(--card)', color: 'var(--text)' }}
                     />
                   ) : (
                     <input
                       type="number"
                       value={year}
                       onChange={(e) => setYear(e.target.value)}
-                      style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 80 }}
+                      style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 80, background: 'var(--card)', color: 'var(--text)' }}
                     />
                   )}
                   <div onClick={() => shiftTime(1)} style={{ padding: '2px 6px', cursor: 'pointer' }}>
@@ -598,7 +598,7 @@ export default function LedgerDetail() {
           <select
             value={searchField}
             onChange={(e) => setSearchField(e.target.value as any)}
-            style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '4px 6px', fontSize: 13, background: 'var(--card)' }}
+            style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '4px 6px', fontSize: 13, background: 'var(--card)', color: 'var(--text)' }}
           >
             <option value="all">所有</option>
             <option value="category">类别</option>
