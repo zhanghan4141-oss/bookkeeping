@@ -461,7 +461,7 @@ export default function Repayments() {
           }}
         >
           <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--income)' }}>
-            ¥{formatMoney(data?.totalAmount ?? 0)}
+            ¥{formatMoney((data?.totalAmount ?? 0) + (pendingExpense?.totalAmount ?? 0))}
           </span>
         </div>
 
