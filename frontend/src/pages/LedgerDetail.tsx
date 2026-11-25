@@ -104,6 +104,10 @@ export default function LedgerDetail() {
   const [searchField, setSearchField] = useState<'all' | 'category' | 'amount' | 'note'>('all');
   const [keyword, setKeyword] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // 长按批量选择模式
+  const [batchMode, setBatchMode] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClick = useRef<string | null>(null);
   // 批量修改（类别/转移/备注）
   const [batchModifyOpen, setBatchModifyOpen] = useState(false);
   const [batchModifyTxIds, setBatchModifyTxIds] = useState<string[]>([]);
@@ -369,6 +373,55 @@ export default function LedgerDetail() {
     });
   };
 
+  // 长按进入批量选择模式（选中被长按的流水）
+  const startLongPress = (t: Transaction) => {
+    if (isViewer || !!t.loanId || !!t.expensePlanId) return;
+    clearLongPress();
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null;
+      suppressClick.current = t.id;
+      setBatchMode(true);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.add(t.id);
+        return next;
+      });
+    }, 500);
+  };
+  const clearLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+  // 退出批量模式
+  const exitBatchMode = () => {
+    setBatchMode(false);
+    setSelectedIds(new Set());
+  };
+
+  // 行点击：长按后抑制本次 click；批量模式点击=选中/取消；否则打开编辑
+  const handleRowClick = (t: Transaction) => {
+    if (suppressClick.current === t.id) {
+      suppressClick.current = null;
+      return;
+    }
+    if (batchMode) {
+      toggleSelect(t.id);
+      return;
+    }
+    if (!t.loanId && !t.expensePlanId && !isViewer) openEdit(t);
+  };
+  // 长按事件绑定（非 viewer / 非锁定行才触发）
+  const longPressProps = (t: Transaction) => ({
+    onTouchStart: () => startLongPress(t),
+    onTouchEnd: clearLongPress,
+    onTouchMove: clearLongPress,
+    onMouseDown: () => startLongPress(t),
+    onMouseUp: clearLongPress,
+    onMouseLeave: clearLongPress,
+  });
+
   const toggleSelectAll = () => {
     if (selectedIds.size === deletableFiltered.length) {
       setSelectedIds(new Set());
@@ -609,6 +662,9 @@ export default function LedgerDetail() {
                   <Button size="mini" color="danger" loading={batchBusy} onClick={() => runBatch(handleBatchDelete)} disabled={selectedIds.size === 0}>
                     删除选中
                   </Button>
+                  {batchMode && (
+                    <Button size="mini" onClick={exitBatchMode}>取消</Button>
+                  )}
                 </div>
               </div>
             )}
@@ -617,7 +673,8 @@ export default function LedgerDetail() {
               const isLockedTx = isLoanTx || !!t.expensePlanId; // 贷款/支出计划流水不可编辑、不可批量操作
               const content = (
                 <div
-                  onClick={() => !isLockedTx && !isViewer && openEdit(t)}
+                  onClick={() => handleRowClick(t)}
+                  {...longPressProps(t)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -717,7 +774,21 @@ export default function LedgerDetail() {
             )}
           </div>
         ) : (
-          groups.map(([date, items]) => {
+          <>
+            {batchMode && !isViewer && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedIds.size} 条</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button size="mini" fill="outline" onClick={toggleSelectAll}>
+                    {selectedIds.size === deletableFiltered.length ? '取消全选' : '全选'}
+                  </Button>
+                  <Button size="mini" fill="outline" onClick={openBatchModify} disabled={selectedIds.size === 0}>修改</Button>
+                  <Button size="mini" color="danger" loading={batchBusy} onClick={() => runBatch(handleBatchDelete)} disabled={selectedIds.size === 0}>删除选中</Button>
+                  <Button size="mini" onClick={exitBatchMode}>取消</Button>
+                </div>
+              </div>
+            )}
+            {groups.map(([date, items]) => {
           const dayIncome = items.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
           const dayExpense = items.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
           const isExpanded = expandedDates.has(date);
@@ -754,7 +825,8 @@ export default function LedgerDetail() {
                 const content = (
                   <div
                     key={t.id}
-                    onClick={() => !isLockedTx && !isViewer && openEdit(t)}
+                    onClick={() => handleRowClick(t)}
+                    {...longPressProps(t)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -764,6 +836,16 @@ export default function LedgerDetail() {
                       cursor: isLockedTx || isViewer ? 'default' : 'pointer',
                     }}
                   >
+                    {batchMode && !isLockedTx && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(t.id)}
+                        onChange={() => toggleSelect(t.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
+                      />
+                    )}
+                    {batchMode && isLockedTx && <span style={{ marginRight: 10, width: 18, flexShrink: 0 }} />}
                     <span style={{ fontSize: 22, marginRight: 10 }}>
                       {t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}
                     </span>
@@ -835,7 +917,8 @@ export default function LedgerDetail() {
               })}
             </div>
           );
-        })
+        })}
+          </>
         )}
         {!keyword.trim() && transactions.length === 0 && (
           <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>

@@ -1,11 +1,12 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, DatePicker, Dialog, Input, NavBar, Popup, SearchBar, SwipeAction, TextArea, Toast } from 'antd-mobile';
+import { Button, DatePicker, Dialog, Input, NavBar, Picker, Popup, SearchBar, SwipeAction, TextArea, Toast } from 'antd-mobile';
 import { LeftOutline, RightOutline } from 'antd-mobile-icons';
 import { Lunar, LunarMonth, Solar } from 'lunar-javascript';
 import { statApi } from '../api/misc';
 import { ledgerApi } from '../api/ledger';
+import { categoryApi } from '../api/category';
 import { transactionApi } from '../api/transaction';
 import Chart from '../components/Chart';
 import ExpandableNote from '../components/ExpandableNote';
@@ -14,7 +15,7 @@ import TransferLedgerPopup from '../components/TransferLedgerPopup';
 import BatchModifyPopup from '../components/BatchModifyPopup';
 import { useStatLedgerSelection } from '../stores/statLedgerSelection';
 import { TabActiveContext } from '../components/KeepAlive';
-import type { Ledger, StatSummary, Transaction } from '../types';
+import type { Category, Ledger, StatSummary, Transaction } from '../types';
 import { formatMoney } from '../lib/format';
 import { usePopupBack } from '../hooks/usePopupBack';
 
@@ -428,10 +429,20 @@ export default function Stats() {
 
   // 类别详情：批量选择 + 编辑 + 转移 + 批量改类别
   const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
+  // 长按批量选择模式
+  const [batchMode, setBatchMode] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClick = useRef<string | null>(null);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   usePopupBack(!!editingTx, () => setEditingTx(null));
-  const [editForm, setEditForm] = useState({ type: 'expense', amount: '', note: '' });
+  const [editForm, setEditForm] = useState({ type: 'expense', amount: '', note: '', categoryId: '' });
+  // 编辑流水的类别选项（取该流水所属账本的类别）
+  const { data: editCategories = [] } = useQuery({
+    queryKey: ['categories', editingTx?.ledgerId],
+    queryFn: async () => (await categoryApi.list(editingTx!.ledgerId)).data as Category[],
+    enabled: !!editingTx?.ledgerId,
+  });
   const [expandedCategoryDates, setExpandedCategoryDates] = useState<Set<string>>(new Set());
   // 转移流水
   const [transferTx, setTransferTx] = useState<Transaction | null>(null);
@@ -462,6 +473,8 @@ export default function Stats() {
   const refreshCategoryTx = () => {
     queryClient.invalidateQueries({ queryKey: ['stats', 'category-transactions'] });
     queryClient.invalidateQueries({ queryKey: ['stats', 'summary'] });
+    // 流水增删改/改类别后，分类流水数（_count.transactions）也会变
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
   };
 
   const handleCopyTx = async (t: Transaction) => {
@@ -514,6 +527,52 @@ export default function Stats() {
     });
   };
 
+  // 长按进入批量选择模式（选中被长按的流水）
+  const startLongPress = (t: Transaction) => {
+    if (!!t.loanId || !!t.expensePlanId) return;
+    clearLongPress();
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null;
+      suppressClick.current = t.id;
+      setBatchMode(true);
+      setSelectedTxIds((prev) => {
+        const next = new Set(prev);
+        next.add(t.id);
+        return next;
+      });
+    }, 500);
+  };
+  const clearLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+  const exitBatchMode = () => {
+    setBatchMode(false);
+    setSelectedTxIds(new Set());
+  };
+  // 行点击：长按后抑制本次 click；批量模式点击=选中/取消；否则打开编辑
+  const handleRowClickTx = (t: Transaction) => {
+    if (suppressClick.current === t.id) {
+      suppressClick.current = null;
+      return;
+    }
+    if (batchMode) {
+      toggleSelectTx(t.id);
+      return;
+    }
+    if (!t.loanId && !t.expensePlanId) openEditTx(t);
+  };
+  const longPressProps = (t: Transaction) => ({
+    onTouchStart: () => startLongPress(t),
+    onTouchEnd: clearLongPress,
+    onTouchMove: clearLongPress,
+    onMouseDown: () => startLongPress(t),
+    onMouseUp: clearLongPress,
+    onMouseLeave: clearLongPress,
+  });
+
   const toggleSelectAllTx = () => {
     if (selectedTxIds.size === deletableCategoryTx.length) {
       setSelectedTxIds(new Set());
@@ -544,7 +603,7 @@ export default function Stats() {
 
   const openEditTx = (t: Transaction) => {
     setEditingTx(t);
-    setEditForm({ type: t.type, amount: t.amount, note: t.note ?? '' });
+    setEditForm({ type: t.type, amount: t.amount, note: t.note ?? '', categoryId: t.categoryId ?? '' });
   };
 
   // 批量修改（类别/转移/备注）：仅单账本（selectedIds 恰好 1 个账本）时可用；按当前类别类型过滤
@@ -569,6 +628,7 @@ export default function Stats() {
         type: editForm.type,
         amount: Number(editForm.amount),
         note: editForm.note || undefined,
+        categoryId: editForm.categoryId || undefined,
       });
       Toast.show({ content: '已保存' });
       setEditingTx(null);
@@ -1091,6 +1151,9 @@ export default function Stats() {
                   <Button size="mini" color="danger" onClick={handleBatchDeleteTx} disabled={selectedTxIds.size === 0}>
                     删除选中
                   </Button>
+                  {batchMode && (
+                    <Button size="mini" onClick={exitBatchMode}>取消</Button>
+                  )}
                 </div>
               </div>
               {filteredCategoryTx.map((t) => {
@@ -1098,7 +1161,8 @@ export default function Stats() {
                 const isLockedTx = isLoanTx || !!t.expensePlanId; // 贷款/支出计划流水不可编辑、不可批量
                 const content = (
                   <div
-                    onClick={() => !isLockedTx && openEditTx(t)}
+                    onClick={() => handleRowClickTx(t)}
+                    {...longPressProps(t)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -1159,6 +1223,21 @@ export default function Stats() {
             </div>
           ) : (
             <div>
+              {batchMode && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedTxIds.size} 条</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button size="mini" fill="outline" onClick={toggleSelectAllTx}>
+                      {selectedTxIds.size === deletableCategoryTx.length ? '取消全选' : '全选'}
+                    </Button>
+                    {selectedIds.length === 1 && (
+                      <Button size="mini" fill="outline" onClick={openBatchModifyTx} disabled={selectedTxIds.size === 0}>修改</Button>
+                    )}
+                    <Button size="mini" color="danger" onClick={handleBatchDeleteTx} disabled={selectedTxIds.size === 0}>删除选中</Button>
+                    <Button size="mini" onClick={exitBatchMode}>取消</Button>
+                  </div>
+                </div>
+              )}
               {categoryGroups.map(([date, items]) => {
                 const dayIncome = items.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
                 const dayExpense = items.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
@@ -1182,7 +1261,8 @@ export default function Stats() {
                       const content = (
                         <div
                           key={t.id}
-                          onClick={() => !isLockedTx && openEditTx(t)}
+                          onClick={() => handleRowClickTx(t)}
+                          {...longPressProps(t)}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -1192,6 +1272,16 @@ export default function Stats() {
                             cursor: isLockedTx ? 'default' : 'pointer',
                           }}
                         >
+                          {batchMode && !isLockedTx && (
+                            <input
+                              type="checkbox"
+                              checked={selectedTxIds.has(t.id)}
+                              onChange={() => toggleSelectTx(t.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ marginRight: 10, width: 18, height: 18, flexShrink: 0 }}
+                            />
+                          )}
+                          {batchMode && isLockedTx && <span style={{ marginRight: 10, width: 18, flexShrink: 0 }} />}
                           <span style={{ fontSize: 22, marginRight: 10 }}>{t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 15 }}>{t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}</div>
@@ -1301,6 +1391,26 @@ export default function Stats() {
               </div>
             ))}
           </div>
+          {editForm.type !== 'transfer' && (
+            <div style={{ marginBottom: 12 }}>
+              <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>类别</div>
+              <Picker
+                columns={[
+                  editCategories
+                    .filter((c) => c.type === editForm.type)
+                    .map((c) => ({ label: c.name, value: c.id })),
+                ]}
+                value={editForm.categoryId ? [editForm.categoryId] : []}
+                onConfirm={(v) => setEditForm((f) => ({ ...f, categoryId: String(v[0]) }))}
+              >
+                {(items, actions) => (
+                  <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                    {items[0]?.label ?? '选择类别'}
+                  </div>
+                )}
+              </Picker>
+            </div>
+          )}
           <div style={{ marginBottom: 12 }}>
             <div className="text-secondary" style={{ fontSize: 13, marginBottom: 4 }}>金额</div>
             <Input type="number" value={editForm.amount} onChange={(v) => setEditForm((f) => ({ ...f, amount: v }))} style={{ fontSize: 24 }} />

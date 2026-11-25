@@ -202,6 +202,24 @@ export class ExpensePlanService {
       if (dto.status !== undefined) data.status = dto.status;
       await tx.expensePlan.update({ where: { id }, data });
 
+      // 改类别/备注：同步该计划所有流水的类别与备注（含已支出期；未支出期流水随后在
+      // scheduleChanged 分支被删除重建，此处更新会被覆盖，但幂等无害）
+      if (dto.categoryId !== undefined) {
+        await tx.transaction.updateMany({
+          where: { expensePlanId: id },
+          data: { categoryId: dto.categoryId },
+        });
+      }
+      if (dto.note !== undefined) {
+        const syncName = dto.name !== undefined ? dto.name.trim() : existing.name;
+        for (const p of existing.periods) {
+          await tx.transaction.updateMany({
+            where: { expensePlanPeriodId: p.id },
+            data: { note: this.noteWithPlan(syncName, p.periodNo, dto.note) },
+          });
+        }
+      }
+
       const unpaid = existing.periods.filter((p) => p.status !== 'paid');
 
       if (closePlan) {

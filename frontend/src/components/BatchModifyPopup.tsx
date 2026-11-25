@@ -149,7 +149,7 @@ export default function BatchModifyPopup({
             </Radio>
           ))}
         </Radio.Group>
-        <Button block fill="outline" onClick={applyCategory} style={{ marginBottom: 16 }}>
+        <Button block color="primary" onClick={applyCategory} disabled={!selCatId} style={{ marginBottom: 16 }}>
           应用类别
         </Button>
 
@@ -191,7 +191,7 @@ export default function BatchModifyPopup({
             </Radio.Group>
           </>
         )}
-        <Button block fill="outline" onClick={applyTransfer} disabled={!targetLedger} style={{ marginBottom: 16 }}>
+        <Button block color="primary" onClick={applyTransfer} disabled={!targetLedger} style={{ marginBottom: 16 }}>
           批量转移
         </Button>
 
@@ -203,7 +203,7 @@ export default function BatchModifyPopup({
           onChange={setNote}
           style={{ marginBottom: 8 }}
         />
-        <Button block color="primary" onClick={applyNote}>
+        <Button block color="primary" onClick={applyNote} disabled={!note.trim()}>
           保存备注
         </Button>
       </div>
