@@ -461,15 +461,15 @@ export default function Repayments() {
           }}
         >
           {[
-            { label: '合计', value: (data?.totalAmount ?? 0) + (pendingExpense?.totalAmount ?? 0), color: 'var(--text)' },
-            { label: '待还款', value: data?.totalAmount ?? 0, color: 'var(--primary)' },
-            { label: '待支出', value: pendingExpense?.totalAmount ?? 0, color: 'var(--primary)' },
-            { label: '本金', value: (data as any)?.totalPrincipal ?? 0, color: 'var(--text-muted)' },
-            { label: '利息', value: (data as any)?.totalInterest ?? 0, color: 'var(--text-muted)' },
+            { label: '合计', value: (data?.totalAmount ?? 0) + (pendingExpense?.totalAmount ?? 0), color: 'var(--income)', main: true },
+            { label: '待还款', value: data?.totalAmount ?? 0, color: 'var(--expense)', main: false },
+            { label: '待支出', value: pendingExpense?.totalAmount ?? 0, color: 'var(--expense)', main: false },
+            { label: '本金', value: (data as any)?.totalPrincipal ?? 0, color: 'var(--text-muted)', main: false },
+            { label: '利息', value: (data as any)?.totalInterest ?? 0, color: 'var(--text-muted)', main: false },
           ].map((s) => (
             <div key={s.label} style={{ display: 'flex', flexDirection: 'column', height: 36, flexShrink: 0 }}>
-              <div className="text-secondary" style={{ fontSize: 11 }}>{s.label}</div>
-              <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: s.color, whiteSpace: 'nowrap' }}>
+              <div className="text-secondary" style={{ fontSize: s.main ? 11 : 9 }}>{s.label}</div>
+              <div style={{ marginTop: 'auto', fontSize: s.main ? 14 : 10, fontWeight: 600, color: s.color, whiteSpace: 'nowrap' }}>
                 ¥{formatMoney(s.value)}
               </div>
             </div>
