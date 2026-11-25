@@ -410,6 +410,8 @@ export default function Stats() {
   });
 
   const [categoryKeyword, setCategoryKeyword] = useState('');
+  // 搜索框是否聚焦（用于「有内容或聚焦时固定」）
+  const [categorySearchFocused, setCategorySearchFocused] = useState(false);
 
   const filteredCategoryTx = useMemo(() => {
     const kw = categoryKeyword.trim();
@@ -458,10 +460,12 @@ export default function Stats() {
   );
 
   // 固定元素「是否已固定」：固定时加底部阴影
+  // 搜索框是否处于「固定」状态：有内容或光标聚焦
+  const categorySearchActive = categoryKeyword.trim() !== '' || categorySearchFocused;
   const catStatsStuck = useStuck<HTMLDivElement>(0, () => categoryScrollRef.current);
   const catSearchStuck = useStuck<HTMLDivElement>(60, () => categoryScrollRef.current);
   const catBatchStuckSearch = useStuck<HTMLDivElement>(120, () => categoryScrollRef.current);
-  const catBatchStuckBatch = useStuck<HTMLDivElement>(60, () => categoryScrollRef.current);
+  const catBatchStuckBatch = useStuck<HTMLDivElement>(categorySearchActive ? 120 : 60, () => categoryScrollRef.current);
 
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
@@ -1156,12 +1160,14 @@ export default function Stats() {
             </div>
           </div>
 
-          <div ref={catSearchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: categoryKeyword.trim() ? 'sticky' : 'static', top: categoryKeyword.trim() ? 60 : undefined, background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: catSearchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+          <div ref={catSearchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: categorySearchActive ? 'sticky' : 'static', top: categorySearchActive ? 60 : undefined, background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: catSearchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
             <SearchBar
               placeholder="搜索备注、类别或金额"
               value={categoryKeyword}
               onChange={setCategoryKeyword}
               onClear={() => setCategoryKeyword('')}
+              onFocus={() => setCategorySearchFocused(true)}
+              onBlur={() => setCategorySearchFocused(false)}
               style={{ '--background': 'var(--fill)', '--border-radius': '8px', flex: 1 }}
             />
           </div>
@@ -1255,7 +1261,7 @@ export default function Stats() {
           ) : (
             <div>
               {batchMode && (
-                <div ref={catBatchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: 60, background: 'var(--card)', zIndex: 40, boxShadow: catBatchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+                <div ref={catBatchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: categorySearchActive ? 120 : 60, background: 'var(--card)', zIndex: 40, boxShadow: catBatchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>已选 {selectedTxIds.size} 条</span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Button size="mini" fill="outline" onClick={toggleSelectAllTx}>

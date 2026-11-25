@@ -104,6 +104,8 @@ export default function LedgerDetail() {
   const isActive = useContext(TabActiveContext);
   const [searchField, setSearchField] = useState<'all' | 'category' | 'amount' | 'note'>('all');
   const [keyword, setKeyword] = useState('');
+  // 搜索框是否聚焦（用于「有内容或聚焦时固定」）
+  const [searchFocused, setSearchFocused] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // 长按批量选择模式
   const [batchMode, setBatchMode] = useState(false);
@@ -429,10 +431,12 @@ export default function LedgerDetail() {
   });
 
   // 固定元素「是否已固定」：固定时加底部阴影（未固定保持原样）
+  // 搜索框是否处于「固定」状态：有内容或光标聚焦
+  const searchActive = keyword.trim() !== '' || searchFocused;
   const searchStuck = useStuck<HTMLDivElement>(45);
-  const statsStuck = useStuck<HTMLDivElement>(keyword.trim() ? 105 : 45);
-  const batchStuckSearch = useStuck<HTMLDivElement>(keyword.trim() ? 161 : 101);
-  const batchStuckBatch = useStuck<HTMLDivElement>(keyword.trim() ? 161 : 101);
+  const statsStuck = useStuck<HTMLDivElement>(searchActive ? 105 : 45);
+  const batchStuckSearch = useStuck<HTMLDivElement>(searchActive ? 161 : 101);
+  const batchStuckBatch = useStuck<HTMLDivElement>(searchActive ? 161 : 101);
 
   const toggleSelectAll = () => {
     if (selectedIds.size === deletableFiltered.length) {
@@ -590,7 +594,7 @@ export default function LedgerDetail() {
         </div>
 
         {/* 搜索框：sticky 固定在 NavBar 下方 */}
-        <div ref={searchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: keyword.trim() ? 'sticky' : 'static', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 45px)' : undefined, background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: searchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+        <div ref={searchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: searchActive ? 'sticky' : 'static', top: searchActive ? 'calc(env(safe-area-inset-top) + 45px)' : undefined, background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: searchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
           <select
             value={searchField}
             onChange={(e) => setSearchField(e.target.value as any)}
@@ -607,6 +611,8 @@ export default function LedgerDetail() {
               value={keyword}
               onChange={setKeyword}
               onClear={() => setKeyword('')}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               style={{ '--background': 'var(--fill)', '--border-radius': '8px' }}
             />
           </div>
@@ -620,7 +626,7 @@ export default function LedgerDetail() {
             display: 'flex',
             gap: '10px 20px',
             position: 'sticky',
-            top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 105px)' : 'calc(env(safe-area-inset-top) + 45px)',
+            top: searchActive ? 'calc(env(safe-area-inset-top) + 105px)' : 'calc(env(safe-area-inset-top) + 45px)',
             background: 'var(--card)',
             zIndex: 40,
             borderRadius: 12,
@@ -681,7 +687,7 @@ export default function LedgerDetail() {
         {keyword.trim() !== '' ? (
           <div>
             {!isViewer && (
-              <div ref={batchStuckSearch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 161px)' : 'calc(env(safe-area-inset-top) + 101px)', background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', boxShadow: batchStuckSearch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+              <div ref={batchStuckSearch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: searchActive ? 'calc(env(safe-area-inset-top) + 161px)' : 'calc(env(safe-area-inset-top) + 101px)', background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', boxShadow: batchStuckSearch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>已选 {selectedIds.size} 条</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAll}>
@@ -807,7 +813,7 @@ export default function LedgerDetail() {
         ) : (
           <>
             {batchMode && !isViewer && (
-              <div ref={batchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 161px)' : 'calc(env(safe-area-inset-top) + 101px)', background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', boxShadow: batchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+              <div ref={batchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: searchActive ? 'calc(env(safe-area-inset-top) + 161px)' : 'calc(env(safe-area-inset-top) + 101px)', background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', boxShadow: batchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>已选 {selectedIds.size} 条</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAll}>
