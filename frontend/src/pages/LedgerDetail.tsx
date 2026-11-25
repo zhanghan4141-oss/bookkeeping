@@ -7,6 +7,7 @@ import TransferLedgerPopup from '../components/TransferLedgerPopup';
 import BatchModifyPopup from '../components/BatchModifyPopup';
 import { useBusy } from '../hooks/useBusy';
 import { usePopupBack } from '../hooks/usePopupBack';
+import { useStuck } from '../hooks/useStuck';
 import {
   Button,
   DatePicker,
@@ -227,10 +228,15 @@ export default function LedgerDetail() {
     const tomorrow = new Date();
     tomorrow.setHours(0, 0, 0, 0);
     tomorrow.setDate(tomorrow.getDate() + 1);
+    // 批量模式下勾选非空 → 只统计勾选的流水；否则统计搜索后的全部
+    const source =
+      batchMode && selectedIds.size > 0
+        ? filtered.filter((t) => selectedIds.has(t.id))
+        : filtered;
     let income = 0;
     let expense = 0;
     let pendingExpense = 0;
-    for (const t of filtered) {
+    for (const t of source) {
       const occurred = new Date(t.occurredAt);
       if (t.type === 'income') {
         if (occurred < tomorrow) income += Number(t.amount);
@@ -246,7 +252,7 @@ export default function LedgerDetail() {
       pendingExpense,
       pendingSurplus: income - expense - pendingExpense,
     };
-  }, [filtered]);
+  }, [filtered, batchMode, selectedIds]);
 
   const handleExport = async () => {
     try {
@@ -422,6 +428,12 @@ export default function LedgerDetail() {
     onMouseLeave: clearLongPress,
   });
 
+  // 固定元素「是否已固定」：固定时加底部阴影（未固定保持原样）
+  const searchStuck = useStuck<HTMLDivElement>(45);
+  const statsStuck = useStuck<HTMLDivElement>(keyword.trim() ? 105 : 45);
+  const batchStuckSearch = useStuck<HTMLDivElement>(keyword.trim() ? 161 : 101);
+  const batchStuckBatch = useStuck<HTMLDivElement>(keyword.trim() ? 161 : 101);
+
   const toggleSelectAll = () => {
     if (selectedIds.size === deletableFiltered.length) {
       setSelectedIds(new Set());
@@ -575,58 +587,77 @@ export default function LedgerDetail() {
               ))}
             </div>
           </div>
-          <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <select
-              value={searchField}
-              onChange={(e) => setSearchField(e.target.value as any)}
-              style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 6px', fontSize: 13, background: '#fff' }}
-            >
-              <option value="all">所有</option>
-              <option value="category">类别</option>
-              <option value="amount">金额</option>
-              <option value="note">备注</option>
-            </select>
-            <div style={{ flex: 1 }}>
-              <SearchBar
-                placeholder="搜索"
-                value={keyword}
-                onChange={setKeyword}
-                onClear={() => setKeyword('')}
-              />
+        </div>
+
+        {/* 搜索框：sticky 固定在 NavBar 下方 */}
+        <div ref={searchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: keyword.trim() ? 'sticky' : 'static', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 45px)' : undefined, background: '#fff', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: searchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+          <select
+            value={searchField}
+            onChange={(e) => setSearchField(e.target.value as any)}
+            style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 6px', fontSize: 13, background: '#fff' }}
+          >
+            <option value="all">所有</option>
+            <option value="category">类别</option>
+            <option value="amount">金额</option>
+            <option value="note">备注</option>
+          </select>
+          <div style={{ flex: 1 }}>
+            <SearchBar
+              placeholder="搜索"
+              value={keyword}
+              onChange={setKeyword}
+              onClear={() => setKeyword('')}
+              style={{ '--background': '#f5f5f5', '--border-radius': '8px' }}
+            />
+          </div>
+        </div>
+
+        {/* 收支统计栏：独立 sticky 固定在 NavBar 下方（父容器需贯穿内容区，故置于卡片外） */}
+        <div
+          ref={statsStuck.ref}
+          className="hide-scrollbar"
+          style={{
+            display: 'flex',
+            gap: '10px 20px',
+            position: 'sticky',
+            top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 105px)' : 'calc(env(safe-area-inset-top) + 45px)',
+            background: '#fff',
+            zIndex: 40,
+            borderRadius: 12,
+            padding: '10px 12px',
+            marginBottom: 12,
+            boxShadow: statsStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', height: 36, flexShrink: 0 }}>
+            <div className="text-secondary" style={{ fontSize: 11 }}>收入</div>
+            <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#52c41a', whiteSpace: 'nowrap' }}>
+              ¥{fmt(monthTotal.income)}
             </div>
           </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 20px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', height: 36 }}>
-              <div className="text-secondary" style={{ fontSize: 11 }}>收入</div>
-              <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#52c41a' }}>
-                ¥{fmt(monthTotal.income)}
+          <div style={{ display: 'flex', flexDirection: 'column', height: 36, flexShrink: 0 }}>
+            <div className="text-secondary" style={{ fontSize: 11 }}>支出</div>
+            <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#ff4d4f', whiteSpace: 'nowrap' }}>
+              ¥{fmt(monthTotal.expense)}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', height: 36, flexShrink: 0 }}>
+            <div className="text-secondary" style={{ fontSize: 11 }}>结余</div>
+            <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#1677ff', whiteSpace: 'nowrap' }}>
+              ¥{fmt(monthTotal.surplus)}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 20, flexShrink: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: 36, opacity: 0.45 }}>
+              <div className="text-secondary" style={{ fontSize: 10 }}>待支出</div>
+              <div style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: '#ff4d4f', whiteSpace: 'nowrap' }}>
+                ¥{fmt(monthTotal.pendingExpense)}
               </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', height: 36 }}>
-              <div className="text-secondary" style={{ fontSize: 11 }}>支出</div>
-              <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#ff4d4f' }}>
-                ¥{fmt(monthTotal.expense)}
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', height: 36 }}>
-              <div className="text-secondary" style={{ fontSize: 11 }}>结余</div>
-              <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#1677ff' }}>
-                ¥{fmt(monthTotal.surplus)}
-              </div>
-            </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 20 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', height: 36, opacity: 0.45 }}>
-                <div className="text-secondary" style={{ fontSize: 10 }}>待支出</div>
-                <div style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: '#ff4d4f' }}>
-                  ¥{fmt(monthTotal.pendingExpense)}
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', height: 36, opacity: 0.45 }}>
-                <div className="text-secondary" style={{ fontSize: 10 }}>待结余</div>
-                <div style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: '#1677ff' }}>
-                  ¥{fmt(monthTotal.pendingSurplus)}
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', height: 36, opacity: 0.45 }}>
+              <div className="text-secondary" style={{ fontSize: 10 }}>待结余</div>
+              <div style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: '#1677ff', whiteSpace: 'nowrap' }}>
+                ¥{fmt(monthTotal.pendingSurplus)}
               </div>
             </div>
           </div>
@@ -650,7 +681,7 @@ export default function LedgerDetail() {
         {keyword.trim() !== '' ? (
           <div>
             {!isViewer && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div ref={batchStuckSearch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 161px)' : 'calc(env(safe-area-inset-top) + 101px)', background: '#fff', zIndex: 40, borderRadius: 12, padding: '8px 12px', boxShadow: batchStuckSearch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
                 <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedIds.size} 条</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAll}>
@@ -776,7 +807,7 @@ export default function LedgerDetail() {
         ) : (
           <>
             {batchMode && !isViewer && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div ref={batchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 161px)' : 'calc(env(safe-area-inset-top) + 101px)', background: '#fff', zIndex: 40, borderRadius: 12, padding: '8px 12px', boxShadow: batchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
                 <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedIds.size} 条</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAll}>

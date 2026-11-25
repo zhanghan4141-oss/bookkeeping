@@ -18,6 +18,7 @@ import { TabActiveContext } from '../components/KeepAlive';
 import type { Category, Ledger, StatSummary, Transaction } from '../types';
 import { formatMoney } from '../lib/format';
 import { usePopupBack } from '../hooks/usePopupBack';
+import { useStuck } from '../hooks/useStuck';
 
 function fmtDate(d: Date): string {
   const y = d.getFullYear();
@@ -285,6 +286,7 @@ function monthRangeOf(
 export default function Stats() {
   const navigate = useNavigate();
   const pageRef = useRef<HTMLDivElement>(null);
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
   const isActive = useContext(TabActiveContext);
   const [calendar, setCalendar] = useState<'solar' | 'lunar'>('solar');
   const [showRangePicker, setShowRangePicker] = useState(false);
@@ -413,11 +415,6 @@ export default function Stats() {
     });
   }, [categoryTxList, categoryKeyword]);
 
-  const categoryTotal = useMemo(
-    () => filteredCategoryTx.reduce((s, t) => s + Number(t.amount), 0),
-    [filteredCategoryTx],
-  );
-
   // 可删除的流水（贷款/支出计划流水不可删，批量删除时排除）
   const deletableCategoryTx = useMemo(
     () => filteredCategoryTx.filter((t) => !t.loanId && !t.expensePlanId),
@@ -433,6 +430,30 @@ export default function Stats() {
   const [batchMode, setBatchMode] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClick = useRef<string | null>(null);
+
+  // 类别流水「合计/笔数」：批量勾选非空 → 只统计勾选流水；否则搜索后的全部
+  const categoryTotal = useMemo(
+    () =>
+      (batchMode && selectedTxIds.size > 0
+        ? filteredCategoryTx.filter((t) => selectedTxIds.has(t.id))
+        : filteredCategoryTx
+      ).reduce((s, t) => s + Number(t.amount), 0),
+    [filteredCategoryTx, batchMode, selectedTxIds],
+  );
+  const categoryCount = useMemo(
+    () =>
+      batchMode && selectedTxIds.size > 0
+        ? filteredCategoryTx.filter((t) => selectedTxIds.has(t.id)).length
+        : filteredCategoryTx.length,
+    [filteredCategoryTx, batchMode, selectedTxIds],
+  );
+
+  // 固定元素「是否已固定」：固定时加底部阴影
+  const catStatsStuck = useStuck<HTMLDivElement>(0, () => categoryScrollRef.current);
+  const catSearchStuck = useStuck<HTMLDivElement>(60, () => categoryScrollRef.current);
+  const catBatchStuckSearch = useStuck<HTMLDivElement>(120, () => categoryScrollRef.current);
+  const catBatchStuckBatch = useStuck<HTMLDivElement>(60, () => categoryScrollRef.current);
+
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   usePopupBack(!!editingTx, () => setEditingTx(null));
@@ -1103,7 +1124,7 @@ export default function Stats() {
         disableBodyScroll={isActive}
         bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
       >
-        <div style={{ padding: 16, maxHeight: '75vh', overflowY: 'auto' }}>
+        <div ref={categoryScrollRef} style={{ padding: 16, maxHeight: '85vh', overflowY: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontWeight: 600, fontSize: 16 }}>
               {activeCategory?.icon} {activeCategory?.name} 流水
@@ -1113,7 +1134,7 @@ export default function Stats() {
             </span>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <div ref={catStatsStuck.ref} style={{ display: 'flex', gap: 8, marginBottom: 12, position: 'sticky', top: 0, background: '#fff', zIndex: 40, paddingTop: 4, boxShadow: catStatsStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
             <div style={{ flex: 1, background: '#f5f6f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 11 }}>合计</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: activeCategory?.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
@@ -1122,22 +1143,23 @@ export default function Stats() {
             </div>
             <div style={{ flex: 1, background: '#f5f6f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 11 }}>笔数</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#333' }}>{filteredCategoryTx.length} 笔</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#333' }}>{categoryCount} 笔</div>
             </div>
           </div>
 
-          <div style={{ marginBottom: 8 }}>
+          <div ref={catSearchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: categoryKeyword.trim() ? 'sticky' : 'static', top: categoryKeyword.trim() ? 60 : undefined, background: '#fff', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: catSearchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
             <SearchBar
               placeholder="搜索备注、类别或金额"
               value={categoryKeyword}
               onChange={setCategoryKeyword}
               onClear={() => setCategoryKeyword('')}
+              style={{ '--background': '#f5f5f5', '--border-radius': '8px', flex: 1 }}
             />
           </div>
 
           {categoryKeyword.trim() !== '' ? (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div ref={catBatchStuckSearch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: 120, background: '#fff', zIndex: 40, boxShadow: catBatchStuckSearch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
                 <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedTxIds.size} 条</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAllTx}>
@@ -1224,7 +1246,7 @@ export default function Stats() {
           ) : (
             <div>
               {batchMode && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div ref={catBatchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: 60, background: '#fff', zIndex: 40, boxShadow: catBatchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
                   <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedTxIds.size} 条</span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Button size="mini" fill="outline" onClick={toggleSelectAllTx}>
