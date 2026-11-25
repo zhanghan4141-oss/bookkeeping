@@ -195,21 +195,21 @@ export default function ExpensePlanForm() {
     }
   };
 
-  const labelStyle = { fontSize: 13, color: '#666', marginBottom: 4 } as const;
+  const labelStyle = { fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 } as const;
   const fieldWrap = { marginBottom: 14 } as const;
 
   return (
-    <div className="page" style={{ background: '#fff' }}>
+    <div className="page" style={{ background: 'var(--card)' }}>
       <NavBar onBack={() => navigate(-1)}>{isEdit ? '编辑支出计划' : '添加支出计划'}</NavBar>
 
       <div style={{ padding: 16 }}>
         <div style={fieldWrap}>
-          <div style={labelStyle}>计划名称 <span style={{ color: '#ff4d4f' }}>*</span></div>
+          <div style={labelStyle}>计划名称 <span style={{ color: 'var(--expense)' }}>*</span></div>
           <Input placeholder="如：女儿生活费" value={form.name} onChange={(v) => set('name', v)} />
         </div>
 
         <div style={fieldWrap}>
-          <div style={labelStyle}>支出类别 <span style={{ color: '#ff4d4f' }}>*</span></div>
+          <div style={labelStyle}>支出类别 <span style={{ color: 'var(--expense)' }}>*</span></div>
           <Picker
             columns={[
               expenseCategories.map((c) => ({
@@ -223,7 +223,7 @@ export default function ExpensePlanForm() {
             {(_items, actions) => {
               const current = expenseCategories.find((c) => c.id === form.categoryId);
               return (
-                <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}>
                   {current ? (current.icon ? `${current.icon} ${current.name}` : current.name) : '选择支出类别'}
                 </div>
               );
@@ -232,12 +232,12 @@ export default function ExpensePlanForm() {
         </div>
 
         <div style={fieldWrap}>
-          <div style={labelStyle}>每期金额（元）<span style={{ color: '#ff4d4f' }}>*</span></div>
+          <div style={labelStyle}>每期金额（元）<span style={{ color: 'var(--expense)' }}>*</span></div>
           <Input type="number" placeholder="1200" value={form.periodAmount} onChange={(v) => set('periodAmount', v)} />
         </div>
 
         <div style={fieldWrap}>
-          <div style={labelStyle}>期数 <span style={{ color: '#ff4d4f' }}>*</span></div>
+          <div style={labelStyle}>期数 <span style={{ color: 'var(--expense)' }}>*</span></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Input
               type="number"
@@ -264,7 +264,7 @@ export default function ExpensePlanForm() {
             onConfirm={(v) => set('frequency', String(v[0]))}
           >
             {(_items, actions) => (
-              <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+              <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}>
                 {FREQUENCIES.find((f) => f.value === form.frequency)?.label ?? '月付'}
               </div>
             )}
@@ -284,7 +284,7 @@ export default function ExpensePlanForm() {
             onConfirm={(v) => set('day', String(v[0]))}
           >
             {(items, actions) => (
-              <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+              <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}>
                 {items[0]?.label ?? `${form.day} 号`}
               </div>
             )}
@@ -292,13 +292,13 @@ export default function ExpensePlanForm() {
         </div>
 
         <div style={fieldWrap}>
-          <div style={labelStyle}>开始日期<span style={{ color: '#ff4d4f' }}>*</span></div>
+          <div style={labelStyle}>开始日期<span style={{ color: 'var(--expense)' }}>*</span></div>
           <DatePicker
             value={new Date(form.startDate)}
             onConfirm={(v) => v && set('startDate', formatDate(v))}
           >
             {(value, actions) => (
-              <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+              <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}>
                 {value ? formatDate(value) : '选择日期'}
               </div>
             )}
@@ -321,7 +321,7 @@ export default function ExpensePlanForm() {
             </div>
             <div style={{ maxHeight: 360, overflowY: 'auto' }}>
               {preview.rows.map((p) => (
-                <div key={p.periodNo} style={{ padding: '6px 0', borderBottom: '1px solid #eee' }}>
+                <div key={p.periodNo} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                     <span>第{p.periodNo}期</span>
                     <span className="text-secondary">{p.dueDate}</span>

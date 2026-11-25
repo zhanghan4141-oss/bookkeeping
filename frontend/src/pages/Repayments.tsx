@@ -373,7 +373,7 @@ export default function Repayments() {
 
   return (
     <div className="page" ref={pageRef}>
-      <NavBar back={null} style={{ background: '#fff' }}>
+      <NavBar back={null} style={{ background: 'var(--card)' }}>
         还款计划
       </NavBar>
 
@@ -381,7 +381,7 @@ export default function Repayments() {
         {/* 统计截止时间（置于账本选择上方） */}
         <div
           style={{
-            background: '#fff',
+            background: 'var(--card)',
             borderRadius: 12,
             padding: 12,
             marginBottom: 12,
@@ -397,7 +397,7 @@ export default function Repayments() {
               display: 'flex',
               alignItems: 'center',
               gap: 4,
-              color: '#1677ff',
+              color: 'var(--primary)',
               fontSize: 13,
             }}
           >
@@ -408,7 +408,7 @@ export default function Repayments() {
         {/* 账本筛选（横向滑动浏览，点开弹窗多选） */}
         <div
           style={{
-            background: '#fff',
+            background: 'var(--card)',
             borderRadius: 12,
             padding: 12,
             marginBottom: 12,
@@ -432,8 +432,8 @@ export default function Repayments() {
                   style={{
                     padding: '4px 10px',
                     borderRadius: 12,
-                    background: selected ? '#e6f4ff' : '#f5f5f5',
-                    color: selected ? '#1677ff' : '#999',
+                    background: selected ? 'var(--primary-weak)' : 'var(--fill)',
+                    color: selected ? 'var(--primary)' : 'var(--text-muted)',
                     fontSize: 13,
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
@@ -445,7 +445,7 @@ export default function Repayments() {
               );
             })}
           </div>
-          <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
+          <span style={{ fontSize: 13, color: 'var(--primary)' }}>选择</span>
         </div>
 
         {/* 汇总卡片 */}
@@ -453,28 +453,28 @@ export default function Repayments() {
           <div
             style={{
               flex: 1,
-              background: '#fff',
+              background: 'var(--card)',
               borderRadius: 12,
               padding: '16px',
               textAlign: 'center',
             }}
           >
             <div className="text-secondary" style={{ fontSize: 13 }}>待还款</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#52c41a' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--income)' }}>
               ¥{formatMoney(data?.totalAmount ?? 0)}
             </div>
           </div>
           <div
             style={{
               flex: 1,
-              background: '#fff',
+              background: 'var(--card)',
               borderRadius: 12,
               padding: '16px',
               textAlign: 'center',
             }}
           >
             <div className="text-secondary" style={{ fontSize: 13 }}>待支出</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#52c41a' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--income)' }}>
               ¥{formatMoney(pendingExpense?.totalAmount ?? 0)}
             </div>
           </div>
@@ -499,7 +499,7 @@ export default function Repayments() {
         {groupedRepay.map((d: any) => {
           const isExpanded = expandedRepay.has(d.date);
           return (
-            <div key={d.date} style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
+            <div key={d.date} style={{ background: 'var(--card)', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
               <div
                 onClick={() => toggleRepay(d.date)}
                 style={{
@@ -508,7 +508,7 @@ export default function Repayments() {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   cursor: 'pointer',
-                  borderBottom: isExpanded ? '1px solid #f5f5f5' : 'none',
+                  borderBottom: isExpanded ? '1px solid var(--border)' : 'none',
                 }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -516,26 +516,26 @@ export default function Repayments() {
                     ▶
                   </span>
                   <span style={{ fontWeight: 600 }}>{d.date}</span>
-                  <span style={{ fontSize: 12, color: '#999' }}>{d.items.length} 笔</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{d.items.length} 笔</span>
                 </span>
-                <span style={{ fontWeight: 700, color: '#999' }}>¥{formatMoney(d.total)}</span>
+                <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>¥{formatMoney(d.total)}</span>
               </div>
               {isExpanded && d.items.map((it: any) => (
-                <div key={it.repaymentId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div key={it.repaymentId} style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '8px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                   {repayScale !== 'day' && (
                     <span style={{ color: '#ff8f1f', marginRight: 6 }}>{it.dueDate}</span>
                   )}
                   <span
-                    style={{ color: '#1677ff', cursor: 'pointer' }}
+                    style={{ color: 'var(--primary)', cursor: 'pointer' }}
                     onClick={() => it.loanId && navigate(`/loans/${it.loanId}`)}
                   >
                     {it.loanName}
                   </span>{' '}
                   {it.kind === 'prepay' ? '提前还款' : `第${it.periodNo}期`} · 剩余{' '}
-                  <span style={{ color: '#ff4d4f' }}>¥{formatMoney(it.remainingPrincipal)}</span>
+                  <span style={{ color: 'var(--expense)' }}>¥{formatMoney(it.remainingPrincipal)}</span>
                   /{it.remainingPeriods}期、本期{' '}
-                  <span style={{ color: '#52c41a' }}>¥{formatMoney(it.totalAmount)}</span>
-                  <span style={{ marginLeft: 6, color: it.status === 'overdue' ? '#ff4d4f' : '#999' }}>
+                  <span style={{ color: 'var(--income)' }}>¥{formatMoney(it.totalAmount)}</span>
+                  <span style={{ marginLeft: 6, color: it.status === 'overdue' ? 'var(--expense)' : 'var(--text-muted)' }}>
                     {it.status === 'overdue' ? '逾期' : it.status === 'partial' ? '部分还' : '待还'}
                   </span>
                   <Button size="mini" color="primary" fill="outline" style={{ marginLeft: 8 }} onClick={() => handleMarkClick(it, it.dueDate)}>
@@ -547,7 +547,7 @@ export default function Repayments() {
           );
         })}
         {!groupedRepay.length && (
-          <div style={{ textAlign: 'center', padding: 16, color: '#999', marginBottom: 16 }}>未来 30 天暂无待还款</div>
+          <div style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)', marginBottom: 16 }}>未来 30 天暂无待还款</div>
         )}
 
         {/* 待支出列表 */}
@@ -569,7 +569,7 @@ export default function Repayments() {
         {groupedExpense.map((d: any) => {
           const isExpanded = expandedExpense.has(d.date);
           return (
-            <div key={d.date} style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
+            <div key={d.date} style={{ background: 'var(--card)', borderRadius: 12, overflow: 'hidden', marginBottom: 8 }}>
               <div
                 onClick={() => toggleExpense(d.date)}
                 style={{
@@ -578,7 +578,7 @@ export default function Repayments() {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   cursor: 'pointer',
-                  borderBottom: isExpanded ? '1px solid #f5f5f5' : 'none',
+                  borderBottom: isExpanded ? '1px solid var(--border)' : 'none',
                 }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -586,33 +586,33 @@ export default function Repayments() {
                     ▶
                   </span>
                   <span style={{ fontWeight: 600 }}>{d.date}</span>
-                  <span style={{ fontSize: 12, color: '#999' }}>{d.items.length} 笔</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{d.items.length} 笔</span>
                 </span>
-                <span style={{ fontWeight: 700, color: '#999' }}>¥{formatMoney(d.total)}</span>
+                <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>¥{formatMoney(d.total)}</span>
               </div>
               {isExpanded && d.items.map((it: any) => (
-                <div key={it.transactionId} style={{ fontSize: 13, color: '#666', padding: '8px 12px', borderBottom: '1px solid #fafafa', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div key={it.transactionId} style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '8px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                   {repayScale !== 'day' && (
                     <span style={{ color: '#ff8f1f', marginRight: 6 }}>{it.dueDate}</span>
                   )}
                   {it.expensePlanId ? (
                     <>
                       <span
-                        style={{ color: '#1677ff', cursor: 'pointer' }}
+                        style={{ color: 'var(--primary)', cursor: 'pointer' }}
                         onClick={() => it.expensePlanId && navigate(`/expense-plans/${it.expensePlanId}`)}
                       >
                         {it.expensePlanName}
                       </span>{' '}
                       第{it.expensePeriodNo}期 ·{' '}
-                      <span style={{ color: '#52c41a' }}>¥{formatMoney(it.amount)}</span>
-                      <span style={{ marginLeft: 6, color: '#999' }}>待支出</span>
+                      <span style={{ color: 'var(--income)' }}>¥{formatMoney(it.amount)}</span>
+                      <span style={{ marginLeft: 6, color: 'var(--text-muted)' }}>待支出</span>
                       <Button size="mini" color="success" fill="outline" style={{ marginLeft: 8 }} onClick={() => handleMarkClick(it, it.dueDate)}>
                         支出
                       </Button>
                     </>
                   ) : (
                     <>
-                      {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: '#52c41a' }}>¥{formatMoney(it.amount)}</span>
+                      {it.categoryIcon || '💸'} {it.categoryName} · <span style={{ color: 'var(--income)' }}>¥{formatMoney(it.amount)}</span>
                       {it.note && <ExpandableNote text={it.note} />}
                     </>
                   )}
@@ -622,7 +622,7 @@ export default function Repayments() {
           );
         })}
         {!groupedExpense.length && (
-          <div style={{ textAlign: 'center', padding: 16, color: '#999' }}>未来 30 天暂无待支出</div>
+          <div style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)' }}>未来 30 天暂无待支出</div>
         )}
       </div>
 
@@ -677,7 +677,7 @@ export default function Repayments() {
               {(value, actions) => (
                 <div
                   onClick={() => actions.open()}
-                  style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}
+                  style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}
                 >
                   {value ? formatDate(value) : '选择日期'}
                 </div>
@@ -714,7 +714,7 @@ export default function Repayments() {
             />
             <DatePicker precision="day" value={markDate ? new Date(markDate) : new Date()} max={new Date()} onConfirm={(v) => setMarkDate(formatDate(v))}>
               {(_value, actions) => (
-                <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}>
                   {markDate || '今天'}
                 </div>
               )}

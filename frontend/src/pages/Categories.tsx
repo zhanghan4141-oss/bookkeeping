@@ -92,7 +92,7 @@ export default function Categories() {
 
   return (
     <div className="page" ref={pageRef}>
-      <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
+      <NavBar onBack={() => navigate(-1)} style={{ background: 'var(--card)' }}>
         分类管理
       </NavBar>
 
@@ -117,7 +117,7 @@ export default function Categories() {
                       编辑
                     </Button>
                     <Button size="mini" fill="none" onClick={() => handleRemove(c)}>
-                      <DeleteOutline color="#999" />
+                      <DeleteOutline color='var(--text-muted)' />
                     </Button>
                   </div>
                 ) : undefined
@@ -144,7 +144,7 @@ export default function Categories() {
                       编辑
                     </Button>
                     <Button size="mini" fill="none" onClick={() => handleRemove(c)}>
-                      <DeleteOutline color="#999" />
+                      <DeleteOutline color='var(--text-muted)' />
                     </Button>
                   </div>
                 ) : undefined
@@ -261,7 +261,7 @@ export default function Categories() {
           <div className="text-secondary" style={{ fontSize: 13, marginBottom: 12 }}>
             删除类别「{deleting?.name}」？
             {(deleting?._count?.transactions ?? 0) > 0 && (
-              <>该类别下有 <span style={{ color: '#ff4d4f' }}>{deleting?._count?.transactions}</span> 条流水，请选择这些流水的去向：</>
+              <>该类别下有 <span style={{ color: 'var(--expense)' }}>{deleting?._count?.transactions}</span> 条流水，请选择这些流水的去向：</>
             )}
           </div>
           {(deleting?._count?.transactions ?? 0) > 0 && (
@@ -280,7 +280,7 @@ export default function Categories() {
               {(items, actions) => (
                 <div
                   onClick={() => actions.open()}
-                  style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px', marginBottom: 16 }}
+                  style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px', marginBottom: 16 }}
                 >
                   {items[0]?.label ?? '未分类'}
                 </div>

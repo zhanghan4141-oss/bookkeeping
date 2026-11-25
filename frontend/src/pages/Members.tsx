@@ -152,7 +152,7 @@ export default function Members() {
 
   return (
     <div className="page" ref={pageRef}>
-      <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
+      <NavBar onBack={() => navigate(-1)} style={{ background: 'var(--card)' }}>
         成员管理
       </NavBar>
 
@@ -191,7 +191,7 @@ export default function Members() {
                 description={
                   <span>
                     {m.user.email}
-                    {isSelf && <span style={{ marginLeft: 6, color: '#999' }}>（我）</span>}
+                    {isSelf && <span style={{ marginLeft: 6, color: 'var(--text-muted)' }}>（我）</span>}
                   </span>
                 }
                 extra={
@@ -305,7 +305,7 @@ export default function Members() {
               {(items, actions) => (
                 <div
                   onClick={() => actions.open()}
-                  style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}
+                  style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}
                 >
                   {items[0]?.label ?? (ROLE_LABEL[inviteRole] ?? inviteRole)}
                 </div>

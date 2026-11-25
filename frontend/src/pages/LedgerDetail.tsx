@@ -520,7 +520,7 @@ export default function LedgerDetail() {
     <div className="page" ref={pageRef}>
       <NavBar
         onBack={() => navigate(-1)}
-        style={{ background: '#fff' }}
+        style={{ background: 'var(--card)' }}
         right={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Button size="mini" fill="outline" loading={exportBusy} onClick={() => runExport(handleExport)}>
@@ -540,7 +540,7 @@ export default function LedgerDetail() {
       <div style={{ padding: '16px 16px 0' }}>
         <div
           style={{
-            background: '#fff',
+            background: 'var(--card)',
             borderRadius: 12,
             padding: '16px',
             marginBottom: 12,
@@ -558,14 +558,14 @@ export default function LedgerDetail() {
                       type="month"
                       value={month}
                       onChange={(e) => setMonth(e.target.value)}
-                      style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 110 }}
+                      style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 110 }}
                     />
                   ) : (
                     <input
                       type="number"
                       value={year}
                       onChange={(e) => setYear(e.target.value)}
-                      style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 80 }}
+                      style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 14, width: 80 }}
                     />
                   )}
                   <div onClick={() => shiftTime(1)} style={{ padding: '2px 6px', cursor: 'pointer' }}>
@@ -590,11 +590,11 @@ export default function LedgerDetail() {
         </div>
 
         {/* 搜索框：sticky 固定在 NavBar 下方 */}
-        <div ref={searchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: keyword.trim() ? 'sticky' : 'static', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 45px)' : undefined, background: '#fff', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: searchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+        <div ref={searchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: keyword.trim() ? 'sticky' : 'static', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 45px)' : undefined, background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: searchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
           <select
             value={searchField}
             onChange={(e) => setSearchField(e.target.value as any)}
-            style={{ border: '1px solid #eee', borderRadius: 6, padding: '4px 6px', fontSize: 13, background: '#fff' }}
+            style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '4px 6px', fontSize: 13, background: 'var(--card)' }}
           >
             <option value="all">所有</option>
             <option value="category">类别</option>
@@ -607,7 +607,7 @@ export default function LedgerDetail() {
               value={keyword}
               onChange={setKeyword}
               onClear={() => setKeyword('')}
-              style={{ '--background': '#f5f5f5', '--border-radius': '8px' }}
+              style={{ '--background': 'var(--fill)', '--border-radius': '8px' }}
             />
           </div>
         </div>
@@ -621,7 +621,7 @@ export default function LedgerDetail() {
             gap: '10px 20px',
             position: 'sticky',
             top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 105px)' : 'calc(env(safe-area-inset-top) + 45px)',
-            background: '#fff',
+            background: 'var(--card)',
             zIndex: 40,
             borderRadius: 12,
             padding: '10px 12px',
@@ -631,32 +631,32 @@ export default function LedgerDetail() {
         >
           <div style={{ display: 'flex', flexDirection: 'column', height: 36, flexShrink: 0 }}>
             <div className="text-secondary" style={{ fontSize: 11 }}>收入</div>
-            <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#52c41a', whiteSpace: 'nowrap' }}>
+            <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: 'var(--income)', whiteSpace: 'nowrap' }}>
               ¥{fmt(monthTotal.income)}
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', height: 36, flexShrink: 0 }}>
             <div className="text-secondary" style={{ fontSize: 11 }}>支出</div>
-            <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#ff4d4f', whiteSpace: 'nowrap' }}>
+            <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: 'var(--expense)', whiteSpace: 'nowrap' }}>
               ¥{fmt(monthTotal.expense)}
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', height: 36, flexShrink: 0 }}>
             <div className="text-secondary" style={{ fontSize: 11 }}>结余</div>
-            <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: '#1677ff', whiteSpace: 'nowrap' }}>
+            <div style={{ marginTop: 'auto', fontSize: 14, fontWeight: 600, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
               ¥{fmt(monthTotal.surplus)}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 20, flexShrink: 0 }}>
             <div style={{ display: 'flex', flexDirection: 'column', height: 36, opacity: 0.45 }}>
               <div className="text-secondary" style={{ fontSize: 10 }}>待支出</div>
-              <div style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: '#ff4d4f', whiteSpace: 'nowrap' }}>
+              <div style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: 'var(--expense)', whiteSpace: 'nowrap' }}>
                 ¥{fmt(monthTotal.pendingExpense)}
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', height: 36, opacity: 0.45 }}>
               <div className="text-secondary" style={{ fontSize: 10 }}>待结余</div>
-              <div style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: '#1677ff', whiteSpace: 'nowrap' }}>
+              <div style={{ marginTop: 'auto', fontSize: 12, fontWeight: 600, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                 ¥{fmt(monthTotal.pendingSurplus)}
               </div>
             </div>
@@ -681,8 +681,8 @@ export default function LedgerDetail() {
         {keyword.trim() !== '' ? (
           <div>
             {!isViewer && (
-              <div ref={batchStuckSearch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 161px)' : 'calc(env(safe-area-inset-top) + 101px)', background: '#fff', zIndex: 40, borderRadius: 12, padding: '8px 12px', boxShadow: batchStuckSearch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
-                <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedIds.size} 条</span>
+              <div ref={batchStuckSearch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 161px)' : 'calc(env(safe-area-inset-top) + 101px)', background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', boxShadow: batchStuckSearch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>已选 {selectedIds.size} 条</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAll}>
                     {selectedIds.size === deletableFiltered.length ? '取消全选' : '全选'}
@@ -711,7 +711,7 @@ export default function LedgerDetail() {
                     alignItems: 'center',
                     padding: '10px 12px',
                     borderRadius: 12,
-                    background: isLockedTx ? '#fafafa' : '#fff',
+                    background: isLockedTx ? 'var(--row)' : 'var(--card)',
                     cursor: isLockedTx || isViewer ? 'default' : 'pointer',
                   }}
                 >
@@ -735,20 +735,20 @@ export default function LedgerDetail() {
                     <div style={{ fontSize: 15 }}>
                       {t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}
                     </div>
-                    <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                       <span style={{ color: isLoanTx ? '#ff8f1f' : '#ffa94d' }}>{formatDateTime(new Date(t.occurredAt))}</span>
                       {t.note && <ExpandableNote text={t.note} />}
                       {isLoanTx && (
                         <span
                           onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }}
-                          style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}
+                          style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}
                         >
                           〔{t.loan?.name ?? '贷款'}〕
                         </span>
                       )}
                     </div>
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? 'var(--income)' : 'var(--expense)' }}>
                     {t.type === 'income' ? '+' : '-'}¥{fmt(t.amount)}
                   </span>
                 </div>
@@ -801,14 +801,14 @@ export default function LedgerDetail() {
               );
             })}
             {filtered.length === 0 && (
-              <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>无搜索结果</div>
+              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>无搜索结果</div>
             )}
           </div>
         ) : (
           <>
             {batchMode && !isViewer && (
-              <div ref={batchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 161px)' : 'calc(env(safe-area-inset-top) + 101px)', background: '#fff', zIndex: 40, borderRadius: 12, padding: '8px 12px', boxShadow: batchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
-                <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedIds.size} 条</span>
+              <div ref={batchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: keyword.trim() ? 'calc(env(safe-area-inset-top) + 161px)' : 'calc(env(safe-area-inset-top) + 101px)', background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', boxShadow: batchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>已选 {selectedIds.size} 条</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAll}>
                     {selectedIds.size === deletableFiltered.length ? '取消全选' : '全选'}
@@ -824,18 +824,18 @@ export default function LedgerDetail() {
           const dayExpense = items.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
           const isExpanded = expandedDates.has(date);
           return (
-            <div key={date} style={{ background: '#fff', marginBottom: 8, borderRadius: 12, overflow: 'hidden' }}>
+            <div key={date} style={{ background: 'var(--card)', marginBottom: 8, borderRadius: 12, overflow: 'hidden' }}>
               <div
                 onClick={() => toggleDate(date)}
                 style={{
                   padding: '8px 12px',
                   fontSize: 13,
-                  color: '#666',
+                  color: 'var(--text-secondary)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   cursor: 'pointer',
-                  borderBottom: isExpanded ? '1px solid #f5f5f5' : 'none',
+                  borderBottom: isExpanded ? '1px solid var(--border)' : 'none',
                 }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -843,11 +843,11 @@ export default function LedgerDetail() {
                     ▶
                   </span>
                   <span>{date}</span>
-                  <span style={{ fontSize: 12, color: '#999' }}>{items.length} 笔</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{items.length} 笔</span>
                 </span>
                 <span>
-                  {dayExpense > 0 && <span style={{ color: '#999' }}>支 ¥{fmt(dayExpense)} </span>}
-                  {dayIncome > 0 && <span style={{ color: '#999' }}>收 ¥{fmt(dayIncome)}</span>}
+                  {dayExpense > 0 && <span style={{ color: 'var(--text-muted)' }}>支 ¥{fmt(dayExpense)} </span>}
+                  {dayIncome > 0 && <span style={{ color: 'var(--text-muted)' }}>收 ¥{fmt(dayIncome)}</span>}
                 </span>
               </div>
               {isExpanded && items.map((t) => {
@@ -862,8 +862,8 @@ export default function LedgerDetail() {
                       display: 'flex',
                       alignItems: 'center',
                       padding: '10px 12px',
-                      borderBottom: '1px solid #fafafa',
-                      background: isLockedTx ? '#fafafa' : '#fff',
+                      borderBottom: '1px solid var(--border)',
+                      background: isLockedTx ? 'var(--row)' : 'var(--card)',
                       cursor: isLockedTx || isViewer ? 'default' : 'pointer',
                     }}
                   >
@@ -884,20 +884,20 @@ export default function LedgerDetail() {
                       <div style={{ fontSize: 15 }}>
                         {t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}
                       </div>
-                      <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                         <span style={{ color: isLoanTx ? '#ff8f1f' : '#ffa94d' }}>{formatDateTime(new Date(t.occurredAt))}</span>
                         {t.note && <ExpandableNote text={t.note} />}
                         {isLoanTx && (
                           <span
                             onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }}
-                            style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}
+                            style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}
                           >
                             〔{t.loan?.name ?? '贷款'}〕
                           </span>
                         )}
                       </div>
                     </div>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? 'var(--income)' : 'var(--expense)' }}>
                       {t.type === 'income' ? '+' : '-'}¥{fmt(t.amount)}
                     </span>
                   </div>
@@ -952,7 +952,7 @@ export default function LedgerDetail() {
           </>
         )}
         {!keyword.trim() && transactions.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
             本月暂无流水，点击右下角记一笔
           </div>
         )}
@@ -994,8 +994,8 @@ export default function LedgerDetail() {
           {/* 类型切换 */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
             {[
-              { key: 'expense', label: '支出', color: '#ff4d4f' },
-              { key: 'income', label: '收入', color: '#52c41a' },
+              { key: 'expense', label: '支出', color: 'var(--expense)' },
+              { key: 'income', label: '收入', color: 'var(--income)' },
               { key: 'transfer', label: '转账', color: '#1677ff' },
             ].map((t) => (
               <div
@@ -1006,8 +1006,8 @@ export default function LedgerDetail() {
                   textAlign: 'center',
                   padding: '8px 0',
                   borderRadius: 8,
-                  background: editForm.type === t.key ? t.color : '#f5f5f5',
-                  color: editForm.type === t.key ? '#fff' : '#666',
+                  background: editForm.type === t.key ? t.color : 'var(--fill)',
+                  color: editForm.type === t.key ? '#fff' : 'var(--text-secondary)',
                   fontWeight: editForm.type === t.key ? 600 : 400,
                 }}
               >
@@ -1037,7 +1037,7 @@ export default function LedgerDetail() {
                 {(items, actions) => (
                   <div
                     onClick={() => actions.open()}
-                    style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}
+                    style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}
                   >
                     {items[0]?.label ?? '选择类别'}
                   </div>
@@ -1056,7 +1056,7 @@ export default function LedgerDetail() {
               {(_value, actions) => (
                 <div
                   onClick={() => actions.open()}
-                  style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}
+                  style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}
                 >
                   {editForm.occurredAt ? formatDateTime(new Date(editForm.occurredAt)) : '选择日期时间'}
                 </div>
@@ -1105,7 +1105,7 @@ export default function LedgerDetail() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Button size="mini" fill="outline" onClick={downloadTemplate}>下载模板</Button>
             <span style={{ fontWeight: 600, fontSize: 16 }}>导入流水</span>
-            <span onClick={() => setShowImport(false)} style={{ fontSize: 22, color: '#999', cursor: 'pointer', lineHeight: 1 }}>×</span>
+            <span onClick={() => setShowImport(false)} style={{ fontSize: 22, color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1 }}>×</span>
           </div>
 
           <input
@@ -1128,7 +1128,7 @@ export default function LedgerDetail() {
               {importResult.errors.length > 0 && (
                 <div style={{ maxHeight: '40vh', overflowY: 'auto' }}>
                   {importResult.errors.map((e, i) => (
-                    <div key={i} style={{ fontSize: 13, color: '#ff4d4f', padding: '4px 0', borderBottom: '1px solid #f5f5f5' }}>
+                    <div key={i} style={{ fontSize: 13, color: 'var(--expense)', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
                       第 {e.row} 行：{e.message}
                     </div>
                   ))}

@@ -77,7 +77,7 @@ export default function LedgerSelectPopup({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span style={{ fontWeight: 600, fontSize: 16 }}>选择账本</span>
           <span
-            style={{ fontSize: 13, color: '#1677ff', cursor: 'pointer' }}
+            style={{ fontSize: 13, color: 'var(--primary)', cursor: 'pointer' }}
             onClick={allSelected ? onSelectNone : onSelectAll}
           >
             {allSelected ? '全不选' : '全选'}
@@ -92,7 +92,7 @@ export default function LedgerSelectPopup({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 4px',
-                borderBottom: '1px solid #f5f5f5',
+                borderBottom: '1px solid var(--border)',
               }}
               onClick={() => onToggle(l.id)}
             >

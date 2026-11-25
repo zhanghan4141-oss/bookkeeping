@@ -12,10 +12,10 @@ import { usePopupBack } from '../hooks/usePopupBack';
 import type { Ledger, Loan, LoanRepayment } from '../types';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  pending: { label: '待还', color: '#1677ff' },
+  pending: { label: '待还', color: 'var(--primary)' },
   partial: { label: '部分还', color: '#faad14' },
-  paid: { label: '已还', color: '#52c41a' },
-  overdue: { label: '逾期', color: '#ff4d4f' },
+  paid: { label: '已还', color: 'var(--income)' },
+  overdue: { label: '逾期', color: 'var(--expense)' },
 };
 
 /** 编辑还款计划时的一行：普通期与提前还款都编辑本金/利息 */
@@ -401,16 +401,16 @@ export default function LoanDetail() {
 
   return (
     <div className="page" ref={pageRef}>
-      <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
+      <NavBar onBack={() => navigate(-1)} style={{ background: 'var(--card)' }}>
         {loan.name}
       </NavBar>
 
       <div style={{ padding: 16 }}>
-        <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12 }}>
+        <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, marginBottom: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', rowGap: 12, marginBottom: 12 }}>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>本金</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#52c41a' }}>¥{formatMoney(Number(loan.principal))}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--income)' }}>¥{formatMoney(Number(loan.principal))}</div>
             </div>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>期数</div>
@@ -423,7 +423,7 @@ export default function LoanDetail() {
 
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>剩余未还本金</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#1677ff' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>
                 ¥{formatMoney(remainingPrincipal)}
               </div>
             </div>
@@ -435,7 +435,7 @@ export default function LoanDetail() {
             </div>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>实际年利率</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#1677ff' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>
                 {loan.actualAnnualRate != null ? `${loan.actualAnnualRate}%` : '—'}
               </div>
             </div>
@@ -469,7 +469,7 @@ export default function LoanDetail() {
 
         {/* 编辑模式：每期日期+金额可编辑 */}
         {editingPlan ? (
-          <div style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+          <div style={{ background: 'var(--card)', borderRadius: 12, padding: 12, marginBottom: 12 }}>
             {editPeriods.map((p, i) => {
               const isPaid = p.status === 'paid';
               const setRow = (patch: Partial<EditPlanRow>) =>
@@ -489,7 +489,7 @@ export default function LoanDetail() {
                   p.paidDate != null && p.paidDate.slice(0, 10) !== (p.dueDate || '').slice(0, 10);
                 if (!amountDiff && !dateDiff) return null;
                 return (
-                  <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: 'var(--purple)', paddingLeft: 8, marginTop: 2 }}>
                     实际{amountDiff ? ` ¥${formatMoney(Number(p.paidAmount))}` : ''}
                     {dateDiff ? ` @ ${p.paidDate?.slice(0, 10) ?? '—'}` : ''}
                   </div>
@@ -499,7 +499,7 @@ export default function LoanDetail() {
                 return (
                   <div key={i} style={{ marginBottom: 8 }}>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: isPaid ? '#f9f0ff' : undefined, borderRadius: 6, padding: '4px 6px' }}>
-                      <span style={{ width: 56, fontSize: 13, color: '#a855f7', flexShrink: 0 }}>
+                      <span style={{ width: 56, fontSize: 13, color: 'var(--purple)', flexShrink: 0 }}>
                         提前还款
                       </span>
                       <div style={{ width: 92, flexShrink: 0 }}>
@@ -512,29 +512,29 @@ export default function LoanDetail() {
                           }}
                         >
                           {(_value, actions) => (
-                            <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
+                            <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
                               {p.dueDate || '日期'}
                             </div>
                           )}
                         </DatePicker>
                       </div>
-                      <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>本金</span>
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>本金</span>
                       <Input
                         type="number"
                         placeholder="本金"
                         value={p.principal}
                         onChange={(v) => setRow({ principal: v })}
-                        style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                        style={{ flex: 1, minWidth: 0, background: 'var(--fill)', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
                       />
-                      <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>利息</span>
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>利息</span>
                       <Input
                         type="number"
                         placeholder="利息"
                         value={p.interest}
                         onChange={(v) => setRow({ interest: v })}
-                        style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                        style={{ flex: 1, minWidth: 0, background: 'var(--fill)', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
                       />
-                      <span onClick={removeRow} style={{ fontSize: 16, color: '#ff4d4f', flexShrink: 0, padding: '0 2px', lineHeight: 1 }}>×</span>
+                      <span onClick={removeRow} style={{ fontSize: 16, color: 'var(--expense)', flexShrink: 0, padding: '0 2px', lineHeight: 1 }}>×</span>
                     </div>
                     {actualInfo}
                   </div>
@@ -544,7 +544,7 @@ export default function LoanDetail() {
                 <div key={i} style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: p.diverged ? '#f9f0ff' : undefined, borderRadius: 6, padding: '4px 6px' }}>
                     {/* 单行：期号 + 缩窄日期 + 本金 + 利息 */}
-                    <span style={{ width: 56, fontSize: 13, color: '#666', flexShrink: 0 }}>
+                    <span style={{ width: 56, fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>
                       第{p.periodNo}期{isPaid ? '✓' : ''}
                     </span>
                     <div style={{ width: 92, flexShrink: 0 }}>
@@ -556,27 +556,27 @@ export default function LoanDetail() {
                         }}
                       >
                         {(_value, actions) => (
-                          <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
+                          <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
                             {p.dueDate || '日期'}
                           </div>
                         )}
                       </DatePicker>
                     </div>
-                    <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>本金</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>本金</span>
                     <Input
                       type="number"
                       placeholder="本金"
                       value={p.principal}
                       onChange={(v) => setRow({ principal: v })}
-                      style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                      style={{ flex: 1, minWidth: 0, background: 'var(--fill)', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
                     />
-                    <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>利息</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>利息</span>
                     <Input
                       type="number"
                       placeholder="利息"
                       value={p.interest}
                       onChange={(v) => setRow({ interest: v })}
-                      style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                      style={{ flex: 1, minWidth: 0, background: 'var(--fill)', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
                     />
                   </div>
                   {actualInfo}
@@ -601,7 +601,7 @@ export default function LoanDetail() {
               }
               extra={
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 600, color: '#52c41a' }}>+¥{formatMoney(Number(loan.principal))}</div>
+                  <div style={{ fontWeight: 600, color: 'var(--income)' }}>+¥{formatMoney(Number(loan.principal))}</div>
                 </div>
               }
             >
@@ -616,7 +616,7 @@ export default function LoanDetail() {
                     key={r.id}
                     description={
                       <>
-                        <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
+                        <div style={{ fontSize: 12, marginTop: 2, color: 'var(--text-muted)' }}>
                           本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.principalAmount))}</span>
                           {Number(r.interestAmount) > 0 && <> · 利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.interestAmount))}</span></>}
                           <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{r.dueDate.slice(0, 10)}</span>
@@ -624,7 +624,7 @@ export default function LoanDetail() {
                         {Number(r.paidAmount) > 0 &&
                         (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
                           (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
-                          <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
+                          <div style={{ fontSize: 11, color: 'var(--purple)', marginTop: 2 }}>
                             实际{Number(r.paidAmount) > 0 && Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ? ` ¥${formatMoney(Number(r.paidAmount))}` : ''}
                             {r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10) ? ` @ ${r.paidDate.slice(0, 10)}` : ''}
                           </div>
@@ -633,14 +633,14 @@ export default function LoanDetail() {
                     }
                     extra={
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 600, color: '#a855f7' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--purple)' }}>
                           ¥{formatMoney(Number(r.totalAmount))}
                         </div>
                         <div style={{ fontSize: 12, color: st.color }}>{st.label}</div>
                       </div>
                     }
                   >
-                    <span style={{ color: '#a855f7' }}>
+                    <span style={{ color: 'var(--purple)' }}>
                       {r.note ?? '提前还款'}
                     </span>
                   </List.Item>
@@ -650,7 +650,7 @@ export default function LoanDetail() {
               // 手动标记的「已提前还」（标记时刻早于到期日）独立标注，颜色沿用提前还款主题紫
               const isEarlyPaid =
                 r.status === 'paid' && !!r.paidDate && new Date(r.paidDate) < new Date(r.dueDate);
-              const stFinal = isEarlyPaid ? { label: '已提前还', color: '#a855f7' } : st;
+              const stFinal = isEarlyPaid ? { label: '已提前还', color: 'var(--purple)' } : st;
               const remain = Number(r.totalAmount) - Number(r.paidAmount);
               const isMerged = isCustom && Number(r.principalAmount) === 0 && Number(r.interestAmount) === 0;
               return (
@@ -658,7 +658,7 @@ export default function LoanDetail() {
                   key={r.periodNo}
                   description={
                     <>
-                      <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
+                      <div style={{ fontSize: 12, marginTop: 2, color: 'var(--text-muted)' }}>
                         {isMerged
                           ? <>合计 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.totalAmount))}</span></>
                           : <>本金 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.principalAmount))}</span> · 利息 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(r.interestAmount))}</span></>}
@@ -667,7 +667,7 @@ export default function LoanDetail() {
                       {Number(r.paidAmount) > 0 &&
                       (Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ||
                         (r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10))) && (
-                        <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
+                        <div style={{ fontSize: 11, color: 'var(--purple)', marginTop: 2 }}>
                           实际{Number(r.paidAmount) > 0 && Math.abs(Number(r.paidAmount) - Number(r.totalAmount)) > 0.005 ? ` ¥${formatMoney(Number(r.paidAmount))}` : ''}
                           {r.paidDate && r.paidDate.slice(0, 10) !== r.dueDate.slice(0, 10) ? ` @ ${r.paidDate.slice(0, 10)}` : ''}
                         </div>
@@ -747,7 +747,7 @@ export default function LoanDetail() {
               onConfirm={(v) => v && setPrepayDate(formatDate(v))}
             >
               {(value, actions) => (
-                <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}>
                   {value ? formatDate(value) : '选择日期'}
                 </div>
               )}
@@ -803,7 +803,7 @@ export default function LoanDetail() {
                   <>（约 ¥{formatMoney(prepayEstimate.interest)}）</>
                 )}
                 {prepayEstimate && prepayEstimate.interest > 0 && (
-                  <span style={{ color: '#1677ff', fontWeight: 600 }}>
+                  <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
                     ，本次合计约 ¥{formatMoney(prepayEstimate.total)}
                     {prepayEstimate.isFull ? '（含结清）' : ''}
                   </span>

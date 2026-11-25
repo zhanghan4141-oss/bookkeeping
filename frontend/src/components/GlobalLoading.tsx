@@ -36,7 +36,7 @@ export default function GlobalLoading() {
         zIndex: 999,
       }}
     >
-      <SpinLoading style={{ fontSize: 24, color: '#1677ff' }} />
+      <SpinLoading style={{ fontSize: 24, color: 'var(--primary)' }} />
     </div>
   );
 }

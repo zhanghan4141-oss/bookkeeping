@@ -152,12 +152,12 @@ export default function AuditLogs() {
 
   return (
     <div className="page" ref={pageRef}>
-      <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
+      <NavBar onBack={() => navigate(-1)} style={{ background: 'var(--card)' }}>
         日志查询
       </NavBar>
 
       <div style={{ padding: 16 }}>
-        <div style={{ background: '#fff', borderRadius: 12, padding: '12px 16px', marginBottom: 12 }}>
+        <div style={{ background: 'var(--card)', borderRadius: 12, padding: '12px 16px', marginBottom: 12 }}>
           <Picker
             columns={ledgerOptions}
             value={activeLedgerId ? [activeLedgerId] : []}
@@ -167,7 +167,7 @@ export default function AuditLogs() {
             {(_items, actions) => (
               <div onClick={() => actions.open()} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 14 }}>账本</span>
-                <span style={{ color: '#1677ff', fontSize: 14 }}>
+                <span style={{ color: 'var(--primary)', fontSize: 14 }}>
                   {activeLedger?.name ?? '选择账本'}
                 </span>
               </div>
@@ -179,12 +179,12 @@ export default function AuditLogs() {
           const isExpanded = expanded.has(log.id);
           const diffs = formatDiff(log.before, log.after, resolveField);
           return (
-            <div key={log.id} style={{ background: '#fff', borderRadius: 12, padding: '12px 16px', marginBottom: 8 }}>
+            <div key={log.id} style={{ background: 'var(--card)', borderRadius: 12, padding: '12px 16px', marginBottom: 8 }}>
               <div onClick={() => toggle(log.id)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14 }}>
                     {log.summary}
-                    <span style={{ marginLeft: 8, color: '#999', fontSize: 12 }}>{log.nickname}</span>
+                    <span style={{ marginLeft: 8, color: 'var(--text-muted)', fontSize: 12 }}>{log.nickname}</span>
                   </div>
                   <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
                     {formatTime(log.createdAt)}
@@ -197,15 +197,15 @@ export default function AuditLogs() {
                 )}
               </div>
               {isExpanded && diffs.length > 0 && (
-                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f5f5f5' }}>
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
                   {diffs.map((d, i) => (
                     <div key={i} style={{ fontSize: 13, padding: '3px 0' }}>
-                      <span style={{ color: '#999' }}>{d.field}：</span>
-                      <span style={{ color: '#ff4d4f' }}>{d.from || '空'}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{d.field}：</span>
+                      <span style={{ color: 'var(--expense)' }}>{d.from || '空'}</span>
                       {d.to !== undefined && (
                         <>
                           <span style={{ color: '#bbb', margin: '0 6px' }}>→</span>
-                          <span style={{ color: '#52c41a' }}>{d.to || '空'}</span>
+                          <span style={{ color: 'var(--income)' }}>{d.to || '空'}</span>
                         </>
                       )}
                     </div>
@@ -217,7 +217,7 @@ export default function AuditLogs() {
         })}
 
         {logs.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
             暂无操作日志
           </div>
         )}

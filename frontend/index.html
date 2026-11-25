@@ -10,6 +10,20 @@
     />
     <meta name="theme-color" content="#1677ff" />
     <title>记账本</title>
+    <script>
+      // 防闪烁：首帧前预读主题偏好，预设 data-theme 与主色
+      try {
+        var raw = localStorage.getItem('bookkeeping-theme');
+        if (raw) {
+          var s = JSON.parse(raw).state;
+          var dark = !!s.darkMode;
+          var c = s.themeColor || '#1677ff';
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+          document.documentElement.style.setProperty('--primary', c);
+          document.documentElement.style.setProperty('--adm-color-primary', c);
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

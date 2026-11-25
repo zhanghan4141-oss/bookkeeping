@@ -3,7 +3,9 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { useAuthStore } from './stores/auth';
+import { useThemeStore } from './stores/themeStore';
 import { checkAppUpdate } from './lib/appUpdate';
+import { applyTheme } from './lib/applyTheme';
 import { syncReminderNotifications } from './lib/reminderNotifications';
 import { closeTopOverlay } from './lib/overlayStack';
 import Login from './pages/Login';
@@ -40,6 +42,13 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const accessToken = useAuthStore((s) => s.accessToken);
+  const themeColor = useThemeStore((s) => s.themeColor);
+  const darkMode = useThemeStore((s) => s.darkMode);
+
+  // 主题变化时应用（切换主题色 / 深色模式）
+  useEffect(() => {
+    applyTheme({ themeColor, darkMode });
+  }, [themeColor, darkMode]);
 
   // Android 返回键：栈里有上一页则后退，首页/登录页则退出 App
   useEffect(() => {

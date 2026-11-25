@@ -59,18 +59,18 @@ export default function TransactionDayList({
         const dayExpense = items.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
         const isExpanded = expandedDates.has(date);
         return (
-          <div key={date} style={{ background: '#fff', marginBottom: 8, borderRadius: 12, overflow: 'hidden' }}>
+          <div key={date} style={{ background: 'var(--card)', marginBottom: 8, borderRadius: 12, overflow: 'hidden' }}>
             <div
               onClick={() => toggleDate(date)}
               style={{
                 padding: '8px 12px',
                 fontSize: 13,
-                color: '#666',
+                color: 'var(--text-secondary)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 cursor: 'pointer',
-                borderBottom: isExpanded ? '1px solid #f5f5f5' : 'none',
+                borderBottom: isExpanded ? '1px solid var(--border)' : 'none',
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -78,18 +78,18 @@ export default function TransactionDayList({
                   ▶
                 </span>
                 <span>{date}</span>
-                <span style={{ fontSize: 12, color: '#999' }}>{items.length} 笔</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{items.length} 笔</span>
               </span>
               <span>
-                {dayExpense > 0 && <span style={{ color: '#999' }}>支 ¥{fmt(dayExpense)} </span>}
-                {dayIncome > 0 && <span style={{ color: '#999' }}>收 ¥{fmt(dayIncome)}</span>}
+                {dayExpense > 0 && <span style={{ color: 'var(--text-muted)' }}>支 ¥{fmt(dayExpense)} </span>}
+                {dayIncome > 0 && <span style={{ color: 'var(--text-muted)' }}>收 ¥{fmt(dayIncome)}</span>}
               </span>
             </div>
             {isExpanded &&
               items.map((t) => (
                 <div
                   key={t.id}
-                  style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid #fafafa' }}
+                  style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid var(--border)' }}
                 >
                   <span style={{ fontSize: 22, marginRight: 10 }}>
                     {t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}
@@ -98,17 +98,17 @@ export default function TransactionDayList({
                     <div style={{ fontSize: 15 }}>
                       {t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}
                     </div>
-                    <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                       {formatDateTime(new Date(t.occurredAt))}
                       {t.note && <ExpandableNote text={t.note} />}
                       {showLedgerName && t.ledger?.name && (
-                        <span style={{ marginLeft: 6, color: '#1677ff' }}>
+                        <span style={{ marginLeft: 6, color: 'var(--primary)' }}>
                           〔{t.ledger.name}〕
                         </span>
                       )}
                     </div>
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? 'var(--income)' : 'var(--expense)' }}>
                     {t.type === 'income' ? '+' : '-'}¥{fmt(t.amount)}
                   </span>
                 </div>
@@ -118,7 +118,7 @@ export default function TransactionDayList({
       })}
 
       {transactions.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>{emptyText}</div>
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>{emptyText}</div>
       )}
     </div>
   );

@@ -81,7 +81,7 @@ export default function Login() {
         maxWidth: 520,
         margin: '0 auto',
         minHeight: '100vh',
-        background: '#fff',
+        background: 'var(--card)',
         padding: '40px 24px',
       }}
     >
@@ -120,7 +120,7 @@ export default function Login() {
       </Form>
 
       <div style={{ textAlign: 'center', marginTop: 16 }}>
-        <a onClick={() => setIsRegister(!isRegister)} style={{ color: '#1677ff' }}>
+        <a onClick={() => setIsRegister(!isRegister)} style={{ color: 'var(--primary)' }}>
           {isRegister ? '已有账号？去登录' : '没有账号？去注册'}
         </a>
       </div>

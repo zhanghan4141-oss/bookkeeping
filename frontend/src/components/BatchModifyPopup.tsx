@@ -141,7 +141,7 @@ export default function BatchModifyPopup({
         </div>
 
         {/* 修改类别 */}
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>修改类别</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}>修改类别</div>
         <Radio.Group value={selCatId} onChange={(v) => setSelCatId(String(v))}>
           {categoryOptions.map((c) => (
             <Radio key={c.id} value={c.id} style={{ marginBottom: 6 }}>
@@ -154,7 +154,7 @@ export default function BatchModifyPopup({
         </Button>
 
         {/* 批量转移 */}
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>批量转移</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}>批量转移</div>
         {available.map((l) => (
           <div
             key={l.id}
@@ -166,8 +166,8 @@ export default function BatchModifyPopup({
               padding: '8px 12px',
               borderRadius: 8,
               marginBottom: 6,
-              background: targetLedger?.id === l.id ? '#e6f4ff' : '#f5f5f5',
-              color: targetLedger?.id === l.id ? '#1677ff' : '#333',
+              background: targetLedger?.id === l.id ? 'var(--primary-weak)' : 'var(--fill)',
+              color: targetLedger?.id === l.id ? 'var(--primary)' : 'var(--text)',
               cursor: 'pointer',
             }}
           >
@@ -181,7 +181,7 @@ export default function BatchModifyPopup({
         )}
         {targetLedger && (
           <>
-            <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>目标类别（可选，默认未分类）</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>目标类别（可选，默认未分类）</div>
             <Radio.Group value={targetCatId ?? ''} onChange={(v) => setTargetCatId(String(v))}>
               {transferCats.map((c) => (
                 <Radio key={c.id} value={c.id} style={{ marginBottom: 6 }}>
@@ -196,7 +196,7 @@ export default function BatchModifyPopup({
         </Button>
 
         {/* 修改备注（空则不修改，不清空原备注） */}
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>修改备注</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}>修改备注</div>
         <Input
           placeholder="输入新备注（留空则不修改）"
           value={note}

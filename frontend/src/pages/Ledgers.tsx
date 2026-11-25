@@ -143,7 +143,7 @@ export default function Ledgers() {
     <div className="page" ref={pageRef}>
       <NavBar
         back={null}
-        style={{ background: '#fff' }}
+        style={{ background: 'var(--card)' }}
         left={
           <div
             onClick={() => setDrawerOpen((v) => !v)}
@@ -151,7 +151,7 @@ export default function Ledgers() {
           >
             <span style={{ fontSize: 16 }}>{currentSpaceIcon}</span>
             <span style={{ fontSize: 14, fontWeight: 600 }}>{currentSpaceName}</span>
-            <span style={{ fontSize: 12, color: '#999' }}>▾</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>▾</span>
           </div>
         }
       >
@@ -161,7 +161,7 @@ export default function Ledgers() {
       <div style={{ padding: '16px' }}>
         <div
           style={{
-            background: '#fff',
+            background: 'var(--card)',
             borderRadius: 12,
             padding: '16px 20px',
             marginBottom: 16,
@@ -190,13 +190,13 @@ export default function Ledgers() {
                 return (
                   <Fragment key={b.key}>
                     <div className="text-secondary" style={{ fontSize: 12 }}>{b.label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#52c41a', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--income)', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       ¥{formatMoney(s?.income ?? 0)}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#ff4d4f', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--expense)', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       ¥{formatMoney(s?.expense ?? 0)}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1677ff', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       ¥{formatMoney(s?.surplus ?? 0)}
                     </div>
                   </Fragment>
@@ -236,8 +236,8 @@ export default function Ledgers() {
                 padding: '6px 0',
                 borderRadius: 6,
                 fontSize: 13,
-                background: period === t.key ? '#1677ff' : '#f5f5f5',
-                color: period === t.key ? '#fff' : '#666',
+                background: period === t.key ? 'var(--primary)' : 'var(--fill)',
+                color: period === t.key ? '#fff' : 'var(--text-secondary)',
               }}
             >
               {t.label}
@@ -271,10 +271,10 @@ export default function Ledgers() {
                       {l.type === 'loan' ? '贷款账本' : l.type === 'daily' ? '日常账本' : '自定义'} · {l.currency}
                     </div>
                     <div style={{ fontSize: 12, marginTop: 2 }}>
-                      收 <span style={{ color: '#52c41a' }}>¥{formatMoney(s?.income ?? 0)}</span>
-                      {'  '}支 <span style={{ color: '#ff4d4f' }}>¥{formatMoney(s?.expense ?? 0)}</span>
+                      收 <span style={{ color: 'var(--income)' }}>¥{formatMoney(s?.income ?? 0)}</span>
+                      {'  '}支 <span style={{ color: 'var(--expense)' }}>¥{formatMoney(s?.expense ?? 0)}</span>
                       {'  '}结余{' '}
-                      <span style={{ color: '#1677ff' }}>
+                      <span style={{ color: 'var(--primary)' }}>
                         ¥{formatMoney(s?.surplus ?? 0)}
                       </span>
                     </div>
@@ -290,14 +290,14 @@ export default function Ledgers() {
                 }}
                 style={
                   isSelected
-                    ? { background: '#e6f4ff' }
+                    ? { background: 'var(--primary-weak)' }
                     : undefined
                 }
-                extra={isSelected ? <span style={{ color: '#1677ff', fontSize: 13 }}>当前</span> : undefined}
+                extra={isSelected ? <span style={{ color: 'var(--primary)', fontSize: 13 }}>当前</span> : undefined}
               >
                 {l.name}
                 {(l.memberCount ?? 1) > 1 && (
-                  <span style={{ marginLeft: 6, fontSize: 12, color: '#999' }}>
+                  <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--text-muted)' }}>
                     👥 {l.memberCount}
                   </span>
                 )}

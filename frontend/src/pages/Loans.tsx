@@ -69,7 +69,7 @@ export default function Loans() {
 
   return (
     <div className="page" ref={pageRef}>
-      <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
+      <NavBar onBack={() => navigate(-1)} style={{ background: 'var(--card)' }}>
         贷款管理
       </NavBar>
 
@@ -77,7 +77,7 @@ export default function Loans() {
         {/* 统计栏：总贷款金额 / 总待还 / 总待还本金 / 总待还利息（各色数字） */}
         <div
           style={{
-            background: '#fff',
+            background: 'var(--card)',
             borderRadius: 12,
             padding: '12px 0',
             marginBottom: 8,
@@ -87,7 +87,7 @@ export default function Loans() {
           <div style={{ display: 'flex' }}>
             <div style={{ width: '50%', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 12 }}>总贷款金额</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#1677ff' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--primary)' }}>
                 ¥{formatMoney(totals.totalLoan)}
               </div>
             </div>
@@ -101,13 +101,13 @@ export default function Loans() {
           <div style={{ display: 'flex', marginTop: 8 }}>
             <div style={{ width: '50%', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 12 }}>总待还本金</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#52c41a' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--income)' }}>
                 ¥{formatMoney(totals.totalRemainingPrincipal)}
               </div>
             </div>
             <div style={{ width: '50%', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 12 }}>总待还利息</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#ff4d4f' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--expense)' }}>
                 ¥{formatMoney(totals.totalRemainingInterest)}
               </div>
             </div>
@@ -122,8 +122,8 @@ export default function Loans() {
             marginBottom: 8,
           }}
         >
-          <span style={{ fontSize: 13, color: '#999' }}>
-            统计 <span style={{ color: '#1677ff', fontWeight: 600 }}>{selectedSet.size}</span>/{loans.length} 笔贷款
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+            统计 <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{selectedSet.size}</span>/{loans.length} 笔贷款
           </span>
           <Button size="mini" color="primary" onClick={() => navigate(`/ledgers/${id}/loans/new`)}>
             <AddOutline /> 添加贷款
@@ -141,7 +141,7 @@ export default function Loans() {
                   alignItems: 'center',
                   padding: '10px 12px',
                   borderRadius: 12,
-                  background: '#fff',
+                  background: 'var(--card)',
                   cursor: 'pointer',
                   marginBottom: 8,
                 }}
@@ -157,7 +157,7 @@ export default function Loans() {
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, display: 'flex', alignItems: 'center' }}>
-                    <span style={{ color: '#1677ff' }}>{loan.name}</span>
+                    <span style={{ color: 'var(--primary)' }}>{loan.name}</span>
                     <span style={{ fontSize: 12, color: '#ff8f1f', marginLeft: 8 }}>
                       （{loan.startDate?.slice(0, 10)}）
                     </span>
@@ -170,7 +170,7 @@ export default function Loans() {
                   </div>
                   <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
                 </div>
-                <span style={{ color: loan.status === 'paid_off' ? '#52c41a' : loan.status === 'closed' ? '#999' : '#1677ff' }}>
+                <span style={{ color: loan.status === 'paid_off' ? 'var(--income)' : $1.status === 'closed' ? 'var(--text-muted)' : 'var(--primary)' }}>
                   {loan.status === 'paid_off' ? '已还清' : loan.status === 'closed' ? '已关闭' : '进行中'}
                 </span>
               </div>
@@ -181,9 +181,9 @@ export default function Loans() {
               style={{
                 textAlign: 'center',
                 padding: 24,
-                color: '#999',
+                color: 'var(--text-muted)',
                 borderRadius: 12,
-                background: '#fff',
+                background: 'var(--card)',
               }}
             >
               点击右上角添加第一笔贷款

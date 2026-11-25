@@ -97,8 +97,8 @@ export default function TransferLedgerPopup({
               padding: '10px 12px',
               borderRadius: 8,
               marginBottom: 8,
-              background: targetLedger?.id === l.id ? '#e6f4ff' : '#f5f5f5',
-              color: targetLedger?.id === l.id ? '#1677ff' : '#333',
+              background: targetLedger?.id === l.id ? 'var(--primary-weak)' : 'var(--fill)',
+              color: targetLedger?.id === l.id ? 'var(--primary)' : 'var(--text)',
               cursor: 'pointer',
             }}
           >
@@ -106,7 +106,7 @@ export default function TransferLedgerPopup({
           </div>
         ))}
         {available.length === 0 && (
-          <div style={{ color: '#999', fontSize: 13, marginBottom: 8 }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>
             暂无可转入的账本
           </div>
         )}
@@ -122,7 +122,7 @@ export default function TransferLedgerPopup({
                 padding: '10px 12px',
                 borderRadius: 8,
                 marginBottom: 8,
-                background: categoryId === null ? '#e6f4ff' : '#f5f5f5',
+                background: categoryId === null ? 'var(--primary-weak)' : 'var(--fill)',
                 cursor: 'pointer',
               }}
             >
@@ -136,7 +136,7 @@ export default function TransferLedgerPopup({
                   padding: '10px 12px',
                   borderRadius: 8,
                   marginBottom: 8,
-                  background: categoryId === c.id ? '#e6f4ff' : '#f5f5f5',
+                  background: categoryId === c.id ? 'var(--primary-weak)' : 'var(--fill)',
                   cursor: 'pointer',
                 }}
               >

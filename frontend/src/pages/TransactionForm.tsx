@@ -20,7 +20,7 @@ function formatDateTime(d: Date): string {
 
 // 统一字段布局：label 在左、输入框在右，同一行；顶部对齐，label 行高与输入框一致，文字对齐
 const fieldStyle = { display: 'flex', alignItems: 'flex-start', marginBottom: 16 } as const;
-const labelStyle = { width: 72, fontSize: 13, color: '#666', flexShrink: 0, lineHeight: '25.5px' } as const;
+const labelStyle = { width: 72, fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0, lineHeight: '25.5px' } as const;
 const inputWrapStyle = { flex: 1 } as const;
 
 export default function TransactionForm() {
@@ -103,14 +103,14 @@ export default function TransactionForm() {
   };
 
   return (
-    <div className="page" style={{ background: '#fff' }}>
+    <div className="page" style={{ background: 'var(--card)' }}>
       <NavBar onBack={() => navigate(-1)}>记一笔</NavBar>
 
       <div style={{ padding: 16 }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
           {[
-            { key: 'expense', label: '支出', color: '#ff4d4f' },
-            { key: 'income', label: '收入', color: '#52c41a' },
+            { key: 'expense', label: '支出', color: 'var(--expense)' },
+            { key: 'income', label: '收入', color: 'var(--income)' },
             { key: 'transfer', label: '转账', color: '#1677ff' },
           ].map((t) => (
             <div
@@ -121,8 +121,8 @@ export default function TransactionForm() {
                 textAlign: 'center',
                 padding: '10px 0',
                 borderRadius: 8,
-                background: type === t.key ? t.color : '#f5f5f5',
-                color: type === t.key ? '#fff' : '#666',
+                background: type === t.key ? t.color : 'var(--fill)',
+                color: type === t.key ? '#fff' : 'var(--text-secondary)',
                 fontWeight: type === t.key ? 600 : 400,
               }}
             >
@@ -133,7 +133,7 @@ export default function TransactionForm() {
 
         <div style={fieldStyle}>
           <div style={labelStyle}>
-            金额 <span style={{ color: '#ff4d4f' }}>*</span>
+            金额 <span style={{ color: 'var(--expense)' }}>*</span>
           </div>
           <div style={inputWrapStyle}>
             <Input
@@ -149,7 +149,7 @@ export default function TransactionForm() {
         {type !== 'transfer' && (
           <div style={fieldStyle}>
             <div style={labelStyle}>
-              类别 <span style={{ color: '#ff4d4f' }}>*</span>
+              类别 <span style={{ color: 'var(--expense)' }}>*</span>
             </div>
             <div style={inputWrapStyle}>
               <Picker

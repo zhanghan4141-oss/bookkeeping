@@ -198,16 +198,16 @@ export default function ExpensePlanDetail() {
 
   return (
     <div className="page" ref={pageRef}>
-      <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
+      <NavBar onBack={() => navigate(-1)} style={{ background: 'var(--card)' }}>
         {plan.name}
       </NavBar>
 
       <div style={{ padding: 16 }}>
-        <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12 }}>
+        <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, marginBottom: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', rowGap: 12, marginBottom: 12 }}>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>每期金额</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#52c41a' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--income)' }}>
                 ¥{formatMoney(Number(plan.periodAmount))}
               </div>
             </div>
@@ -222,7 +222,7 @@ export default function ExpensePlanDetail() {
 
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>扣款日</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#1677ff' }}>{plan.day} 号</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>{plan.day} 号</div>
             </div>
             <div>
               <div className="text-secondary" style={{ fontSize: 12 }}>已支出</div>
@@ -269,14 +269,14 @@ export default function ExpensePlanDetail() {
         </div>
 
         {editingPlan ? (
-          <div style={{ background: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+          <div style={{ background: 'var(--card)', borderRadius: 12, padding: 12, marginBottom: 12 }}>
             {editPeriods.map((p) => {
               const isPaid = p.status === 'paid';
               const diverged = p.diverged === true;
               return (
                 <div key={p.periodNo} style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: diverged ? '#f9f0ff' : undefined, borderRadius: 6, padding: '4px 6px' }}>
-                    <span style={{ width: 60, fontSize: 13, color: '#666', flexShrink: 0 }}>
+                    <span style={{ width: 60, fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>
                       第{p.periodNo}期{isPaid ? '✓' : ''}
                     </span>
                     <div style={{ width: 116, flexShrink: 0 }}>
@@ -290,13 +290,13 @@ export default function ExpensePlanDetail() {
                         }}
                       >
                         {(_value, actions) => (
-                          <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
+                          <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 6, padding: '6px 8px', fontSize: 13, textAlign: 'center' }}>
                             {p.dueDate || '日期'}
                           </div>
                         )}
                       </DatePicker>
                     </div>
-                    <span style={{ fontSize: 13, color: '#666', flexShrink: 0 }}>金额</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>金额</span>
                     <Input
                       type="number"
                       value={p.amount}
@@ -305,11 +305,11 @@ export default function ExpensePlanDetail() {
                           prev.map((x) => (x.periodNo === p.periodNo ? { ...x, amount: v } : x)),
                         )
                       }
-                      style={{ flex: 1, minWidth: 0, background: '#f5f5f5', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
+                      style={{ flex: 1, minWidth: 0, background: 'var(--fill)', borderRadius: 6, padding: '6px 8px', '--font-size': '13px' }}
                     />
                   </div>
                   {diverged && (
-                    <div style={{ fontSize: 11, color: '#a855f7', paddingLeft: 8, marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: 'var(--purple)', paddingLeft: 8, marginTop: 2 }}>
                       实际{p.paidAmount != null && Math.abs(p.paidAmount - Number(p.amount)) > 0.005 ? ` ¥${formatMoney(p.paidAmount)}` : ''}
                       {p.paidDate && p.paidDate.slice(0, 10) !== p.dueDate ? ` @ ${p.paidDate.slice(0, 10)}` : ''}
                     </div>
@@ -330,13 +330,13 @@ export default function ExpensePlanDetail() {
             const pd = isPaid && period.paidDate ? period.paidDate.slice(0, 10) : null;
             // 标签：未支出=待支出；已支出按 vs 计划日期：同日=已支出，早于=提前支出，晚于（补记）=已支出
             const label = pd === null ? '待支出' : pd === dd ? '已支出' : pd < dd ? '提前支出' : '已支出';
-            const color = pd === null ? '#1677ff' : pd < dd ? '#a855f7' : '#52c41a';
+            const color = pd === null ? 'var(--primary)' : pd < dd ? 'var(--purple)' : 'var(--income)';
             return (
               <List.Item
                 key={period.id}
                 description={
                   <div>
-                    <div style={{ fontSize: 12, marginTop: 2, color: '#999' }}>
+                    <div style={{ fontSize: 12, marginTop: 2, color: 'var(--text-muted)' }}>
                       金额 <span style={{ fontWeight: 600, color: '#000' }}>¥{formatMoney(Number(period.amount))}</span>
                       <span style={{ marginLeft: 8, color: '#ff8f1f' }}>{dd}</span>
                     </div>
@@ -345,7 +345,7 @@ export default function ExpensePlanDetail() {
                       period.paidAmount != null && Math.abs(period.paidAmount - Number(period.amount)) > 0.005;
                     const dateDiff = pd !== null && pd !== dd;
                     return amountDiff || dateDiff ? (
-                      <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
+                      <div style={{ fontSize: 11, color: 'var(--purple)', marginTop: 2 }}>
                         实际{amountDiff ? ` ¥${formatMoney(period.paidAmount ?? 0)}` : ''}{dateDiff ? ` @ ${pd}` : ''}
                       </div>
                     ) : null;
@@ -410,7 +410,7 @@ export default function ExpensePlanDetail() {
               onConfirm={(v) => v && setPayDate(formatDate(v))}
             >
               {(value, actions) => (
-                <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}>
                   {value ? formatDate(value) : '选择日期'}
                 </div>
               )}

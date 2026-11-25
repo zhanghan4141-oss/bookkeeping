@@ -29,7 +29,7 @@ export default function Notifications() {
     <div className="page" ref={pageRef}>
       <NavBar
         back={null}
-        style={{ background: '#fff' }}
+        style={{ background: 'var(--card)' }}
         right={
           <Button size="mini" fill="none" onClick={markAll} disabled={unread === 0}>
             全部已读
@@ -52,9 +52,9 @@ export default function Notifications() {
                 </Badge>
               }
               description={
-                <div style={{ fontSize: 13, color: '#666', marginTop: 4, whiteSpace: 'pre-wrap' }}>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4, whiteSpace: 'pre-wrap' }}>
                   {n.content}
-                  <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                     {new Date(n.createdAt).toLocaleString('zh-CN')}
                   </div>
                 </div>

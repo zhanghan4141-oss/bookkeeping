@@ -94,7 +94,7 @@ export default function LedgerManage() {
 
   return (
     <div className="page" ref={pageRef}>
-      <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
+      <NavBar onBack={() => navigate(-1)} style={{ background: 'var(--card)' }}>
         账本管理
       </NavBar>
 
@@ -184,7 +184,7 @@ export default function LedgerManage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: 8,
-                    background: editIcon === ic ? '#e6f4ff' : '#f5f5f5',
+                    background: editIcon === ic ? 'var(--primary-weak)' : 'var(--fill)',
                     border: editIcon === ic ? '1px solid #1677ff' : '1px solid transparent',
                   }}
                 >
@@ -206,7 +206,7 @@ export default function LedgerManage() {
                     height: 28,
                     borderRadius: '50%',
                     background: c,
-                    border: editColor === c ? '3px solid #333' : '1px solid #ddd',
+                    border: editColor === c ? '3px solid var(--text)' : '1px solid var(--border-strong)',
                   }}
                 />
               ))}

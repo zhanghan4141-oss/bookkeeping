@@ -73,7 +73,7 @@ export default function ExpensePlans() {
 
   return (
     <div className="page" ref={pageRef}>
-      <NavBar onBack={() => navigate(-1)} style={{ background: '#fff' }}>
+      <NavBar onBack={() => navigate(-1)} style={{ background: 'var(--card)' }}>
         支出管理
       </NavBar>
 
@@ -81,7 +81,7 @@ export default function ExpensePlans() {
         {/* 统计栏：计划总额 / 已支出 / 待支出 */}
         <div
           style={{
-            background: '#fff',
+            background: 'var(--card)',
             borderRadius: 12,
             padding: '12px 0',
             marginBottom: 8,
@@ -90,13 +90,13 @@ export default function ExpensePlans() {
           <div style={{ display: 'flex' }}>
             <div style={{ width: '50%', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 12 }}>计划总额</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#1677ff' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--primary)' }}>
                 ¥{formatMoney(totals.totalPlan)}
               </div>
             </div>
             <div style={{ width: '50%', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 12 }}>已支出</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#52c41a' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--income)' }}>
                 ¥{formatMoney(totals.totalPaid)}
               </div>
             </div>
@@ -119,8 +119,8 @@ export default function ExpensePlans() {
             marginBottom: 8,
           }}
         >
-          <span style={{ fontSize: 13, color: '#999' }}>
-            统计 <span style={{ color: '#1677ff', fontWeight: 600 }}>{selectedSet.size}</span>/{plans.length} 个计划
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+            统计 <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{selectedSet.size}</span>/{plans.length} 个计划
           </span>
           <Button size="mini" color="success" onClick={() => navigate(`/ledgers/${id}/expense-plans/new`)}>
             <AddOutline /> 添加支出计划
@@ -139,7 +139,7 @@ export default function ExpensePlans() {
                 alignItems: 'center',
                 padding: '10px 12px',
                 borderRadius: 12,
-                background: '#fff',
+                background: 'var(--card)',
                 cursor: 'pointer',
                 marginBottom: 8,
               }}
@@ -166,7 +166,7 @@ export default function ExpensePlans() {
                 </div>
                 <ProgressBar percent={p} style={{ '--track-width': '4px', marginTop: 6 }} />
               </div>
-              <span style={{ color: plan.status === 'completed' ? '#52c41a' : plan.status === 'closed' ? '#999' : '#1677ff' }}>
+              <span style={{ color: plan.status === 'completed' ? 'var(--income)' : $1.status === 'closed' ? 'var(--text-muted)' : 'var(--primary)' }}>
                 {plan.status === 'completed' ? '已完成' : plan.status === 'closed' ? '已关闭' : '进行中'}
               </span>
             </div>
@@ -177,9 +177,9 @@ export default function ExpensePlans() {
             style={{
               textAlign: 'center',
               padding: 24,
-              color: '#999',
+              color: 'var(--text-muted)',
               borderRadius: 12,
-              background: '#fff',
+              background: 'var(--card)',
             }}
           >
             点击右上角添加第一个支出计划

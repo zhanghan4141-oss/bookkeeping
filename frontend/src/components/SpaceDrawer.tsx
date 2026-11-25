@@ -122,7 +122,7 @@ export default function SpaceDrawer({
           transform: open ? 'translateX(0)' : 'translateX(-100%)',
           transition: 'transform .28s ease',
           pointerEvents: open ? 'auto' : 'none',
-          background: '#fff',
+          background: 'var(--card)',
           borderRadius: '0 12px 12px 0',
           boxShadow: open ? '0 4px 16px rgba(0,0,0,.15)' : 'none',
           overflowY: 'auto',
@@ -165,7 +165,7 @@ export default function SpaceDrawer({
               gap: 8,
               padding: '10px 12px',
               borderRadius: 10,
-              background: currentSpaceId === null ? '#e6f4ff' : '#f5f5f5',
+              background: currentSpaceId === null ? 'var(--primary-weak)' : 'var(--fill)',
               cursor: 'pointer',
               marginBottom: 8,
             }}
@@ -186,7 +186,7 @@ export default function SpaceDrawer({
                 gap: 8,
                 padding: '10px 12px',
                 borderRadius: 10,
-                background: currentSpaceId === sp.id ? '#e6f4ff' : '#f5f5f5',
+                background: currentSpaceId === sp.id ? 'var(--primary-weak)' : 'var(--fill)',
                 cursor: 'pointer',
                 marginBottom: 8,
               }}

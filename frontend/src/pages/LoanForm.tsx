@@ -254,31 +254,31 @@ export default function LoanForm() {
     }
   };
 
-  const labelStyle = { fontSize: 13, color: '#666', marginBottom: 4 } as const;
+  const labelStyle = { fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 } as const;
   const fieldWrap = { marginBottom: 14 } as const;
 
   return (
-    <div className="page" style={{ background: '#fff' }}>
+    <div className="page" style={{ background: 'var(--card)' }}>
       <NavBar onBack={() => navigate(-1)}>{isEdit ? '编辑贷款' : '添加贷款'}</NavBar>
 
       <div style={{ padding: 16 }}>
         <div style={fieldWrap}>
-          <div style={labelStyle}>贷款名称 <span style={{ color: '#ff4d4f' }}>*</span></div>
+          <div style={labelStyle}>贷款名称 <span style={{ color: 'var(--expense)' }}>*</span></div>
           <Input placeholder="如：房贷" value={form.name} onChange={(v) => set('name', v)} />
         </div>
 
         <div style={fieldWrap}>
-          <div style={labelStyle}>本金（元）<span style={{ color: '#ff4d4f' }}>*</span></div>
+          <div style={labelStyle}>本金（元）<span style={{ color: 'var(--expense)' }}>*</span></div>
           <Input type="number" placeholder="100000" value={form.principal} onChange={(v) => set('principal', v)} disabled={isEditNonCustom} />
         </div>
 
         <div style={fieldWrap}>
-          <div style={labelStyle}>年利率（%）<span style={{ color: '#ff4d4f' }}>*</span></div>
+          <div style={labelStyle}>年利率（%）<span style={{ color: 'var(--expense)' }}>*</span></div>
           <Input type="number" placeholder="4.9" value={form.annualRate} onChange={(v) => set('annualRate', v)} disabled={isEditNonCustom} />
         </div>
 
         <div style={fieldWrap}>
-          <div style={labelStyle}>期数（月）<span style={{ color: '#ff4d4f' }}>*</span></div>
+          <div style={labelStyle}>期数（月）<span style={{ color: 'var(--expense)' }}>*</span></div>
           <Input type="number" placeholder="12" value={form.termMonths} onChange={(v) => set('termMonths', v)} disabled={isEditNonCustom} />
         </div>
 
@@ -290,7 +290,7 @@ export default function LoanForm() {
             onConfirm={(v) => set('repaymentDay', String(v[0]))}
           >
             {(items, actions) => (
-              <div onClick={() => !isEditNonCustom && actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px', opacity: isEditNonCustom ? 0.6 : 1 }}>
+              <div onClick={() => !isEditNonCustom && actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px', opacity: isEditNonCustom ? 0.6 : 1 }}>
                 {items[0]?.label ?? `${form.repaymentDay} 号`}
               </div>
             )}
@@ -298,13 +298,13 @@ export default function LoanForm() {
         </div>
 
         <div style={fieldWrap}>
-          <div style={labelStyle}>开始日期<span style={{ color: '#ff4d4f' }}>*</span></div>
+          <div style={labelStyle}>开始日期<span style={{ color: 'var(--expense)' }}>*</span></div>
           <DatePicker
             value={new Date(form.startDate)}
             onConfirm={(v) => v && set('startDate', formatDate(v))}
           >
             {(value, actions) => (
-              <div onClick={() => !isEditNonCustom && actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px', opacity: isEditNonCustom ? 0.6 : 1 }}>
+              <div onClick={() => !isEditNonCustom && actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px', opacity: isEditNonCustom ? 0.6 : 1 }}>
                 {value ? formatDate(value) : '选择日期'}
               </div>
             )}
@@ -322,7 +322,7 @@ export default function LoanForm() {
               const currentLabel =
                 METHODS.find((m) => m.value === form.method)?.label ?? '等额本息';
               return (
-                <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}>
                   {currentLabel}
                 </div>
               );
@@ -371,7 +371,7 @@ export default function LoanForm() {
             )}
             <div style={{ maxHeight: 360, overflowY: 'auto' }}>
               {plan.map((p, i) => (
-                <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid #eee' }}>
+                <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                     <span>第{i + 1}期</span>
                     <span className="text-secondary">{p.dueDate}</span>
@@ -379,10 +379,10 @@ export default function LoanForm() {
                   {isCustom ? (
                     <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>金额待填写</div>
                   ) : (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2, color: '#666' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 2, color: 'var(--text-secondary)' }}>
                       <span>本金 ¥{formatMoney(p.principal)}</span>
                       <span>利息 ¥{formatMoney(p.interest)}</span>
-                      <span style={{ fontWeight: 600, color: '#1a1a1a' }}>¥{formatMoney(p.total)}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text)' }}>¥{formatMoney(p.total)}</span>
                     </div>
                   )}
                 </div>

@@ -99,7 +99,7 @@ export default function SpaceLedgerPopup({
                             e.stopPropagation();
                             actions.open();
                           }}
-                          style={{ fontSize: 13, color: '#1677ff', fontWeight: 600 }}
+                          style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 600 }}
                         >
                           {items[0]?.label ?? '默认分组'} ▾
                         </span>

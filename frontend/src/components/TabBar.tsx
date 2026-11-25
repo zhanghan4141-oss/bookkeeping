@@ -31,8 +31,8 @@ export default function TabBar() {
           bottom: 0,
           left: 0,
           right: 0,
-          background: '#fff',
-          borderTop: '1px solid #eee',
+          background: 'var(--card)',
+          borderTop: '1px solid var(--border)',
           zIndex: 100,
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}

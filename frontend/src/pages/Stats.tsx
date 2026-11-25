@@ -14,11 +14,18 @@ import LedgerSelectPopup, { NONE_LEDGER_MARKER } from '../components/LedgerSelec
 import TransferLedgerPopup from '../components/TransferLedgerPopup';
 import BatchModifyPopup from '../components/BatchModifyPopup';
 import { useStatLedgerSelection } from '../stores/statLedgerSelection';
+import { useThemeStore } from '../stores/themeStore';
 import { TabActiveContext } from '../components/KeepAlive';
 import type { Category, Ledger, StatSummary, Transaction } from '../types';
 import { formatMoney } from '../lib/format';
 import { usePopupBack } from '../hooks/usePopupBack';
 import { useStuck } from '../hooks/useStuck';
+
+/** 读取 CSS 变量（ECharts option 不解析 var()，需 JS 取当前值） */
+function cssVar(name: string): string {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || '#999';
+}
 
 function fmtDate(d: Date): string {
   const y = d.getFullYear();
@@ -245,18 +252,18 @@ function CategoryList({
 }) {
   if (cats.length === 0) return null;
   return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: 8, marginTop: 12 }}>
+    <div style={{ background: 'var(--card)', borderRadius: 12, padding: 8, marginTop: 12 }}>
       <div style={{ fontWeight: 600, fontSize: 14, padding: '4px 8px', color }}>{title}</div>
       {cats.map((c) => (
         <div
           key={c.categoryId}
           onClick={() => onOpen(c)}
-          style={{ display: 'flex', alignItems: 'center', padding: '12px 8px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', padding: '12px 8px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
         >
           <span style={{ fontSize: 20, marginRight: 8 }}>{c.icon || '💸'}</span>
           <span style={{ flex: 1, fontSize: 15 }}>{c.name}</span>
           <span style={{ fontSize: 13, color }}>¥{formatMoney(c.amount)}</span>
-          <span style={{ fontSize: 13, color: '#999', marginLeft: 6 }}>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)', marginLeft: 6 }}>
             {total > 0 ? ((c.amount / total) * 100).toFixed(1) : '0.0'}%
           </span>
         </div>
@@ -288,6 +295,8 @@ export default function Stats() {
   const pageRef = useRef<HTMLDivElement>(null);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
   const isActive = useContext(TabActiveContext);
+  const themeColor = useThemeStore((s) => s.themeColor);
+  const darkMode = useThemeStore((s) => s.darkMode);
   const [calendar, setCalendar] = useState<'solar' | 'lunar'>('solar');
   const [showRangePicker, setShowRangePicker] = useState(false);
 
@@ -832,7 +841,7 @@ export default function Stats() {
         text: `支出构成 ¥${formatMoney(total)}`,
         left: 'center',
         top: 0,
-        textStyle: { fontSize: 13, color: '#333' },
+        textStyle: { fontSize: 13, color: cssVar('--text') },
       },
       series: [
         {
@@ -844,7 +853,7 @@ export default function Stats() {
         },
       ],
     };
-  }, [summary]);
+  }, [summary, themeColor, darkMode]);
 
   const lunarRangeText = useMemo(() => {
     /** 农历日期 → yyyy-mm-dd（闰月月位用 r 前缀，避免与平月混淆） */
@@ -865,7 +874,7 @@ export default function Stats() {
       show: true,
       position: 'top' as const,
       fontSize: 9,
-      color: '#999',
+      color: 'var(--text-muted)',
       formatter: (p: any) => (p.value ? `¥${formatMoney(Number(p.value))}` : ''),
     };
     return {
@@ -875,20 +884,20 @@ export default function Stats() {
       xAxis: { type: 'category' as const, data: trend.map((t) => shortAxisKey(t.key, summary?.period ?? 'month')) },
       yAxis: { type: 'value' as const },
       series: [
-        { name: '收入', type: 'bar' as const, data: trend.map((t) => t.income), itemStyle: { color: '#52c41a' }, label: moneyLabel },
-        { name: '支出', type: 'bar' as const, data: trend.map((t) => t.expense), itemStyle: { color: '#ff4d4f' }, label: moneyLabel },
+        { name: '收入', type: 'bar' as const, data: trend.map((t) => t.income), itemStyle: { color: cssVar('--income') }, label: moneyLabel },
+        { name: '支出', type: 'bar' as const, data: trend.map((t) => t.expense), itemStyle: { color: cssVar('--expense') }, label: moneyLabel },
       ],
     };
-  }, [summary]);
+  }, [summary, themeColor, darkMode]);
 
   return (
     <div className="page" ref={pageRef}>
       <NavBar
         back={null}
-        style={{ background: '#fff' }}
+        style={{ background: 'var(--card)' }}
         right={
           <span
-            style={{ fontSize: 14, color: '#1677ff' }}
+            style={{ fontSize: 14, color: 'var(--primary)' }}
             onClick={toggleCalendar}
           >
             {calendar === 'lunar' ? '农历' : '公历'}
@@ -905,7 +914,7 @@ export default function Stats() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: '#fff',
+            background: 'var(--card)',
             borderRadius: 12,
             padding: '10px 16px',
             marginBottom: 12,
@@ -917,7 +926,7 @@ export default function Stats() {
           <div onClick={openRangePicker} style={{ fontWeight: 700, fontSize: 15, cursor: 'pointer', textAlign: 'center' }}>
             <div>{range.start} ~ {range.end}</div>
             {/* 周期文字下方：公历对应的农历日期 */}
-            <div style={{ fontSize: 12, color: '#a855f7', marginTop: 2 }}>{lunarRangeText}</div>
+            <div style={{ fontSize: 12, color: 'var(--purple)', marginTop: 2 }}>{lunarRangeText}</div>
           </div>
           <div onClick={() => shift(1)} style={{ padding: '4px 8px', cursor: 'pointer' }}>
             <RightOutline />
@@ -927,7 +936,7 @@ export default function Stats() {
         {/* 账本选择（折叠显示，点开弹窗多选） */}
         <div
           style={{
-            background: '#fff',
+            background: 'var(--card)',
             borderRadius: 12,
             padding: 12,
             marginBottom: 12,
@@ -951,8 +960,8 @@ export default function Stats() {
                   style={{
                     padding: '4px 10px',
                     borderRadius: 12,
-                    background: selected ? '#e6f4ff' : '#f5f5f5',
-                    color: selected ? '#1677ff' : '#999',
+                    background: selected ? 'var(--primary-weak)' : 'var(--fill)',
+                    color: selected ? 'var(--primary)' : 'var(--text-muted)',
                     fontSize: 13,
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
@@ -964,16 +973,16 @@ export default function Stats() {
               );
             })}
           </div>
-          <span style={{ fontSize: 13, color: '#1677ff' }}>选择</span>
+          <span style={{ fontSize: 13, color: 'var(--primary)' }}>选择</span>
         </div>
 
         {/* 收支总览：金额过大时整体横向滑动查看（隐藏滚动条） */}
         <div className="hide-scrollbar" style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 8 }}>
             {[
-              { label: '收入', value: summary?.totalIncome ?? 0, color: '#52c41a' },
-              { label: '支出', value: summary?.totalExpense ?? 0, color: '#ff4d4f' },
-              { label: '盈余', value: summary?.surplus ?? 0, color: '#1677ff' },
+              { label: '收入', value: summary?.totalIncome ?? 0, color: 'var(--income)' },
+              { label: '支出', value: summary?.totalExpense ?? 0, color: 'var(--expense)' },
+              { label: '盈余', value: summary?.surplus ?? 0, color: 'var(--primary)' },
             ].map((s) => (
               <div
                 key={s.label}
@@ -982,7 +991,7 @@ export default function Stats() {
                   flexShrink: 0,
                   flexBasis: 'auto',
                   minWidth: 120,
-                  background: '#fff',
+                  background: 'var(--card)',
                   borderRadius: 12,
                   padding: 12,
                   textAlign: 'center',
@@ -997,7 +1006,7 @@ export default function Stats() {
           </div>
         </div>
 
-        <div style={{ background: '#fff', borderRadius: 12, padding: 8, marginBottom: 12 }}>
+        <div style={{ background: 'var(--card)', borderRadius: 12, padding: 8, marginBottom: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4, gap: 4 }}>
             {([
               ['auto', '自动'],
@@ -1018,20 +1027,20 @@ export default function Stats() {
           <Chart option={trendOption} height={240} />
         </div>
 
-        <div style={{ background: '#fff', borderRadius: 12, padding: 8 }}>
+        <div style={{ background: 'var(--card)', borderRadius: 12, padding: 8 }}>
           <Chart option={pieOption} height={280} />
         </div>
 
         <CategoryList
           title="收入类别"
-          color="#52c41a"
+          color="var(--income)"
           cats={(summary?.byCategory ?? []).filter((c) => c.type === 'income')}
           total={summary?.totalIncome ?? 0}
           onOpen={openCategory}
         />
         <CategoryList
           title="支出类别"
-          color="#ff4d4f"
+          color="var(--expense)"
           cats={(summary?.byCategory ?? []).filter((c) => c.type === 'expense')}
           total={summary?.totalExpense ?? 0}
           onOpen={openCategory}
@@ -1077,7 +1086,7 @@ export default function Stats() {
               {(value, actions) => (
                 <div
                   onClick={() => actions.open()}
-                  style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}
+                  style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}
                 >
                   {value ? fmtDate(value) : '选择日期'}
                 </div>
@@ -1094,7 +1103,7 @@ export default function Stats() {
               {(value, actions) => (
                 <div
                   onClick={() => actions.open()}
-                  style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}
+                  style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}
                 >
                   {value ? fmtDate(value) : '选择日期'}
                 </div>
@@ -1129,38 +1138,38 @@ export default function Stats() {
             <span style={{ fontWeight: 600, fontSize: 16 }}>
               {activeCategory?.icon} {activeCategory?.name} 流水
             </span>
-            <span onClick={() => setShowCategoryTx(false)} style={{ fontSize: 22, color: '#999', cursor: 'pointer', lineHeight: 1 }}>
+            <span onClick={() => setShowCategoryTx(false)} style={{ fontSize: 22, color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1 }}>
               ×
             </span>
           </div>
 
-          <div ref={catStatsStuck.ref} style={{ display: 'flex', gap: 8, marginBottom: 12, position: 'sticky', top: 0, background: '#fff', zIndex: 40, paddingTop: 4, boxShadow: catStatsStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+          <div ref={catStatsStuck.ref} style={{ display: 'flex', gap: 8, marginBottom: 12, position: 'sticky', top: 0, background: 'var(--card)', zIndex: 40, paddingTop: 4, boxShadow: catStatsStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
             <div style={{ flex: 1, background: '#f5f6f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 11 }}>合计</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: activeCategory?.type === 'income' ? '#52c41a' : '#ff4d4f' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: activeCategory?.type === 'income' ? 'var(--income)' : 'var(--expense)' }}>
                 ¥{formatMoney(categoryTotal)}
               </div>
             </div>
             <div style={{ flex: 1, background: '#f5f6f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div className="text-secondary" style={{ fontSize: 11 }}>笔数</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#333' }}>{categoryCount} 笔</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{categoryCount} 笔</div>
             </div>
           </div>
 
-          <div ref={catSearchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: categoryKeyword.trim() ? 'sticky' : 'static', top: categoryKeyword.trim() ? 60 : undefined, background: '#fff', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: catSearchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+          <div ref={catSearchStuck.ref} style={{ display: 'flex', alignItems: 'center', gap: 8, position: categoryKeyword.trim() ? 'sticky' : 'static', top: categoryKeyword.trim() ? 60 : undefined, background: 'var(--card)', zIndex: 40, borderRadius: 12, padding: '8px 12px', marginBottom: 8, boxShadow: catSearchStuck.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
             <SearchBar
               placeholder="搜索备注、类别或金额"
               value={categoryKeyword}
               onChange={setCategoryKeyword}
               onClear={() => setCategoryKeyword('')}
-              style={{ '--background': '#f5f5f5', '--border-radius': '8px', flex: 1 }}
+              style={{ '--background': 'var(--fill)', '--border-radius': '8px', flex: 1 }}
             />
           </div>
 
           {categoryKeyword.trim() !== '' ? (
             <div>
-              <div ref={catBatchStuckSearch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: 120, background: '#fff', zIndex: 40, boxShadow: catBatchStuckSearch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
-                <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedTxIds.size} 条</span>
+              <div ref={catBatchStuckSearch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: 120, background: 'var(--card)', zIndex: 40, boxShadow: catBatchStuckSearch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>已选 {selectedTxIds.size} 条</span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Button size="mini" fill="outline" onClick={toggleSelectAllTx}>
                     {selectedTxIds.size === deletableCategoryTx.length ? '取消全选' : '全选'}
@@ -1190,7 +1199,7 @@ export default function Stats() {
                       alignItems: 'center',
                       padding: '10px 12px',
                       borderRadius: 12,
-                      background: isLockedTx ? '#fafafa' : '#fff',
+                      background: isLockedTx ? 'var(--row)' : 'var(--card)',
                       cursor: isLockedTx ? 'default' : 'pointer',
                     }}
                   >
@@ -1209,16 +1218,16 @@ export default function Stats() {
                     <span style={{ fontSize: 22, marginRight: 10 }}>{t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 15 }}>{t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}</div>
-                      <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                         <span style={{ color: isLoanTx ? '#ff8f1f' : '#ffa94d' }}>{formatDateTime(new Date(t.occurredAt))}</span>
                         {t.note && <ExpandableNote text={t.note} />}
                         {isLoanTx && (
-                          <span onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }} style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}>〔{t.loan?.name ?? '贷款'}〕</span>
+                          <span onClick={(e) => { e.stopPropagation(); navigate(`/loans/${t.loanId}`); }} style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}>〔{t.loan?.name ?? '贷款'}〕</span>
                         )}
                         {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#ff8f1f' }}>〔{t.ledger.name}〕</span>}
                       </div>
                     </div>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>{t.type === 'income' ? '+' : '-'}¥{formatMoney(t.amount)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? 'var(--income)' : 'var(--expense)' }}>{t.type === 'income' ? '+' : '-'}¥{formatMoney(t.amount)}</span>
                   </div>
                 );
                 return (
@@ -1240,14 +1249,14 @@ export default function Stats() {
                 );
               })}
               {filteredCategoryTx.length === 0 && (
-                <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>无搜索结果</div>
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>无搜索结果</div>
               )}
             </div>
           ) : (
             <div>
               {batchMode && (
-                <div ref={catBatchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: 60, background: '#fff', zIndex: 40, boxShadow: catBatchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
-                  <span style={{ fontSize: 13, color: '#666' }}>已选 {selectedTxIds.size} 条</span>
+                <div ref={catBatchStuckBatch.ref} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, position: 'sticky', top: 60, background: 'var(--card)', zIndex: 40, boxShadow: catBatchStuckBatch.stuck ? '0 2px 8px rgba(0,0,0,.08)' : undefined }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>已选 {selectedTxIds.size} 条</span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Button size="mini" fill="outline" onClick={toggleSelectAllTx}>
                       {selectedTxIds.size === deletableCategoryTx.length ? '取消全选' : '全选'}
@@ -1265,16 +1274,16 @@ export default function Stats() {
                 const dayExpense = items.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
                 const isExpanded = expandedCategoryDates.has(date);
                 return (
-                  <div key={date} style={{ background: '#fff', marginBottom: 8, borderRadius: 12, overflow: 'hidden' }}>
-                    <div onClick={() => toggleCategoryDate(date)} style={{ padding: '8px 12px', fontSize: 13, color: '#666', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: isExpanded ? '1px solid #f5f5f5' : 'none' }}>
+                  <div key={date} style={{ background: 'var(--card)', marginBottom: 8, borderRadius: 12, overflow: 'hidden' }}>
+                    <div onClick={() => toggleCategoryDate(date)} style={{ padding: '8px 12px', fontSize: 13, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: isExpanded ? '1px solid var(--border)' : 'none' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ color: '#bbb', fontSize: 12, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block' }}>▶</span>
                         <span>{date}</span>
-                        <span style={{ fontSize: 12, color: '#999' }}>{items.length} 笔</span>
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{items.length} 笔</span>
                       </span>
                       <span>
-                        {dayExpense > 0 && <span style={{ color: '#999' }}>支 ¥{formatMoney(dayExpense)} </span>}
-                        {dayIncome > 0 && <span style={{ color: '#999' }}>收 ¥{formatMoney(dayIncome)}</span>}
+                        {dayExpense > 0 && <span style={{ color: 'var(--text-muted)' }}>支 ¥{formatMoney(dayExpense)} </span>}
+                        {dayIncome > 0 && <span style={{ color: 'var(--text-muted)' }}>收 ¥{formatMoney(dayIncome)}</span>}
                       </span>
                     </div>
                     {isExpanded && items.map((t) => {
@@ -1289,8 +1298,8 @@ export default function Stats() {
                             display: 'flex',
                             alignItems: 'center',
                             padding: '10px 12px',
-                            borderBottom: '1px solid #fafafa',
-                            background: isLockedTx ? '#fafafa' : '#fff',
+                            borderBottom: '1px solid var(--border)',
+                            background: isLockedTx ? 'var(--row)' : 'var(--card)',
                             cursor: isLockedTx ? 'default' : 'pointer',
                           }}
                         >
@@ -1307,7 +1316,7 @@ export default function Stats() {
                           <span style={{ fontSize: 22, marginRight: 10 }}>{t.category?.icon || (t.type === 'expense' ? '💸' : t.type === 'income' ? '💰' : '🔄')}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 15 }}>{t.category?.name ?? (t.type === 'transfer' ? '转账' : '未分类')}</div>
-                            <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                               <span style={{ color: isLoanTx ? '#ff8f1f' : '#ffa94d' }}>{formatDateTime(new Date(t.occurredAt))}</span>
                               {t.note && <ExpandableNote text={t.note} />}
                               {isLoanTx && (
@@ -1316,7 +1325,7 @@ export default function Stats() {
                                     e.stopPropagation();
                                     navigate(`/loans/${t.loanId}`);
                                   }}
-                                  style={{ marginLeft: 6, color: '#1677ff', cursor: 'pointer' }}
+                                  style={{ marginLeft: 6, color: 'var(--primary)', cursor: 'pointer' }}
                                 >
                                   〔{t.loan?.name ?? '贷款'}〕
                                 </span>
@@ -1324,7 +1333,7 @@ export default function Stats() {
                               {showLedgerName && t.ledger?.name && <span style={{ marginLeft: 6, color: '#ff8f1f' }}>〔{t.ledger.name}〕</span>}
                             </div>
                           </div>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? '#52c41a' : '#ff4d4f' }}>{t.type === 'income' ? '+' : '-'}¥{formatMoney(t.amount)}</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: t.type === 'income' ? 'var(--income)' : 'var(--expense)' }}>{t.type === 'income' ? '+' : '-'}¥{formatMoney(t.amount)}</span>
                         </div>
                       );
                       return (
@@ -1348,7 +1357,7 @@ export default function Stats() {
                 );
               })}
               {filteredCategoryTx.length === 0 && (
-                <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>该类别暂无流水</div>
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>该类别暂无流水</div>
               )}
             </div>
           )}
@@ -1392,8 +1401,8 @@ export default function Stats() {
           <h3 style={{ marginBottom: 16 }}>编辑流水</h3>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
             {[
-              { key: 'expense', label: '支出', color: '#ff4d4f' },
-              { key: 'income', label: '收入', color: '#52c41a' },
+              { key: 'expense', label: '支出', color: 'var(--expense)' },
+              { key: 'income', label: '收入', color: 'var(--income)' },
               { key: 'transfer', label: '转账', color: '#1677ff' },
             ].map((x) => (
               <div
@@ -1404,8 +1413,8 @@ export default function Stats() {
                   textAlign: 'center',
                   padding: '8px 0',
                   borderRadius: 8,
-                  background: editForm.type === x.key ? x.color : '#f5f5f5',
-                  color: editForm.type === x.key ? '#fff' : '#666',
+                  background: editForm.type === x.key ? x.color : 'var(--fill)',
+                  color: editForm.type === x.key ? '#fff' : 'var(--text-secondary)',
                   fontWeight: editForm.type === x.key ? 600 : 400,
                 }}
               >
@@ -1426,7 +1435,7 @@ export default function Stats() {
                 onConfirm={(v) => setEditForm((f) => ({ ...f, categoryId: String(v[0]) }))}
               >
                 {(items, actions) => (
-                  <div onClick={() => actions.open()} style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px' }}>
+                  <div onClick={() => actions.open()} style={{ background: 'var(--fill)', borderRadius: 8, padding: '10px 12px' }}>
                     {items[0]?.label ?? '选择类别'}
                   </div>
                 )}

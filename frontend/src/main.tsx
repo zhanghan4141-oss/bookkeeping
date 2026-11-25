@@ -6,7 +6,12 @@ import { Capacitor } from '@capacitor/core';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import { queryClient } from './lib/queryClient';
+import { applyTheme } from './lib/applyTheme';
+import { useThemeStore } from './stores/themeStore';
 import './index.css';
+
+// 尽早应用主题（补齐 --primary-weak 等派生色；index.html 已预设 primary 与 data-theme 防闪烁）
+applyTheme(useThemeStore.getState());
 
 // 网页端（浏览器）注册 PWA Service Worker；App（Capacitor WebView）不注册，
 // 避免本地资源被 Service Worker 缓存旧版本，导致覆盖安装后仍显示旧界面

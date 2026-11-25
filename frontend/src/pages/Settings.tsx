@@ -11,6 +11,7 @@ import { downloadApk } from '../lib/downloadApk';
 import { formatDate } from '../lib/format';
 import { TabActiveContext } from '../components/KeepAlive';
 import { useAuthStore } from '../stores/auth';
+import { useThemeStore, THEME_COLORS } from '../stores/themeStore';
 import { useBusy } from '../hooks/useBusy';
 import { usePopupBack } from '../hooks/usePopupBack';
 import type { Ledger, ReminderSetting } from '../types';
@@ -21,6 +22,10 @@ export default function Settings() {
   const pageRef = useRef<HTMLDivElement>(null);
   const isActive = useContext(TabActiveContext);
   const logout = useAuthStore((s) => s.logout);
+  const themeColor = useThemeStore((s) => s.themeColor);
+  const darkMode = useThemeStore((s) => s.darkMode);
+  const setThemeColor = useThemeStore((s) => s.setThemeColor);
+  const setDarkMode = useThemeStore((s) => s.setDarkMode);
   const [showExport, setShowExport] = useState(false);
   const [exportLedgerIds, setExportLedgerIds] = useState<string[]>([]);
   const [exportFormat, setExportFormat] = useState<'excel' | 'json'>('excel');
@@ -108,10 +113,10 @@ export default function Settings() {
     <div className="page" ref={pageRef}>
       <NavBar
         back={null}
-        style={{ background: '#fff' }}
+        style={{ background: 'var(--card)' }}
         right={
           <span
-            style={{ fontSize: 14, color: '#1677ff', cursor: 'pointer' }}
+            style={{ fontSize: 14, color: 'var(--primary)', cursor: 'pointer' }}
             onClick={() => {
               // App 内：检测更新；Web/PWA：仍提供下载 App 入口
               if (Capacitor.isNativePlatform()) {
@@ -129,7 +134,7 @@ export default function Settings() {
       </NavBar>
 
       <div style={{ padding: 16 }}>
-        <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12 }}>
+        <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, marginBottom: 12 }}>
           <div style={{ fontSize: 20, fontWeight: 700 }}>{user?.nickname}</div>
           <div className="text-secondary" style={{ fontSize: 13 }}>{user?.email}</div>
         </div>
@@ -190,7 +195,7 @@ export default function Settings() {
                   {(items, actions) => (
                     <span
                       onClick={() => actions.open()}
-                      style={{ color: '#1677ff', fontSize: 14 }}
+                      style={{ color: 'var(--primary)', fontSize: 14 }}
                     >
                       {items.length >= 2
                         ? `${items[0]?.label}:${items[1]?.label}`
@@ -234,20 +239,50 @@ export default function Settings() {
         <div style={{ fontWeight: 600, marginBottom: 8 }}>通用</div>
         <List style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
           <List.Item
+            extra={
+              <div style={{ display: 'flex', gap: 8 }}>
+                {THEME_COLORS.map((c) => (
+                  <div
+                    key={c.key}
+                    onClick={() => setThemeColor(c.value)}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: c.value,
+                      cursor: 'pointer',
+                      boxShadow:
+                        themeColor === c.value
+                          ? '0 0 0 2px var(--card), 0 0 0 4px ' + c.value
+                          : undefined,
+                    }}
+                  />
+                ))}
+              </div>
+            }
+          >
+            主题色
+          </List.Item>
+          <List.Item
+            extra={<Switch checked={darkMode} onChange={setDarkMode} />}
+          >
+            深色模式
+          </List.Item>
+          <List.Item
             onClick={() => navigate('/settings/ledgers')}
-            extra={<span style={{ color: '#999', fontSize: 13 }}>›</span>}
+            extra={<span style={{ color: 'var(--text-muted)', fontSize: 13 }}>›</span>}
           >
             账本管理
           </List.Item>
           <List.Item
             onClick={() => navigate('/settings/audit-logs')}
-            extra={<span style={{ color: '#999', fontSize: 13 }}>›</span>}
+            extra={<span style={{ color: 'var(--text-muted)', fontSize: 13 }}>›</span>}
           >
             日志查询
           </List.Item>
           <List.Item
             onClick={openExport}
-            extra={<span style={{ color: '#999', fontSize: 13 }}>›</span>}
+            extra={<span style={{ color: 'var(--text-muted)', fontSize: 13 }}>›</span>}
           >
             导出数据
           </List.Item>
@@ -269,7 +304,7 @@ export default function Settings() {
         <div style={{ padding: 20 }}>
           <h3 style={{ marginBottom: 12 }}>导出数据</h3>
 
-          <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>选择账本</div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>选择账本</div>
           <div style={{ maxHeight: '40vh', overflowY: 'auto', marginBottom: 12 }}>
             {ledgers.map((l) => (
               <div
@@ -280,7 +315,7 @@ export default function Settings() {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '10px 4px',
-                  borderBottom: '1px solid #f5f5f5',
+                  borderBottom: '1px solid var(--border)',
                 }}
               >
                 <span style={{ fontSize: 14 }}>{l.name}</span>
@@ -289,7 +324,7 @@ export default function Settings() {
             ))}
           </div>
 
-          <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>格式</div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>格式</div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
             {[
               { key: 'excel', label: 'Excel' },
@@ -303,8 +338,8 @@ export default function Settings() {
                   textAlign: 'center',
                   padding: '8px 0',
                   borderRadius: 8,
-                  background: exportFormat === f.key ? '#1677ff' : '#f5f5f5',
-                  color: exportFormat === f.key ? '#fff' : '#666',
+                  background: exportFormat === f.key ? 'var(--primary)' : 'var(--fill)',
+                  color: exportFormat === f.key ? '#fff' : 'var(--text-secondary)',
                   fontSize: 13,
                 }}
               >
