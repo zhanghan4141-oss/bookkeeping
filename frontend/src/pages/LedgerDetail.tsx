@@ -542,7 +542,7 @@ export default function LedgerDetail() {
           style={{
             background: 'var(--card)',
             borderRadius: 12,
-            padding: '10px 16px',
+            padding: '6px 16px',
             marginBottom: 12,
           }}
         >
