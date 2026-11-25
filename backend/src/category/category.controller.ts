@@ -11,7 +11,11 @@ import { LedgerAccessService } from '../common/access/ledger-access.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/decorators/current-user.decorator.js';
 import { CategoryService } from './category.service.js';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto.js';
+import {
+  CreateCategoryDto,
+  RemoveCategoryDto,
+  UpdateCategoryDto,
+} from './dto/category.dto.js';
 
 @Controller()
 export class CategoryController {
@@ -51,9 +55,13 @@ export class CategoryController {
   }
 
   @Delete('categories/:id')
-  async remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async remove(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: RemoveCategoryDto,
+  ) {
     const category = await this.categoryService.findOne(id);
     await this.access.assertWritable(category.ledgerId, user.id);
-    return this.categoryService.remove(id);
+    return this.categoryService.remove(id, dto.targetCategoryId ?? null);
   }
 }

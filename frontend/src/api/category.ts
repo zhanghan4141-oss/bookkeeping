@@ -6,5 +6,6 @@ export const categoryApi = {
     api.post(`/ledgers/${ledgerId}/categories`, data),
   update: (id: string, data: Record<string, unknown>) =>
     api.patch(`/categories/${id}`, data),
-  remove: (id: string) => api.delete(`/categories/${id}`),
+  remove: (id: string, targetCategoryId?: string | null) =>
+    api.delete(`/categories/${id}`, { data: { targetCategoryId } }),
 };

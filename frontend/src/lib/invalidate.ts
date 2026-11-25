@@ -15,6 +15,8 @@ export function invalidateFinancialData(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ['expense-plans'] });
   queryClient.invalidateQueries({ queryKey: ['expense-plan'] });
   queryClient.invalidateQueries({ queryKey: ['ledger-summaries'] });
+  // 分类（含每个类别的流水数 _count.transactions）：流水增删改后数量会变
+  queryClient.invalidateQueries({ queryKey: ['categories'] });
   // 财务数据变更后重排还款本地通知（原生 App 端）
   void syncReminderNotifications();
 }

@@ -1,7 +1,7 @@
 import { useContext, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Dialog, Form, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
+import { Button, Form, Input, List, NavBar, Picker, Popup, Toast } from 'antd-mobile';
 import { DeleteOutline } from 'antd-mobile-icons';
 import { TabActiveContext } from '../components/KeepAlive';
 import { categoryApi } from '../api/category';
@@ -18,6 +18,11 @@ export default function Categories() {
   const isActive = useContext(TabActiveContext);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
+  // 删除类别：目标类别选择（空 = 未分类）
+  const [deleting, setDeleting] = useState<Category | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState('');
+
+  usePopupBack(!!deleting, () => setDeleting(null));
 
   usePopupBack(showAdd, () => setShowAdd(false));
   usePopupBack(!!editing, () => setEditing(null));
@@ -49,14 +54,17 @@ export default function Categories() {
     }
   };
 
-  const handleRemove = async (category: Category) => {
-    const ok = await new Promise((resolve) => {
-      Dialog.confirm({ content: `删除类别「${category.name}」？`, onConfirm: () => resolve(true), onCancel: () => resolve(false) });
-    });
-    if (!ok) return;
+  const handleRemove = (category: Category) => {
+    setDeleting(category);
+    setDeleteTarget('');
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
     try {
-      await categoryApi.remove(category.id);
+      await categoryApi.remove(deleting.id, deleteTarget || null);
       Toast.show({ content: '已删除' });
+      setDeleting(null);
       refetch();
       invalidateFinancialData(queryClient);
     } catch (e: any) {
@@ -116,6 +124,9 @@ export default function Categories() {
               }
             >
               {c.name}
+              <span className="text-secondary" style={{ fontSize: 12, marginLeft: 6 }}>
+                {c._count?.transactions ?? 0} 笔
+              </span>
             </List.Item>
           ))}
         </List>
@@ -140,6 +151,9 @@ export default function Categories() {
               }
             >
               {c.name}
+              <span className="text-secondary" style={{ fontSize: 12, marginLeft: 6 }}>
+                {c._count?.transactions ?? 0} 笔
+              </span>
             </List.Item>
           ))}
         </List>
@@ -231,6 +245,49 @@ export default function Categories() {
               </Picker>
             </Form.Item>
           </Form>
+        </div>
+      </Popup>
+
+      {/* 删除类别弹窗：有流水时选择迁移目标类别 */}
+      <Popup
+        visible={!!deleting}
+        onMaskClick={() => setDeleting(null)}
+        getContainer={() => pageRef.current ?? document.body}
+        disableBodyScroll={isActive}
+        bodyStyle={{ borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div style={{ padding: 24 }}>
+          <h3 style={{ marginBottom: 8 }}>删除类别</h3>
+          <div className="text-secondary" style={{ fontSize: 13, marginBottom: 12 }}>
+            删除类别「{deleting?.name}」？
+            {(deleting?._count?.transactions ?? 0) > 0 && (
+              <>该类别下有 <span style={{ color: '#ff4d4f' }}>{deleting?._count?.transactions}</span> 条流水，请选择这些流水的去向：</>
+            )}
+          </div>
+          {(deleting?._count?.transactions ?? 0) > 0 && (
+            <Picker
+              columns={[
+                [
+                  { label: '未分类', value: '' },
+                  ...categories
+                    .filter((c) => c.id !== deleting?.id && c.type === deleting?.type)
+                    .map((c) => ({ label: c.name, value: c.id })),
+                ],
+              ]}
+              value={deleteTarget ? [deleteTarget] : ['']}
+              onConfirm={(v) => setDeleteTarget(String(v[0]))}
+            >
+              {(items, actions) => (
+                <div
+                  onClick={() => actions.open()}
+                  style={{ background: '#f5f5f5', borderRadius: 8, padding: '10px 12px', marginBottom: 16 }}
+                >
+                  {items[0]?.label ?? '未分类'}
+                </div>
+              )}
+            </Picker>
+          )}
+          <Button block color="danger" onClick={confirmDelete}>确认删除</Button>
         </div>
       </Popup>
     </div>

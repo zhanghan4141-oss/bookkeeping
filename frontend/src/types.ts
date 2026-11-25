@@ -40,6 +40,7 @@ export interface Category {
   color?: string | null;
   sortOrder: number;
   isBuiltin: boolean;
+  _count?: { transactions: number };
 }
 
 export interface Transaction {

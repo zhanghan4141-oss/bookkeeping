@@ -48,3 +48,10 @@ export class UpdateCategoryDto {
   @IsInt()
   sortOrder?: number;
 }
+
+export class RemoveCategoryDto {
+  /** 流水迁移目标类别 id（同类型）；null/缺省 = 变为未分类 */
+  @IsOptional()
+  @IsString()
+  targetCategoryId?: string | null;
+}
