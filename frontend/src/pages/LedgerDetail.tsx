@@ -542,11 +542,11 @@ export default function LedgerDetail() {
           style={{
             background: 'var(--card)',
             borderRadius: 12,
-            padding: '16px',
+            padding: '10px 16px',
             marginBottom: 12,
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {period !== 'all' && (
                 <>
@@ -664,16 +664,16 @@ export default function LedgerDetail() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <Button block fill="outline" onClick={() => navigate(`/ledgers/${id}/members`)}>
+          <Button block size="small" fill="outline" onClick={() => navigate(`/ledgers/${id}/members`)}>
             <UserOutline /> 成员
           </Button>
-          <Button block fill="outline" onClick={() => navigate(`/ledgers/${id}/categories`)}>
+          <Button block size="small" fill="outline" onClick={() => navigate(`/ledgers/${id}/categories`)}>
             <TagOutline /> 分类
           </Button>
-          <Button block color="primary" onClick={() => navigate(`/ledgers/${id}/loans`)}>
+          <Button block size="small" color="primary" onClick={() => navigate(`/ledgers/${id}/loans`)}>
             <PayCircleOutline /> 贷款
           </Button>
-          <Button block color="success" onClick={() => navigate(`/ledgers/${id}/expense-plans`)}>
+          <Button block size="small" color="success" onClick={() => navigate(`/ledgers/${id}/expense-plans`)}>
             <PayCircleOutline /> 支出
           </Button>
         </div>
