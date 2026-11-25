@@ -839,7 +839,7 @@ export default function Stats() {
     const expenseCats = (summary?.byCategory ?? []).filter((c) => c.type === 'expense');
     const total = expenseCats.reduce((s, c) => s + c.amount, 0);
     return {
-      tooltip: { trigger: 'item' as const },
+      tooltip: { trigger: 'item' as const, backgroundColor: cssVar('--card'), borderColor: cssVar('--border'), textStyle: { color: cssVar('--text') } },
       legend: { bottom: 0, type: 'scroll' as const },
       title: {
         text: `支出构成 ¥${formatMoney(total)}`,
@@ -882,7 +882,7 @@ export default function Stats() {
       formatter: (p: any) => (p.value ? `¥${formatMoney(Number(p.value))}` : ''),
     };
     return {
-      tooltip: { trigger: 'axis' as const },
+      tooltip: { trigger: 'axis' as const, backgroundColor: cssVar('--card'), borderColor: cssVar('--border'), textStyle: { color: cssVar('--text') } },
       legend: { bottom: 0 },
       grid: { left: 40, right: 16, top: 28, bottom: 40 },
       xAxis: { type: 'category' as const, data: trend.map((t) => shortAxisKey(t.key, summary?.period ?? 'month')) },
