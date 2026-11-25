@@ -457,7 +457,8 @@ export default function Repayments() {
             marginBottom: 12,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justifyContent: 'center',
+            gap: 8,
           }}
         >
           <span className="text-secondary" style={{ fontSize: 13 }}>待还</span>
