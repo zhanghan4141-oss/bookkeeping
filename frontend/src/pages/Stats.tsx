@@ -88,6 +88,8 @@ type QuickRangeKey =
   | 'all'
   | 'cq'
   | 'ny'
+  | 'before'
+  | 'after'
   | `mo${number}`;
 
 /** 公历某月区间（含月末整天） */
@@ -762,6 +764,13 @@ export default function Stats() {
     if (key === 'all') {
       r = { start: '1900-01-01', end: '2099-12-31' };
       kind = 'all';
+    } else if (key === 'before') {
+      r = { start: '1900-01-01', end: fmtDate(now) };
+      kind = 'range';
+    } else if (key === 'after') {
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      r = { start: fmtDate(tomorrow), end: '2099-12-31' };
+      kind = 'range';
     } else if (key === 'cq') {
       // 农历历法下「本季」按农历季（与 Q1~Q4 一致：正月~三月 / 四月~六月 / 七月~九月 / 十月~腊月）
       if (calendar === 'lunar') {
@@ -1060,11 +1069,13 @@ export default function Stats() {
         <div style={{ padding: 24 }}>
           <h3 style={{ marginBottom: 16 }}>设置统计区间</h3>
 
-          {/* 所有：覆盖全部时间 */}
-          <div style={{ marginBottom: 12 }}>
+          {/* 所有 / 之前 / 以后：快捷覆盖时间 */}
+          <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button size="mini" color="primary" fill="outline" onClick={() => applyQuickRange(QUICK_ALL.key)}>
               {QUICK_ALL.label}
             </Button>
+            <Button size="mini" fill="outline" onClick={() => applyQuickRange('before')}>之前</Button>
+            <Button size="mini" fill="outline" onClick={() => applyQuickRange('after')}>以后</Button>
           </div>
 
           {QUICK_GROUPS.map((g) => (

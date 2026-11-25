@@ -178,48 +178,52 @@ export default function Repayments() {
     setShowEndPicker(true);
   };
 
-  // 预设按钮：填入待定态，点「确定」再生效
+  // 预设按钮：点击即生效（直接设置截止日期并关闭弹窗）
   const applyEndPreset = (key: string) => {
     const now = new Date();
+    let target: string | null = null;
     switch (key) {
       case END_DATE_ALL.key:
-        // 所有：覆盖全部时间
-        setTempEnd('2099-12-31');
-        return;
+        target = '2099-12-31';
+        break;
       case 'me0':
       case 'me1':
       case 'me2':
       case 'me3':
       case 'me4':
       case 'me5':
-        setTempEnd(monthEndOffset(Number(key.slice(-1))));
-        return;
+        target = monthEndOffset(Number(key.slice(-1)));
+        break;
       case 'm1':
       case 'm2':
       case 'm3':
       case 'm6':
       case 'm12':
-        setTempEnd(addMonthsToEnd(now, Number(key.slice(1))));
-        return;
+        target = addMonthsToEnd(now, Number(key.slice(1)));
+        break;
       case 'q0':
-        setTempEnd(quarterEndNow());
-        return;
+        target = quarterEndNow();
+        break;
       case 'y0':
       case 'y1':
       case 'y2':
       case 'y3':
-        setTempEnd(solarYearEndOf(now.getFullYear() + Number(key.slice(1))));
-        return;
+        target = solarYearEndOf(now.getFullYear() + Number(key.slice(1)));
+        break;
       case 'ly0':
       case 'ly1':
       case 'ly2':
         {
           const ly = Solar.fromDate(now).getLunar().getYear();
-          setTempEnd(lunarYearEndOfYear(ly + Number(key.slice(2))));
+          target = lunarYearEndOfYear(ly + Number(key.slice(2)));
         }
-        return;
+        break;
       default:
-        return;
+        break;
+    }
+    if (target) {
+      setEndDate(target);
+      setShowEndPicker(false);
     }
   };
 
