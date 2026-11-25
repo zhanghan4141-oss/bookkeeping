@@ -50,27 +50,26 @@ export default function App() {
     applyTheme({ themeColor, darkMode });
   }, [themeColor, darkMode]);
 
-  // Android 返回键：栈里有上一页则后退，首页/登录页则退出 App
+  // Android 返回键：退页面（navigate(-1) 触发 popstate，由下方 onPop 按 __overlay 判断关弹窗/退页面）
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     const handler = CapacitorApp.addListener('backButton', () => {
-      // 有弹窗打开时，优先关闭栈顶弹窗，而不是跳页/退出
-      if (closeTopOverlay()) return;
       const path = location.pathname;
       if (path === '/ledgers' || path === '/login') {
+        // 首页/登录页：有弹窗先关，无弹窗退出 App
+        if (closeTopOverlay()) return;
         CapacitorApp.exitApp();
-      } else {
-        navigate(-1);
+        return;
       }
+      navigate(-1);
     });
     return () => {
       handler.then((h) => h.remove());
     };
   }, [location.pathname, navigate]);
 
-  // web：浏览器返回/手势优先关弹窗（App 原生用 backButton 处理）
+  // 浏览器/系统返回（popstate）：按 history state 判断关弹窗 or 退页面（web 与 App 原生共用）
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) return;
     const onPop = (e: PopStateEvent) => {
       // 退到「弹窗占位」(__overlay) = 返回页面、弹窗保留（React Router 已导航回弹窗所在页）；
       // 退到普通条目 = 从占位退回 → 关闭栈顶弹窗（栈空时无害，浏览器自然后退）。
