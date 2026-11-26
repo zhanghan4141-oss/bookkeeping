@@ -59,6 +59,14 @@
   --adm-color-white: #ffffff;
 }
 
+/* 原生日期/月份选择框的日历图标默认按浅色渲染，深色模式下是黑色看不清；
+   设 color-scheme: dark 让浏览器用深色 UA 样式绘制（图标变浅色、与输入区配色一致） */
+:root[data-theme='dark'] input[type='month'],
+:root[data-theme='dark'] input[type='date'],
+:root[data-theme='dark'] input[type='time'] {
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
